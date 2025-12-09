@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8" />
-  <title>ハンドメイドPOS ログインテスト</title>
+  <title>e.nue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -829,7 +829,7 @@
       padding: 6px 8px;
     }
 
-    /* 販売方法・開催場所 設定用モーダル */
+    /* 販売方法・開催場所 設定モーダル */
     #listEditModal {
       display: none;
       position: fixed;
@@ -920,6 +920,55 @@
       padding: 6px 8px;
     }
 
+    /* ★ 分析ビュー用 */
+    #analysisView {
+      padding-top: 6px;
+    }
+
+    #analysisHeader h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    #analysisInfo {
+      margin: 4px 0 8px;
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    .analysis-table-wrapper {
+      max-width: 480px;
+      overflow-x: auto;
+    }
+
+    .analysis-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .analysis-table th,
+    .analysis-table td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+      text-align: right;
+    }
+
+    .analysis-table th:first-child,
+    .analysis-table td:first-child {
+      text-align: left;
+    }
+
+    .analysis-table tr:last-child th,
+    .analysis-table tr:last-child td {
+      border-bottom: none;
+    }
+
     /* スマホ向け */
     @media (max-width: 600px) {
       body { padding: 10px; }
@@ -991,6 +1040,15 @@
             <button id="bulkApplyBtn" type="button">一括適用</button>
           </div>
           <div id="historyList"></div>
+        </div>
+
+        <!-- ★ 分析ビュー -->
+        <div id="analysisView" style="display:none;">
+          <div id="analysisHeader">
+            <h3>日別売上（決済方法別内訳）</h3>
+          </div>
+          <p id="analysisInfo">日ごとの売上合計と、決済方法ごとの内訳を表示します。</p>
+          <div id="analysisContent"></div>
         </div>
       </div>
     </div>
@@ -1122,6 +1180,8 @@
     const $bulkChannelSelect = document.getElementById("bulkChannelSelect");
     const $bulkVenueSelect = document.getElementById("bulkVenueSelect");
     const $bulkApplyBtn = document.getElementById("bulkApplyBtn");
+    const $analysisView = document.getElementById("analysisView");
+    const $analysisContent = document.getElementById("analysisContent");
 
     const navButtons = document.querySelectorAll(".nav-btn");
 
@@ -1179,6 +1239,7 @@
       navButtons.forEach(b => b.classList.toggle("active", b.dataset.view === view));
       if ($homeView) $homeView.style.display = (view === "home") ? "block" : "none";
       if ($historyView) $historyView.style.display = (view === "history") ? "block" : "none";
+      if ($analysisView) $analysisView.style.display = (view === "analysis") ? "block" : "none";
     }
 
     navButtons.forEach(btn => {
@@ -1192,7 +1253,9 @@
         } else if (view === "calendar") {
           alert("カレンダー画面はこれから実装します！");
         } else if (view === "analysis") {
-          alert("分析画面はこれから実装します！");
+          setView("analysis");
+          await loadSalesHistory();
+          renderAnalysis();
         }
       });
     });
@@ -1214,7 +1277,7 @@
 
     const $historyModal = document.getElementById("historyModal");
     const $historyTitle = document.getElementById("historyTitle");
-    const $historyMeta = document.getElementById("historyMeta");
+    const $historyMetaEl = document.getElementById("historyMeta");
     const $historySellMeta = document.getElementById("historySellMeta");
     const $historyItems = document.getElementById("historyItems");
     const $historyTotal = document.getElementById("historyTotal");
@@ -1353,7 +1416,7 @@
       chSelect.addEventListener("change", () => {
         currentChannel = chSelect.value;
         if (!channels.includes(currentChannel)) channels.push(currentChannel);
-        if (!venues.includes(currentVenue) && venues.length) currentVenue = venues[0];
+        if (!venues.includes(currentVenue) && venues.length) currentVenue = venues[0] || "";
         saveSettingsToStorage();
         renderProductsUI(); // 開催場所表示のON/OFF更新のため
       });
@@ -1771,6 +1834,16 @@
       return `${y}/${m}/${day} ${hh}:${mm}`;
     }
 
+    // ★ 日付だけ（YYYY/MM/DD）を返す
+    function formatDateOnly(ts) {
+      if (!ts || !ts.toDate) return "-";
+      const d = ts.toDate();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}/${m}/${day}`;
+    }
+
     function renderHistoryList() {
       if (!$historyList) return;
       $historyList.innerHTML = "";
@@ -1894,9 +1967,28 @@
     function renderHistoryDetail() {
       if (!currentSale) return;
 
+      // ▼ 追加部分：必ず候補リストに値が入るようにする
+      if (!Array.isArray(channels) || channels.length === 0) {
+        channels = [...defaultChannels];
+      }
+      if (!Array.isArray(venues) || venues.length === 0) {
+        venues = [...defaultVenues];
+      }
+
+      if (currentSale.channel && !channels.includes(currentSale.channel)) {
+        channels.push(currentSale.channel);
+      }
+      if (currentSale.venue && !venues.includes(currentSale.venue)) {
+        venues.push(currentSale.venue);
+      }
+
+      saveSettingsToStorage();
+      refreshBulkSelectors();
+      // ▲ 追加ここまで
+
       $historyTitle.textContent = `${formatDate(currentSale.createdAt)} の購入`;
       const itemCount = currentSale.items.reduce((sum, it) => sum + (it.qty || 0), 0);
-      $historyMeta.textContent = `商品点数：${itemCount}点`;
+      $historyMetaEl.textContent = `商品点数：${itemCount}点`;
 
       // 販売方法 / 開催場所 / 決済方法 表示
       $historySellMeta.innerHTML = "";
@@ -1908,19 +2000,25 @@
         const chLabel = document.createElement("label");
         chLabel.textContent = "販売方法：";
         const chSelect = document.createElement("select");
+
         channels.forEach(ch => {
           const opt = document.createElement("option");
           opt.value = ch;
           opt.textContent = ch;
           if (ch === currentSale.channel) opt.selected = true;
+          chSelect.appendChild(opt);
         });
+
+        if (!chSelect.value && channels.length > 0) {
+          chSelect.value = channels[0];
+          currentSale.channel = channels[0];
+        }
+
         chSelect.addEventListener("change", () => {
           currentSale.channel = chSelect.value;
-          if (currentSale.channel !== "マルシェ") {
-            // マルシェじゃないときは開催場所はそのままでもOK（必要ならリセット）
-          }
-          renderHistoryDetail();
+          renderHistoryDetail(); // 表示更新
         });
+
         chLabel.appendChild(chSelect);
         line.appendChild(chLabel);
 
@@ -1933,15 +2031,24 @@
         const vLabel = document.createElement("label");
         vLabel.textContent = "開催場所：";
         const vSelect = document.createElement("select");
+
         venues.forEach(v => {
           const opt = document.createElement("option");
           opt.value = v;
           opt.textContent = v;
           if (v === currentSale.venue) opt.selected = true;
+          vSelect.appendChild(opt);
         });
+
+        if (!vSelect.value && venues.length > 0) {
+          vSelect.value = venues[0];
+          currentSale.venue = venues[0];
+        }
+
         vSelect.addEventListener("change", () => {
           currentSale.venue = vSelect.value;
         });
+
         vLabel.appendChild(vSelect);
         vWrapper.appendChild(vLabel);
         line.appendChild(vWrapper);
@@ -1968,6 +2075,11 @@
           if (pm === currentSale.paymentMethod) opt.selected = true;
           paySelect.appendChild(opt);
         });
+
+        if (!paySelect.value) {
+          paySelect.value = "現金";
+          currentSale.paymentMethod = "現金";
+        }
 
         paySelect.addEventListener("change", () => {
           currentSale.paymentMethod = paySelect.value;
@@ -2017,7 +2129,10 @@
         $historyItems.appendChild(row);
       });
 
-      const total = currentSale.items.reduce((sum, it) => sum + (it.subtotal ?? (it.price || 0) * (it.qty || 0)), 0);
+      const total = currentSale.items.reduce(
+        (sum, it) => sum + (it.subtotal ?? (it.price || 0) * (it.qty || 0)),
+        0
+      );
       currentSale.total = total;
       $historyTotal.textContent = `合計：￥${currentSale.total}`;
 
@@ -2034,8 +2149,8 @@
           row.className = "history-adjust-row";
 
           const reasonLabel = adj.reason === "claim" ? "クレーム処理"
-                            : adj.reason === "mistake" ? "打ち間違い"
-                            : "調整";
+                        : adj.reason === "mistake" ? "打ち間違い"
+                        : "調整";
 
           if (adj.type === "item") {
             row.textContent = `${adj.itemName ?? "商品"}：数量 ${adj.beforeQty} → ${adj.afterQty}（${reasonLabel}）`;
@@ -2049,7 +2164,7 @@
         });
       }
 
-      // 編集ボタン表示
+      // 編集ボタン状態
       if (isHistoryEditing) {
         $historyEditToggle.classList.add("active");
         $historyEditToggle.textContent = "編集中";
@@ -2058,7 +2173,7 @@
         $historyEditToggle.textContent = "✎";
       }
 
-      // ★ すべて返金ボタンは編集モードのときだけ表示
+      // 「すべて返金」ボタンは編集モードのみ表示
       $historyRefundAll.style.display = isHistoryEditing ? "inline-flex" : "none";
     }
 
@@ -2109,6 +2224,9 @@
         isHistoryEditing = false;
 
         await loadSalesHistory();
+        if (currentView === "analysis") {
+          renderAnalysis();
+        }
       } catch (e) {
         console.error(e);
         alert("保存中にエラーが発生しました：" + e.message);
@@ -2207,6 +2325,9 @@
       currentSale.adjustments = adjustments;
       closeQtyModal();
       renderHistoryDetail();
+      if (currentView === "analysis") {
+        renderAnalysis();
+      }
     }
 
     /* ===== 販売方法・開催場所 設定モーダル ===== */
@@ -2367,11 +2488,108 @@
         await Promise.all(promises);
         alert("一括更新しました。");
         await loadSalesHistory();
+        if (currentView === "analysis") {
+          renderAnalysis();
+        }
       } catch (e) {
         console.error(e);
         alert("一括更新中にエラーが発生しました：" + e.message);
       }
     });
+
+    /* ===== ★ 分析（日別＋決済方法ごとの内訳） ===== */
+
+    function renderAnalysis() {
+      if (!$analysisContent) return;
+      $analysisContent.innerHTML = "";
+
+      if (!sales || sales.length === 0) {
+        const p = document.createElement("p");
+        p.textContent = "まだ購入履歴がないため、集計できるデータがありません。";
+        p.style.fontSize = "12px";
+        p.style.color = "var(--text-sub)";
+        $analysisContent.appendChild(p);
+        return;
+      }
+
+      const daily = {};
+      const methods = paymentMethods; // ["現金","PayPay","クレカ","その他"]
+
+      sales.forEach(s => {
+        if (!s.createdAt || !s.createdAt.toDate) return;
+        const dStr = formatDateOnly(s.createdAt);
+        if (!daily[dStr]) {
+          daily[dStr] = {
+            total: 0,
+            現金: 0,
+            PayPay: 0,
+            クレカ: 0,
+            その他: 0,
+          };
+        }
+        const amount = Number(s.total) || 0;
+        daily[dStr].total += amount;
+
+        const pm = methods.includes(s.paymentMethod) ? s.paymentMethod : "その他";
+        daily[dStr][pm] += amount;
+      });
+
+      const dates = Object.keys(daily).sort((a, b) => a < b ? 1 : -1); // 新しい日付を上に
+
+      if (!dates.length) {
+        const p = document.createElement("p");
+        p.textContent = "集計対象のデータがありません。";
+        p.style.fontSize = "12px";
+        p.style.color = "var(--text-sub)";
+        $analysisContent.appendChild(p);
+        return;
+      }
+
+      const wrapper = document.createElement("div");
+      wrapper.className = "analysis-table-wrapper";
+
+      const table = document.createElement("table");
+      table.className = "analysis-table";
+
+      const thead = document.createElement("thead");
+      const headTr = document.createElement("tr");
+      ["日付","合計","現金","PayPay","クレカ","その他"].forEach(text => {
+        const th = document.createElement("th");
+        th.textContent = text;
+        headTr.appendChild(th);
+      });
+      thead.appendChild(headTr);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      dates.forEach(dStr => {
+        const data = daily[dStr];
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = dStr;
+        tr.appendChild(tdDate);
+
+        const mkCell = (value) => {
+          const td = document.createElement("td");
+          td.textContent = `￥${value}`;
+          return td;
+        };
+
+        tr.appendChild(mkCell(data.total || 0));
+        tr.appendChild(mkCell(data["現金"] || 0));
+        tr.appendChild(mkCell(data["PayPay"] || 0));
+        tr.appendChild(mkCell(data["クレカ"] || 0));
+        tr.appendChild(mkCell(data["その他"] || 0));
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      wrapper.appendChild(table);
+      $analysisContent.appendChild(wrapper);
+    }
   </script>
 </body>
 </html>
