@@ -502,6 +502,31 @@
         <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
+        <!-- order / shipping (マルシェ以外のときだけ表示) -->
+        <div id="receiptOrderRow" style="display:none; margin-top:12px; padding:12px; border:1px solid rgba(0,0,0,.08); border-radius:16px; background: rgba(255,255,255,.75);">
+          <label style="display:flex; gap:10px; align-items:center; font-weight:900;">
+            <input id="receiptOrderCheck" type="checkbox" style="width:18px; height:18px;">
+            orderとして登録する
+          </label>
+
+          <div id="receiptShipOptions" style="display:none; margin-top:10px;">
+            <div class="muted" style="margin-bottom:8px;">発送オプション</div>
+            <label style="display:flex; gap:10px; align-items:center; font-weight:900; margin-bottom:8px;">
+              <input type="radio" name="shipOpt" value="3d" checked>
+              3日以内　¥700
+            </label>
+            <label style="display:flex; gap:10px; align-items:center; font-weight:900; margin-bottom:8px;">
+              <input type="radio" name="shipOpt" value="5d">
+              5日以内　¥500
+            </label>
+            <label style="display:flex; gap:10px; align-items:center; font-weight:900;">
+              <input type="radio" name="shipOpt" value="none">
+              指定なし　¥300
+            </label>
+          </div>
+        </div>
+
+
         <div class="btnRow">
           <button class="btn" id="cancelBtn" type="button">キャンセル</button>
           <button class="btn primaryBtn" id="confirmBtn" type="button">確定（Firestoreへ保存）</button>
@@ -624,6 +649,10 @@ const $receiptTotal = $("receiptTotal");
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
+const $receiptOrderRow = $("receiptOrderRow");
+const $receiptOrderCheck = $("receiptOrderCheck");
+const $receiptShipOptions = $("receiptShipOptions");
+
 
 const $toast = $("toast");
 
@@ -1101,6 +1130,26 @@ async function writeSale(){
   const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
 
+  // kind（stock/order）は確認画面のチェックで決める（マルシェ以外のみUI表示）
+  const isOrder = ($receiptOrderRow && $receiptOrderRow.style.display !== "none" && $receiptOrderCheck)
+    ? !!$receiptOrderCheck.checked
+    : false;
+
+  let shippingOption = "";
+  let shippingFee = 0;
+  if(isOrder){
+    const opt = document.querySelector('input[name="shipOpt"]:checked');
+    shippingOption = opt ? opt.value : "3d";
+    shippingFee = (shippingOption==="3d") ? 700
+                : (shippingOption==="5d") ? 500
+                : 300;
+  }
+
+  // 進捗：マルシェ以外は未着手で開始（あとでこのページで進捗管理・集計する）
+  const progress = (settings.currentChannel !== "マルシェ")
+    ? "未着手"
+    : "";
+
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
@@ -1108,7 +1157,17 @@ async function writeSale(){
     venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
     paymentMethod: $paymentSelect.value,
     total,
-    items
+    items,
+
+    // 将来の管理用
+    // progressの許容値（将来の管理画面側で選択UIに反映）:
+    // - order: 未着手 / 作成中 / 完了
+    // - stock: 未着手 / 進行中 / 完了
+
+    kind: isOrder ? "order" : "stock",
+    progress,                // 未着手 / 進行中 / 完了（初期は未着手）
+    shippingOption,          // 3d / 5d / none（orderのみ）
+    shippingFee,             // 700 / 500 / 300（orderのみ）
   });
 }
 
@@ -1205,6 +1264,17 @@ $checkoutBtn.onclick = ()=>{
   ).join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
+  // マルシェ以外 → order チェック表示（デフォルトOFF）
+  if($receiptOrderRow && $receiptOrderCheck && $receiptShipOptions){
+    const isNonMarche = settings.currentChannel !== "マルシェ";
+    $receiptOrderRow.style.display = isNonMarche ? "" : "none";
+    $receiptOrderCheck.checked = false;
+    $receiptShipOptions.style.display = "none";
+    // ラジオはデフォルト 3d
+    const radios = $receiptShipOptions.querySelectorAll('input[name="shipOpt"]');
+    radios.forEach(r=> r.checked = (r.value==="3d"));
+  }
+
   $receiptModal.classList.add("show");
 };
 
@@ -1233,6 +1303,14 @@ $confirmBtn.onclick = async ()=>{
 
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
   ()=> $receiptModal.classList.remove("show");
+
+// orderチェック → 発送オプション表示
+if($receiptOrderCheck && $receiptShipOptions){
+  $receiptOrderCheck.onchange = ()=>{
+    $receiptShipOptions.style.display = $receiptOrderCheck.checked ? "" : "none";
+  };
+}
+
 
 /* edit toggle */
 $editToggleBtn.onclick = ()=>{
