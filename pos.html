@@ -7,381 +7,371 @@
   <title>e.nue POS</title>
 
   <style>
-/* iOS: 青文字(自動リンク)対策 */
-a, a:link, a:visited, a:hover, a:active{ color: inherit; text-decoration:none; }
-*{ -webkit-tap-highlight-color: transparent; }
+    a, a:link, a:visited, a:hover, a:active{ color: inherit; text-decoration:none; }
+    *{ -webkit-tap-highlight-color: transparent; box-sizing:border-box; }
 
-:root{
-  --bg1:#e3ddd4;
-  --bg2:#d4ccc1;
+    :root{
+      --bg1:#e3ddd4;
+      --bg2:#d4ccc1;
 
-  --glass-bg: rgba(255,255,255,.62);
-  --glass-bg2: rgba(255,255,255,.48);
-  --glass-border: rgba(0,0,0,.06);
-  --line-soft: rgba(0,0,0,.10);
-  --shadow: 0 18px 45px rgba(0,0,0,.14);
+      --glass-bg: rgba(255,255,255,.62);
+      --glass-border: rgba(0,0,0,.06);
+      --line-soft: rgba(0,0,0,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.14);
 
-  --text-main:#222;
-  --text-sub:#555;
-  --muted: rgba(34,34,34,.55);
+      --text-main:#222;
+      --text-sub:#555;
 
-  --accent:#e18a6a;
-  --accent2:#d06463;
+      --accent:#e18a6a;
+      --accent2:#d06463;
 
-  --r:20px;
-}
+      --r:20px;
+    }
 
-*{ box-sizing:border-box; }
-body{
-  margin:0;
-  padding: 12px;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  color: var(--text-main);
-  background: linear-gradient(135deg, var(--bg1), var(--bg2));
-  min-height:100vh;
-}
+    body{
+      margin:0;
+      padding: 12px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-main);
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      min-height:100vh;
+    }
 
-.safe{ max-width: 980px; margin: 0 auto; }
+    .safe{ max-width: 980px; margin: 0 auto; }
 
-.shell{
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 26px;
-  box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  overflow:hidden;
-}
+    .shell{
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow:hidden;
+    }
 
-.topbar{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-  padding: 14px 14px 10px;
-  border-bottom: 1px dashed var(--line-soft);
-}
-h1{ margin:0; display:flex; flex-direction:column; gap:2px; }
-.brand-main{
-  font-family: "Georgia", "Times New Roman", serif;
-  font-weight: 700;
-  letter-spacing:.08em;
-  font-size: 20px;
-  line-height:1.1;
-}
-.brand-sub{
-  font-size: 11px;
-  color: var(--text-sub);
-  letter-spacing:.02em;
-}
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 14px 14px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    h1{ margin:0; display:flex; flex-direction:column; gap:2px; }
+    .brand-main{
+      font-family: "Georgia", "Times New Roman", serif;
+      font-weight: 700;
+      letter-spacing:.08em;
+      font-size: 20px;
+      line-height:1.1;
+    }
+    .brand-sub{
+      font-size: 11px;
+      color: var(--text-sub);
+      letter-spacing:.02em;
+    }
 
-.nav{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-  align-items:center;
-}
-.nav-btn{
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: rgba(255,255,255,.70);
-  color: var(--text-main);
-  padding: 6px 12px;
-  font-size: 11px;
-  cursor:pointer;
-  white-space:nowrap;
-  transition: transform .12s ease, background .2s ease, border-color .2s ease;
-  text-decoration:none;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-.nav-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.82); }
+    .nav{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    .nav-btn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.70);
+      color: var(--text-main);
+      padding: 6px 12px;
+      font-size: 11px;
+      cursor:pointer;
+      white-space:nowrap;
+      transition: transform .12s ease, background .2s ease;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .nav-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.82); }
 
-.icon-nav{
-  width: 34px;
-  height: 30px;
-  padding: 0;
-  justify-content:center;
-}
-.icon-nav svg{
-  width: 16px;
-  height: 16px;
-  stroke: #111;
-}
+    .icon-nav{
+      width: 34px;
+      height: 30px;
+      padding: 0;
+      justify-content:center;
+    }
+    .icon-nav svg{ width: 16px; height: 16px; stroke: #111; }
 
-.content{ padding: 12px; }
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.85);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space:nowrap;
+    }
 
-.section{
-  background: rgba(255,255,255,.58);
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: var(--r);
-  box-shadow: 0 10px 22px rgba(0,0,0,.10);
-  overflow:hidden;
-}
+    .content{ padding: 12px; }
 
-.sectionHead{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding: 12px 12px 10px;
-  border-bottom: 1px dashed var(--line-soft);
-}
-.sectionHead h3{ margin:0; font-size: 13px; font-weight: 700; }
-.sectionHead .sub{ font-size: 11px; color: var(--text-sub); }
+    .section{
+      background: rgba(255,255,255,.58);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: var(--r);
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
+      overflow:hidden;
+    }
+    .sectionHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 12px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    .sectionHead h3{ margin:0; font-size: 13px; font-weight: 700; }
+    .sectionHead .sub{ font-size: 11px; color: var(--text-sub); }
 
-/* POS */
-.posBody{ padding: 12px; }
-.row2{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  align-items:center;
-}
-.label{
-  font-size: 11px;
-  color: var(--text-sub);
-  display:flex;
-  gap:6px;
-  align-items:center;
-  background: rgba(255,255,255,.65);
-  border: 1px solid rgba(0,0,0,.06);
-  border-radius: 999px;
-  padding: 6px 10px;
-}
-select, input{
-  border-radius: 12px;
-  border: 1px solid rgba(0,0,0,.12);
-  background: rgba(255,255,255,.85);
-  padding: 8px 10px;
-  font-size: 13px;
-  outline:none;
-}
+    .posBody{ padding: 12px; }
+    .row2{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .label{
+      font-size: 11px;
+      color: var(--text-sub);
+      display:flex;
+      gap:6px;
+      align-items:center;
+      background: rgba(255,255,255,.65);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+    select, input{
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline:none;
+    }
 
-.products{
-  margin-top: 10px;
-  display:flex;
-  flex-direction:column;
-  gap:8px;
-}
-.product-row{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding: 10px 10px;
-  border: 1px solid rgba(0,0,0,.06);
-  background: rgba(255,255,255,.78);
-  border-radius: 14px;
-}
-.product-left{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  min-width: 0;
-  flex: 1;
-}
-.product-name{
-  font-size: 13px;
-  font-weight: 600;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-.product-price{
-  font-size: 12px;
-  color: var(--text-sub);
-  margin-left: 6px;
-  font-weight: 500;
-}
-.qty{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  flex: 0 0 auto;
-}
-.qty select{ padding: 6px 8px; border-radius: 10px; }
+    .products{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .product-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.78);
+      border-radius: 14px;
+    }
+    .product-left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .product-name{
+      font-size: 13px;
+      font-weight: 600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .product-price{
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-left: 6px;
+      font-weight: 500;
+    }
+    .qty{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex: 0 0 auto;
+    }
+    .qty select{ padding: 6px 8px; border-radius: 10px; }
 
-.primary{
-  margin-top: 10px;
-  width:100%;
-  border:0;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
-  color:#fff;
-  font-weight: 800;
-  padding: 12px 14px;
-  cursor:pointer;
-  box-shadow: 0 10px 24px rgba(0,0,0,.14);
-}
-.primary:active{ transform: translateY(1px); }
-.primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+    .primary{
+      margin-top: 10px;
+      width:100%;
+      border:0;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
+      color:#fff;
+      font-weight: 800;
+      padding: 12px 14px;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.14);
+    }
+    .primary:active{ transform: translateY(1px); }
+    .primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
 
-.total{
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--text-main);
-  font-weight: 800;
-  text-align:right;
-}
+    .total{
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-main);
+      font-weight: 800;
+      text-align:right;
+    }
 
-.pill{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.08);
-  background: rgba(255,255,255,.85);
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-sub);
-  white-space:nowrap;
-}
+    /* edit mode */
+    .edit-only{ display:none; }
+    body.edit-mode .edit-only{ display:inline-flex; }
+    body.edit-mode .sale-only{ display:none !important; }
 
-/* edit mode */
-.edit-only{ display:none; }
-body.edit-mode .edit-only{ display:inline-flex; }
-body.edit-mode .sale-only{ display:none !important; }
+    .editRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    .miniBtn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .badge{
+      font-size:10px;
+      font-weight:900;
+      padding: 3px 7px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      color: var(--text-sub);
+    }
+    .editFields{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      min-width:0;
+      flex:1;
+    }
+    .editFields input[type="text"]{ flex:1; min-width:0; }
+    .editFields input[type="number"]{ width:110px; }
+    .toggle{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size: 11px;
+      color: var(--text-sub);
+      white-space:nowrap;
+      user-select:none;
+    }
 
-.editRow{
-  display:flex;
-  gap:8px;
-  align-items:center;
-  justify-content:flex-end;
-  flex-wrap:wrap;
-}
-.miniBtn{
-  border-radius: 999px;
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.85);
-  padding: 6px 10px;
-  font-size: 11px;
-  font-weight: 800;
-  cursor:pointer;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-.badge{
-  font-size:10px;
-  font-weight:900;
-  padding: 3px 7px;
-  border-radius:999px;
-  border:1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.85);
-  color: var(--text-sub);
-}
-.editFields{
-  display:flex;
-  gap:8px;
-  align-items:center;
-  min-width:0;
-  flex:1;
-}
-.editFields input[type="text"]{ flex:1; min-width:0; }
-.editFields input[type="number"]{ width:110px; }
-.toggle{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-size: 11px;
-  color: var(--text-sub);
-  white-space:nowrap;
-  user-select:none;
-}
+    /* modal */
+    .modal{
+      position: fixed;
+      inset: 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+      background: rgba(0,0,0,.32);
+      z-index: 999;
+    }
+    .modal.show{ display:flex; }
+    .modalInner{
+      width: min(560px, 100%);
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 22px;
+      box-shadow: 0 18px 45px rgba(0,0,0,.22);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow:hidden;
+    }
+    .modalHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 12px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    .modalHead h3{ margin:0; font-size: 13px; font-weight: 800; }
+    .iconBtn{
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      border-radius: 999px;
+      padding: 6px 10px;
+      cursor:pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .modalBody{ padding: 12px; }
+    .muted{ color: var(--text-sub); font-size: 11px; }
 
-/* modal */
-.modal{
-  position: fixed;
-  inset: 0;
-  display:none;
-  align-items:center;
-  justify-content:center;
-  padding: 14px;
-  background: rgba(0,0,0,.32);
-  z-index: 999;
-}
-.modal.show{ display:flex; }
-.modalInner{
-  width: min(560px, 100%);
-  background: rgba(255,255,255,.88);
-  border: 1px solid rgba(0,0,0,.08);
-  border-radius: 22px;
-  box-shadow: 0 18px 45px rgba(0,0,0,.22);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  overflow:hidden;
-}
-.modalHead{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-  padding: 12px 12px 10px;
-  border-bottom: 1px dashed var(--line-soft);
-}
-.modalHead h3{ margin:0; font-size: 13px; font-weight: 800; }
-.iconBtn{
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.85);
-  border-radius: 999px;
-  padding: 6px 10px;
-  cursor:pointer;
-  font-size: 12px;
-  font-weight: 800;
-}
-.modalBody{ padding: 12px; }
-.muted{ color: var(--text-sub); font-size: 11px; }
+    .btnRow{
+      display:flex;
+      gap:8px;
+      margin-top: 12px;
+    }
+    .btn{
+      flex:1;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor:pointer;
+    }
+    .btn.primaryBtn{
+      border:0;
+      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
+      color:#fff;
+    }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
 
-.btnRow{
-  display:flex;
-  gap:8px;
-  margin-top: 12px;
-}
-.btn{
-  flex:1;
-  border-radius: 14px;
-  border: 1px solid rgba(0,0,0,.10);
-  background: rgba(255,255,255,.85);
-  padding: 10px 12px;
-  font-weight: 800;
-  cursor:pointer;
-}
-.btn.primaryBtn{
-  border:0;
-  background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
-  color:#fff;
-}
-.btn[disabled]{ opacity:.55; cursor:not-allowed; }
+    /* toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(0,0,0,.10);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 12px 26px rgba(0,0,0,.16);
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-main);
+      display:none;
+      z-index: 2000;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .toast.show{ display:block; }
 
-/* toast */
-.toast{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 18px;
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(0,0,0,.10);
-  border-radius: 999px;
-  padding: 10px 14px;
-  box-shadow: 0 12px 26px rgba(0,0,0,.16);
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--text-main);
-  display:none;
-  z-index: 2000;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-}
-.toast.show{ display:block; }
-
-@media (max-width: 600px){
-  body{ padding: 10px; }
-  .brand-main{ font-size: 18px; }
-}
+    @media (max-width: 600px){
+      body{ padding: 10px; }
+      .brand-main{ font-size: 18px; }
+    }
   </style>
 </head>
 
@@ -413,6 +403,9 @@ body.edit-mode .sale-only{ display:none !important; }
           </button>
 
           <button class="nav-btn edit-only" id="saveEditBtn" type="button" aria-label="保存して終了">保存</button>
+
+          <!-- ログアウト（全員に表示） -->
+          <button class="nav-btn" id="logoutBtn" type="button" aria-label="ログアウト">ログアウト</button>
 
           <!-- 管理者のみ表示 -->
           <span class="pill" id="statusPill">未接続</span>
@@ -554,9 +547,9 @@ body.edit-mode .sale-only{ display:none !important; }
 
 <script type="module">
 /* =====================================================
-   Firebase imports
+   Firebase imports（login.html と同じ v12.6.0）
 ===================================================== */
-import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
   getFirestore,
   collection,
@@ -565,9 +558,13 @@ import {
   doc,
   writeBatch,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 /* =====================================================
    Firebase config（dev / prod）
@@ -617,6 +614,7 @@ const $ = (id) => document.getElementById(id);
 const $statusPill   = $("statusPill");
 const $masterPill   = $("masterPill");
 const $envToggleBtn = $("envToggleBtn");
+const $logoutBtn    = $("logoutBtn");
 
 const $editToggleBtn = $("editToggleBtn");
 const $saveEditBtn   = $("saveEditBtn");
@@ -646,6 +644,7 @@ const $receiptShipOptions = $("receiptShipOptions");
 
 const $toast = $("toast");
 
+// receipt total calc (base items total + option fee)
 let receiptBaseTotal = 0;
 let receiptOptionFee = 0;
 
@@ -659,8 +658,10 @@ const $addPrice = $("addPrice");
 
 /* =====================================================
    Firebase init（重要）
-   - Authは常にPRODで判定
-   - DBは「非管理者=PROD固定」「管理者=PROD/DEV切替」
+   - PRODは default app（login.html と揃える）
+   - DEVは named app
+   - Authは常にPROD
+   - 非管理者は常にPROD DB
 ===================================================== */
 let db = null;
 let auth = null;
@@ -670,8 +671,11 @@ let prodApp = null;
 let devApp  = null;
 
 let isAdmin = false;
-let currentEnv = "prod"; // 表示用＆管理者切替用（非管理者は常にprod固定）
+let currentEnv = "prod";
 
+function getOrInitDefaultApp(config){
+  return getApps().length ? getApp() : initializeApp(config); // default app
+}
 function getOrInitNamedApp(config, name){
   const exists = getApps().find(a => a.name === name);
   return exists ? getApp(name) : initializeApp(config, name);
@@ -679,17 +683,17 @@ function getOrInitNamedApp(config, name){
 
 function applyRoleUI(admin){
   if(!admin){
-    if($envToggleBtn) $envToggleBtn.style.display = "none";
-    if($statusPill) $statusPill.style.display = "none";
+    $envToggleBtn.style.display = "none";
+    $statusPill.style.display = "none";
   }else{
-    if($envToggleBtn) $envToggleBtn.style.display = "";
-    if($statusPill) $statusPill.style.display = "";
+    $envToggleBtn.style.display = "";
+    $statusPill.style.display = "";
   }
 }
 
 function setUiStatus(envLabel, text){
-  if($statusPill) $statusPill.textContent = `${envLabel} / ${text}`;
-  if($envToggleBtn) $envToggleBtn.textContent = `環境：${envLabel}（切替）`;
+  $statusPill.textContent = `${envLabel} / ${text}`;
+  $envToggleBtn.textContent = `環境：${envLabel}（切替）`;
 }
 
 function setDbByEnv(targetEnv){
@@ -707,20 +711,20 @@ function setDbByEnv(targetEnv){
 
 function bootFirebase(){
   try{
-    // named apps（同一ページで複数初期化OK）
-    prodApp = getOrInitNamedApp(firebaseConfigProd, "prodApp");
-    devApp  = getOrInitNamedApp(firebaseConfigDev,  "devApp");
-
-    // Authは常にPROD側
+    // ★PRODはdefault app（ログイン状態を確実に引き継ぐ）
+    prodApp = getOrInitDefaultApp(firebaseConfigProd);
     auth = getAuth(prodApp);
 
-    // 起動は必ずPROD DB（非管理者も確実に本番へ）
+    // DEVはnamed app
+    devApp = getOrInitNamedApp(firebaseConfigDev, "devApp");
+
+    // 起動は必ずPROD DB
     setDbByEnv("prod");
   }catch(e){
     console.error(e);
     firebaseOk = false;
     $checkoutBtn.disabled = true;
-    setUiStatus("ERR", "Firestore未接続");
+    try{ setUiStatus("ERR", "Firestore未接続"); }catch(_){}
     alert("Firebase初期化に失敗しました");
   }
 }
@@ -763,8 +767,11 @@ saveSettings();
    商品マスタ（bundle + patch）
 ===================================================== */
 const BUNDLE_URL = "./products_bundle.json";
+
+/** 表示に使う“確定後の一覧”（bundle+patch反映済み） */
 let products = [];
 
+/** 編集モード用ドラフト */
 let isEditMode = false;
 let baseSnapshot = [];
 let draftBase = new Map();
@@ -777,36 +784,47 @@ async function loadProductsFromBundle(){
   return (json.products || []);
 }
 
+/**
+ * patch schema:
+ * - updates: products_patch_updates/{productId}
+ * - adds:    products_patch_adds/{autoId}
+ */
 async function loadProductsWithPatch(){
   const base = await loadProductsFromBundle();
 
+  // base map
   const map = new Map(base.map(p => [p.id, { ...p }]));
   let patchUpdateCount = 0;
   let patchAddCount = 0;
 
+  // updates
   try{
     const snap = await getDocs(collection(db, "products_patch_updates"));
     snap.forEach(d=>{
       const id = d.id;
       const patch = d.data() || {};
       const cur = map.get(id) || { id };
-      map.set(id, { ...cur, ...patch, id });
+      const merged = { ...cur, ...patch, id };
+      map.set(id, merged);
       patchUpdateCount++;
     });
   }catch(e){
     console.warn("patch_updates read failed", e);
   }
 
+  // ordered by bundle first
   const ordered = [];
   for(const p of base){
     const merged = map.get(p.id) || p;
     if(merged.active !== false) ordered.push(merged);
     map.delete(p.id);
   }
+  // any extra
   for(const merged of map.values()){
     if(merged.active !== false) ordered.push(merged);
   }
 
+  // adds (append)
   try{
     const addSnap = await getDocs(collection(db, "products_patch_adds"));
     addSnap.forEach(d=>{
@@ -917,6 +935,9 @@ async function exitEditModeWithSave(){
   await reloadProducts();
 }
 
+/* =====================================================
+   Render products (sale or edit)
+===================================================== */
 function renderProducts(){
   $products.innerHTML = "";
 
@@ -941,6 +962,7 @@ function renderProducts(){
         const price = document.createElement("span");
         price.className = "product-price";
         price.textContent = `￥${Number(p.price)}`;
+
         name.appendChild(price);
 
         if(p._isPatchedAdd){
@@ -981,6 +1003,7 @@ function renderProducts(){
     return;
   }
 
+  // edit mode
   for(const [id, d] of draftBase.entries()){
     const row = document.createElement("div");
     row.className = "product-row";
@@ -1076,7 +1099,9 @@ function renderProducts(){
   }
 }
 
-/* POS logic */
+/* =====================================================
+   POS logic
+===================================================== */
 function getSelected(){
   const items = [];
   let total = 0;
@@ -1111,7 +1136,9 @@ function updateTotal(){
   $totalText.textContent = `合計：￥${total}`;
 }
 
-/* Firestore write (sales) */
+/* =====================================================
+   Firestore write (sales)
+===================================================== */
 async function writeSale(){
   const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
@@ -1154,7 +1181,9 @@ async function writeSale(){
   });
 }
 
-/* Patch write */
+/* =====================================================
+   Patch write (updates / adds)
+===================================================== */
 function diffUpdate(before, after){
   const diff = {};
   if(before.name !== after.name) diff.name = after.name;
@@ -1206,7 +1235,9 @@ async function savePatchesFromDraft(){
   await batch.commit();
 }
 
-/* Modal helpers */
+/* =====================================================
+   Modal helpers
+===================================================== */
 function calcOptionFee(){
   if(!$receiptOrderRow || $receiptOrderRow.style.display === "none") return 0;
   if(!$receiptOrderCheck || !$receiptOrderCheck.checked) return 0;
@@ -1253,7 +1284,9 @@ function closeAddModal(){
   $addModal.classList.remove("show");
 }
 
-/* Events */
+/* =====================================================
+   Events
+===================================================== */
 $checkoutBtn.onclick = ()=>{
   if(!firebaseOk) return;
   if(isEditMode) return;
@@ -1261,8 +1294,11 @@ $checkoutBtn.onclick = ()=>{
   const { items, total } = getSelected();
   if(!items.length) return alert("商品を選択してね");
 
-  $receiptMeta.textContent = `販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
-  $receiptList.innerHTML = items.map(i=>`${i.name} ×${i.qty}：￥${i.subtotal}`).join("<br>");
+  $receiptMeta.textContent =
+    `販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
+  $receiptList.innerHTML = items.map(
+    i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
+  ).join("<br>");
   receiptBaseTotal = total;
   updateReceiptUI();
 
@@ -1293,7 +1329,8 @@ $confirmBtn.onclick = async ()=>{
   }
 };
 
-$closeReceiptBtn.onclick = $cancelBtn.onclick = ()=> $receiptModal.classList.remove("show");
+$closeReceiptBtn.onclick = $cancelBtn.onclick =
+  ()=> $receiptModal.classList.remove("show");
 
 if($receiptOrderCheck && $receiptShipOptions){
   $receiptOrderCheck.onchange = ()=>{
@@ -1303,14 +1340,19 @@ if($receiptOrderCheck && $receiptShipOptions){
 }
 document.addEventListener("change", (e) => {
   if(!e.target) return;
-  if(e.target.name === "shipOpt") updateReceiptUI();
+  if(e.target.name === "shipOpt"){
+    updateReceiptUI();
+  }
 });
 
 /* edit toggle */
 $editToggleBtn.onclick = ()=>{
   if(!firebaseOk) return;
-  if(!isEditMode) enterEditMode();
-  else exitEditModeWithoutSave();
+  if(!isEditMode){
+    enterEditMode();
+  }else{
+    exitEditModeWithoutSave();
+  }
 };
 
 $saveEditBtn.onclick = async ()=>{
@@ -1332,21 +1374,22 @@ $addOkBtn.onclick = ()=>{
 
   draftAdds.push({
     tempKey: `${name}_${Date.now()}`.replace(/\s+/g,"_"),
-    name, price, active:true
+    name,
+    price,
+    active: true
   });
 
   closeAddModal();
   renderProducts();
 };
 
-/* 管理者のみ：PROD/DEV切替（URLは触らない） */
+/* 管理者のみ：PROD/DEV切替（DBのみ） */
 $envToggleBtn.onclick = async ()=>{
   if(!isAdmin) return;
 
   const next = (currentEnv === "prod") ? "dev" : "prod";
   setDbByEnv(next);
 
-  // DB切替後に商品を読み直す（DEVの商品マスタ/patchを見るため）
   try{
     await reloadProducts();
   }catch(e){
@@ -1355,31 +1398,25 @@ $envToggleBtn.onclick = async ()=>{
   }
 };
 
+/* ログアウト（全員） */
+$logoutBtn.onclick = async ()=>{
+  const ok = confirm("ログアウトしますか？");
+  if(!ok) return;
+  try{
+    await signOut(auth);
+  }catch(e){
+    console.error(e);
+  }finally{
+    location.href = "login.html?force=1";
+  }
+};
+
 /* =====================================================
    INIT
 ===================================================== */
 bootFirebase();
-
-onAuthStateChanged(auth, async (user)=>{
-  isAdmin = isAdminUser(user);
-  applyRoleUI(isAdmin);
-
-  // 非管理者は必ずPROD固定（念押し）
-  if(!isAdmin){
-    if(currentEnv !== "prod") setDbByEnv("prod");
-  }
-
-  // 起動直後の一覧反映（auth確定後に1回）
-  try{
-    await reloadProducts();
-  }catch(e){
-    console.error(e);
-    // bundle は読めてるのに rules で弾かれる場合もあるからUIだけ出す
-    $masterPill.textContent = "商品マスタ：読込失敗（rules/権限/接続を確認）";
-  }
-});
-
 renderSettingsUI();
+setEditIcon();
 
 $channelSelect.addEventListener("change", () => {
   settings.currentChannel = $channelSelect.value;
@@ -1396,7 +1433,6 @@ $paymentSelect.addEventListener("change", () => {
 });
 
 async function reloadProducts(){
-  if(!db) return;
   const loaded = await loadProductsWithPatch();
   products = loaded.products;
   $masterPill.textContent =
@@ -1404,7 +1440,33 @@ async function reloadProducts(){
   renderProducts();
 }
 
-setEditIcon();
+/* ここでログイン状態を強制（未ログインならloginへ） */
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    location.href = "login.html?force=1";
+    return;
+  }
+
+  isAdmin = isAdminUser(user);
+  applyRoleUI(isAdmin);
+
+  // 非管理者は必ずPROD固定（念押し）
+  if(!isAdmin && currentEnv !== "prod"){
+    setDbByEnv("prod");
+  }
+
+  // 管理者表示のステータスにもメールを出す（デバッグ兼）
+  if(isAdmin){
+    setUiStatus(currentEnv === "dev" ? "DEV" : "PROD", `user: ${user.email || user.uid}`);
+  }
+
+  try{
+    await reloadProducts();
+  }catch(e){
+    console.error(e);
+    $masterPill.textContent = "商品マスタ：読込失敗（rules/権限/接続を確認）";
+  }
+});
 </script>
 
 </body>
