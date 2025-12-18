@@ -590,6 +590,7 @@ import {
 
 import {
   getAuth,
+  onAuthStateChanged,
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
 /* =====================================================
@@ -616,6 +617,25 @@ const firebaseConfigProd = {
   measurementId: "G-3F8BYRBXDC"
 };
 
+// =====================
+// 管理者だけに見せたいUI（環境切替・接続表示）
+// =====================
+// 本番でログインできる管理者の UID か Email を入れてね（どちらか一致でOK）
+const ADMIN_UIDS = [
+  "Zs33k2rRFJXEUPxMU09ILRBXOpk1",
+];
+const ADMIN_EMAILS = [
+  "enue_staff03@management.com",
+];
+
+function isAdminUser(user){
+  if(!user) return false;
+  const uidOk = ADMIN_UIDS.includes(user.uid);
+  const mail = (user.email || "").toLowerCase();
+  const mailOk = mail && ADMIN_EMAILS.map(x=>x.toLowerCase()).includes(mail);
+  return uidOk || mailOk;
+}
+
 const env = new URLSearchParams(location.search).get("env") === "prod" ? "prod" : "dev";
 const firebaseConfig = (env === "prod") ? firebaseConfigProd : firebaseConfigDev;
 
@@ -625,6 +645,18 @@ const firebaseConfig = (env === "prod") ? firebaseConfigProd : firebaseConfigDev
 const $ = (id) => document.getElementById(id);
 
 const $statusPill   = $("statusPill");
+
+function applyRoleUI(isAdmin){
+  // 非管理者：環境切替と接続表示を隠す（常に本番用として使う）
+  if(!isAdmin){
+    if($envToggleBtn) $envToggleBtn.style.display = "none";
+    if($statusPill) $statusPill.style.display = "none";
+  }else{
+    if($envToggleBtn) $envToggleBtn.style.display = "";
+    if($statusPill) $statusPill.style.display = "";
+  }
+}
+
 const $masterPill   = $("masterPill");
 const $envToggleBtn = $("envToggleBtn");
 
@@ -1334,6 +1366,9 @@ $checkoutBtn.onclick = ()=>{
 };
 
 $envToggleBtn.onclick = ()=>{
+  // 管理者のみ
+  if($envToggleBtn.style.display === "none") return;
+
   const url = new URL(location.href);
   if(env === "prod"){
     url.searchParams.delete("env");
@@ -1417,6 +1452,33 @@ $addOkBtn.onclick = ()=>{
    INIT
 ===================================================== */
 bootFirebase();
+
+// Auth状態で「管理者判定」→ UI制御（非管理者は本番固定）
+if(auth){
+  onAuthStateChanged(auth, (user)=>{
+    const admin = isAdminUser(user);
+    applyRoleUI(admin);
+
+    // 非管理者なのに ?env=dev 等で開いていたら、本番へ戻す
+    if(!admin){
+      const url = new URL(location.href);
+      if(url.searchParams.get("env") && url.searchParams.get("env") !== "prod"){
+        url.searchParams.delete("env");
+        location.replace(url.toString());
+        return;
+      }
+    }
+  });
+}else{
+  // auth が無い場合は「非管理者扱い」= 本番固定（安全側）
+  applyRoleUI(false);
+  const url = new URL(location.href);
+  if(url.searchParams.get("env") && url.searchParams.get("env") !== "prod"){
+    url.searchParams.delete("env");
+    location.replace(url.toString());
+  }
+}
+
 renderSettingsUI();
 
 // =====================
