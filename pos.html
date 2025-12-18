@@ -1,0 +1,752 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>e.nue POS</title>
+
+  <style>
+    :root{
+      --bg1:#e3ddd4;
+      --bg2:#d4ccc1;
+
+      /* 透明感UP（背景が透ける方向） */
+      --glass-bg: rgba(255,255,255,.62);
+      --glass-bg2: rgba(255,255,255,.48);
+      --glass-border: rgba(0,0,0,.06);
+      --line-soft: rgba(0,0,0,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+      --text-main:#222;
+      --text-sub:#555;
+      --muted: rgba(34,34,34,.55);
+
+      --accent:#e18a6a;
+      --accent2:#d06463;
+
+      --r:20px;
+    }
+
+    *{ box-sizing:border-box; }
+    body{
+      margin:0;
+      padding: 12px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text-main);
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      min-height:100vh;
+    }
+
+    .safe{
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    /* ====== glass card ====== */
+    .shell{
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 26px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      overflow:hidden;
+    }
+
+    /* ===== header ===== */
+    .topbar{
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      padding: 14px 14px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    h1{
+      margin:0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .brand-main{
+      font-family: "Georgia", "Times New Roman", serif;
+      font-weight: 700;
+      letter-spacing:.08em;
+      font-size: 20px;
+      line-height:1.1;
+    }
+    .brand-sub{
+      font-size: 11px;
+      color: var(--text-sub);
+      letter-spacing:.02em;
+    }
+
+    .nav{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+      align-items:center;
+    }
+    .nav-btn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.70);
+      color: var(--text-main);
+      padding: 6px 12px;
+      font-size: 11px;
+      cursor:pointer;
+      white-space:nowrap;
+      transition: transform .12s ease, background .2s ease, border-color .2s ease;
+      text-decoration:none;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .nav-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.82); }
+
+    .content{ padding: 12px; }
+
+    .section{
+      background: rgba(255,255,255,.58);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: var(--r);
+      box-shadow: 0 10px 22px rgba(0,0,0,.10);
+      overflow:hidden;
+    }
+
+    .sectionHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 12px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    .sectionHead h3{
+      margin:0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+    .sectionHead .sub{
+      font-size: 11px;
+      color: var(--text-sub);
+    }
+
+    /* ===== POS ===== */
+    .posBody{ padding: 12px; }
+    .row2{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .label{
+      font-size: 11px;
+      color: var(--text-sub);
+      display:flex;
+      gap:6px;
+      align-items:center;
+      background: rgba(255,255,255,.65);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 999px;
+      padding: 6px 10px;
+    }
+    select, input{
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+      padding: 8px 10px;
+      font-size: 13px;
+      outline:none;
+    }
+
+    .products{
+      margin-top: 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .product-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 10px 10px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.78);
+      border-radius: 14px;
+    }
+    .product-left{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      min-width: 0;
+      flex: 1;
+    }
+    .product-name{
+      font-size: 13px;
+      font-weight: 600;
+      white-space:nowrap;
+      overflow:hidden;
+      text-overflow:ellipsis;
+    }
+    .product-price{
+      font-size: 12px;
+      color: var(--text-sub);
+      margin-left: 6px;
+      font-weight: 500;
+    }
+    .qty{
+      display:flex;
+      align-items:center;
+      gap:6px;
+      flex: 0 0 auto;
+    }
+    .qty select{ padding: 6px 8px; border-radius: 10px; }
+
+    .primary{
+      margin-top: 10px;
+      width:100%;
+      border:0;
+      border-radius: 16px;
+      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
+      color:#fff;
+      font-weight: 800;
+      padding: 12px 14px;
+      cursor:pointer;
+      box-shadow: 0 10px 24px rgba(0,0,0,.14);
+    }
+    .primary:active{ transform: translateY(1px); }
+    .primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+
+    .total{
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--text-main);
+      font-weight: 800;
+      text-align:right;
+    }
+
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.85);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space:nowrap;
+    }
+
+    /* ===== modal ===== */
+    .modal{
+      position: fixed;
+      inset: 0;
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 14px;
+      background: rgba(0,0,0,.32);
+      z-index: 999;
+    }
+    .modal.show{ display:flex; }
+    .modalInner{
+      width: min(560px, 100%);
+      background: rgba(255,255,255,.88);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 22px;
+      box-shadow: 0 18px 45px rgba(0,0,0,.22);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      overflow:hidden;
+    }
+    .modalHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 12px 12px 10px;
+      border-bottom: 1px dashed var(--line-soft);
+    }
+    .modalHead h3{ margin:0; font-size: 13px; font-weight: 800; }
+    .iconBtn{
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      border-radius: 999px;
+      padding: 6px 10px;
+      cursor:pointer;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .modalBody{ padding: 12px; }
+    .muted{ color: var(--text-sub); font-size: 11px; }
+
+    .btnRow{
+      display:flex;
+      gap:8px;
+      margin-top: 12px;
+    }
+    .btn{
+      flex:1;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor:pointer;
+    }
+    .btn.primaryBtn{
+      border:0;
+      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
+      color:#fff;
+    }
+    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+
+    /* toast */
+    .toast{
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(0,0,0,.10);
+      border-radius: 999px;
+      padding: 10px 14px;
+      box-shadow: 0 12px 26px rgba(0,0,0,.16);
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--text-main);
+      display:none;
+      z-index: 2000;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .toast.show{ display:block; }
+
+    @media (max-width: 600px){
+      body{ padding: 10px; }
+      .brand-main{ font-size: 18px; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="safe">
+    <div class="shell">
+      <div class="topbar">
+        <h1>
+          <span class="brand-main">e.nue</span>
+          <span class="brand-sub">POS / Firestoreへ売上を保存</span>
+        </h1>
+
+        <div class="nav">
+          <a class="nav-btn" href="index.html" aria-label="戻る">← 戻る</a>
+          <span class="pill" id="statusPill">未接続</span>
+        </div>
+      </div>
+
+      <div class="content">
+        <div class="section">
+          <div class="sectionHead">
+            <div>
+              <h3>POS</h3>
+              <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
+            </div>
+            <span class="pill" id="masterPill">商品マスタ：読込中</span>
+          </div>
+
+          <div class="posBody">
+            <div class="row2">
+              <span class="label">
+                販売方法
+                <select id="channelSelect"></select>
+              </span>
+
+              <span class="label" id="venueWrap" style="display:none;">
+                開催場所
+                <select id="venueSelect"></select>
+              </span>
+
+              <span class="label">
+                決済方法
+                <select id="paymentSelect">
+                  <option value="現金">現金</option>
+                  <option value="PayPay">PayPay</option>
+                  <option value="クレカ">クレカ</option>
+                  <option value="その他">その他</option>
+                </select>
+              </span>
+            </div>
+
+            <div class="products" id="products"></div>
+
+            <button class="primary" id="checkoutBtn" type="button" disabled>決済へ進む</button>
+            <div class="total" id="totalText">合計：￥0</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Receipt Modal -->
+  <div class="modal" id="receiptModal" aria-hidden="true">
+    <div class="modalInner">
+      <div class="modalHead">
+        <h3>レシート確認</h3>
+        <button class="iconBtn" id="closeReceiptBtn" type="button">×</button>
+      </div>
+      <div class="modalBody">
+        <div class="muted" id="receiptMeta"></div>
+        <div id="receiptList" style="margin-top:10px;"></div>
+        <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
+
+        <div class="btnRow">
+          <button class="btn" id="cancelBtn" type="button">キャンセル</button>
+          <button class="btn primaryBtn" id="confirmBtn" type="button">確定（Firestoreへ保存）</button>
+        </div>
+
+        <div class="muted" style="margin-top:10px;">
+          ※ createdAt は serverTimestamp（サーバー時刻）で保存します。<br>
+          ※ clientCreatedAt も一緒に保存します（端末時刻 / 保険）。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">保存しました</div>
+
+<script type="module">
+/* =====================================================
+   Firebase imports
+===================================================== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* =====================================================
+   Firebase config（あなたの dev）
+===================================================== */
+const firebaseConfig = {
+  apiKey: "AIzaSyCINAN5ciYMvKhnrm7thQ8mhK1rL8KQu_o",
+  authDomain: "handmade-pos-dev.firebaseapp.com",
+  projectId: "handmade-pos-dev",
+  storageBucket: "handmade-pos-dev.firebasestorage.app",
+  messagingSenderId: "772649201782",
+  appId: "1:772649201782:web:ea509be21b4b8c53a66f57",
+};
+
+/* =====================================================
+   DOM helpers
+===================================================== */
+const $ = (id) => document.getElementById(id);
+
+const $statusPill   = $("statusPill");
+const $channelSelect = $("channelSelect");
+const $venueSelect   = $("venueSelect");
+const $venueWrap     = $("venueWrap");
+const $paymentSelect = $("paymentSelect");
+
+const $products   = $("products");
+const $totalText  = $("totalText");
+const $checkoutBtn = $("checkoutBtn");
+
+const $receiptModal = $("receiptModal");
+const $receiptMeta  = $("receiptMeta");
+const $receiptList  = $("receiptList");
+const $receiptTotal = $("receiptTotal");
+const $closeReceiptBtn = $("closeReceiptBtn");
+const $cancelBtn = $("cancelBtn");
+const $confirmBtn = $("confirmBtn");
+
+const $toast = $("toast");
+
+/* =====================================================
+   Firebase init
+===================================================== */
+let db = null;
+let firebaseOk = false;
+
+function setStatus(ok, text){
+  firebaseOk = ok;
+  $statusPill.textContent = text;
+  $checkoutBtn.disabled = !ok;
+}
+
+function bootFirebase(){
+  try{
+    const app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+    setStatus(true, "Firestore接続OK");
+  }catch(e){
+    console.error(e);
+    setStatus(false, "Firestore未接続");
+    alert("Firebase初期化に失敗しました");
+  }
+}
+
+/* =====================================================
+   Settings
+===================================================== */
+const LS_SETTINGS_KEY = "pos_settings_v2";
+
+const defaultSettings = {
+  channels: ["マルシェ", "インスタグラム", "onlinestore"],
+  venues: ["cafe1400"],
+  currentChannel: "マルシェ",
+  currentVenue: "cafe1400",
+  paymentMethod: "現金",
+};
+
+function loadSettings(){
+  try{
+    const raw = localStorage.getItem(LS_SETTINGS_KEY);
+    return raw ? { ...defaultSettings, ...JSON.parse(raw) } : structuredClone(defaultSettings);
+  }catch{
+    return structuredClone(defaultSettings);
+  }
+}
+function saveSettings(){
+  localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(settings));
+}
+
+let settings = loadSettings();
+
+/* =====================================================
+   商品マスタ（bundle + patch）
+===================================================== */
+const BUNDLE_URL = "./products_bundle.json";
+let products = [];
+
+async function loadProductsFromBundle(){
+  const res = await fetch(BUNDLE_URL, { cache: "no-store" });
+  if(!res.ok) throw new Error("bundle fetch failed");
+  const json = await res.json();
+  return (json.products || []).filter(p => p.active !== false);
+}
+
+async function loadProductsWithPatch(){
+  const base = await loadProductsFromBundle();
+  const map = new Map(base.map(p => [p.id, { ...p }]));
+
+  let patchCount = 0;
+  try{
+    const snap = await getDocs(collection(db, "products_patch"));
+    snap.forEach(d=>{
+      const id = d.id;
+      const patch = d.data() || {};
+      const cur = map.get(id) || { id };
+      map.set(id, { ...cur, ...patch, id });
+      patchCount++;
+    });
+  }catch(e){
+    console.warn("patch read failed", e);
+  }
+
+  const ordered = [];
+  for(const p of base){
+    const merged = map.get(p.id);
+    if(merged && merged.active !== false) ordered.push(merged);
+    map.delete(p.id);
+  }
+  for(const merged of map.values()){
+    if(merged.active !== false) ordered.push(merged);
+  }
+
+  return { products: ordered, patchCount };
+}
+
+/* =====================================================
+   UI render
+===================================================== */
+function renderSettingsUI(){
+  $channelSelect.innerHTML = "";
+  settings.channels.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    if(v === settings.currentChannel) o.selected = true;
+    $channelSelect.appendChild(o);
+  });
+
+  $venueSelect.innerHTML = "";
+  settings.venues.forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    if(v === settings.currentVenue) o.selected = true;
+    $venueSelect.appendChild(o);
+  });
+
+  $paymentSelect.value = settings.paymentMethod;
+  $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
+}
+
+function renderProducts(){
+  $products.innerHTML = "";
+
+  products.forEach(p=>{
+    const row = document.createElement("div");
+    row.className = "product-row";
+
+    const left = document.createElement("div");
+    left.className = "product-left";
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.dataset.id = p.id;
+
+    const name = document.createElement("div");
+    name.className = "product-name";
+    name.textContent = p.name;
+
+    const price = document.createElement("span");
+    price.className = "product-price";
+    price.textContent = `￥${p.price}`;
+
+    name.appendChild(price);
+    left.appendChild(cb);
+    left.appendChild(name);
+
+    const qty = document.createElement("div");
+    qty.className = "qty";
+    const sel = document.createElement("select");
+    sel.disabled = true;
+    for(let i=1;i<=10;i++){
+      const o=document.createElement("option");
+      o.value=o.textContent=i;
+      sel.appendChild(o);
+    }
+
+    cb.addEventListener("change",()=>{
+      sel.disabled = !cb.checked;
+      updateTotal();
+    });
+    sel.addEventListener("change", updateTotal);
+
+    qty.appendChild(sel);
+    qty.append(" 個");
+
+    row.append(left, qty);
+    $products.appendChild(row);
+  });
+
+  updateTotal();
+}
+
+/* =====================================================
+   POS logic
+===================================================== */
+function getSelected(){
+  const items = [];
+  let total = 0;
+
+  document.querySelectorAll(".product-row").forEach(row=>{
+    const cb = row.querySelector("input[type=checkbox]");
+    const sel = row.querySelector("select");
+    if(!cb.checked) return;
+
+    const p = products.find(x=>x.id===cb.dataset.id);
+    const qty = Number(sel.value);
+    const subtotal = p.price * qty;
+
+    items.push({
+      id: p.id,
+      name: p.name,
+      unitPrice: p.price,
+      qty,
+      subtotal
+    });
+    total += subtotal;
+  });
+
+  return { items, total };
+}
+
+function updateTotal(){
+  const { total } = getSelected();
+  $totalText.textContent = `合計：￥${total}`;
+}
+
+/* =====================================================
+   Firestore write
+===================================================== */
+async function writeSale(){
+  const { items, total } = getSelected();
+  if(!items.length) throw new Error("empty");
+
+  await addDoc(collection(db,"sales"),{
+    createdAt: serverTimestamp(),
+    clientCreatedAt: Date.now(),
+    channel: settings.currentChannel,
+    venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
+    paymentMethod: $paymentSelect.value,
+    total,
+    items
+  });
+}
+
+/* =====================================================
+   Events
+===================================================== */
+$checkoutBtn.onclick = ()=>{
+  if(!firebaseOk) return;
+  const { items, total } = getSelected();
+  if(!items.length) return alert("商品を選択してね");
+
+  $receiptMeta.textContent =
+    `販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
+  $receiptList.innerHTML = items.map(
+    i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
+  ).join("<br>");
+  $receiptTotal.textContent = `合計：￥${total}`;
+
+  $receiptModal.classList.add("show");
+};
+
+$confirmBtn.onclick = async ()=>{
+  try{
+    await writeSale();
+    $receiptModal.classList.remove("show");
+    showToast("保存しました");
+    document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
+    document.querySelectorAll("select").forEach(s=>{s.disabled=true;s.value=1});
+    updateTotal();
+  }catch(e){
+    alert("保存に失敗しました");
+  }
+};
+
+$closeReceiptBtn.onclick = $cancelBtn.onclick =
+  ()=> $receiptModal.classList.remove("show");
+
+function showToast(msg){
+  $toast.textContent = msg;
+  $toast.classList.add("show");
+  setTimeout(()=> $toast.classList.remove("show"),1200);
+}
+
+/* =====================================================
+   INIT
+===================================================== */
+bootFirebase();
+renderSettingsUI();
+
+const loaded = await loadProductsWithPatch();
+products = loaded.products;
+
+// 表示用（右上ピルがあれば）
+if($statusPill){
+  $statusPill.textContent = `商品マスタ：${products.length}件（patch ${loaded.patchCount}）`;
+}
+
+renderProducts();
+</script>
+</body>
+</html>
