@@ -7,7 +7,6 @@
   <title>e.nue POS</title>
 
   <style>
-    
 /* iOS: 青文字(自動リンク)対策 */
 a, a:link, a:visited, a:hover, a:active{
   color: inherit;
@@ -536,7 +535,6 @@ a, a:link, a:visited, a:hover, a:active{
           </div>
         </div>
 
-
         <div class="btnRow">
           <button class="btn" id="cancelBtn" type="button">キャンセル</button>
           <button class="btn primaryBtn" id="confirmBtn" type="button">確定（Firestoreへ保存）</button>
@@ -654,18 +652,6 @@ const firebaseConfig = (env === "prod") ? firebaseConfigProd : firebaseConfigDev
 const $ = (id) => document.getElementById(id);
 
 const $statusPill   = $("statusPill");
-
-function applyRoleUI(isAdmin){
-  // 非管理者：環境切替と接続表示を隠す（常に本番用として使う）
-  if(!isAdmin){
-    if($envToggleBtn) $envToggleBtn.style.display = "none";
-    if($statusPill) $statusPill.style.display = "none";
-  }else{
-    if($envToggleBtn) $envToggleBtn.style.display = "";
-    if($statusPill) $statusPill.style.display = "";
-  }
-}
-
 const $masterPill   = $("masterPill");
 const $envToggleBtn = $("envToggleBtn");
 
@@ -695,13 +681,11 @@ const $receiptOrderRow = $("receiptOrderRow");
 const $receiptOrderCheck = $("receiptOrderCheck");
 const $receiptShipOptions = $("receiptShipOptions");
 
-
 const $toast = $("toast");
 
 // receipt total calc (base items total + option fee)
 let receiptBaseTotal = 0;
 let receiptOptionFee = 0;
-
 
 /* add modal */
 const $addModal = $("addModal");
@@ -731,7 +715,7 @@ function bootFirebase(){
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
 
-    // Authは本番で使う想定。DEVは未設定でもOK（uidが取れなければ "no-auth" に落とす）
+    // Authは本番で使う想定。DEVは未設定でもOK
     try{
       auth = getAuth(app);
     }catch(_){
@@ -748,6 +732,17 @@ function bootFirebase(){
 
 function getActor(){
   return auth?.currentUser?.uid || "no-auth";
+}
+
+function applyRoleUI(isAdmin){
+  // 非管理者：環境切替と接続表示を隠す（常に本番用として使う）
+  if(!isAdmin){
+    if($envToggleBtn) $envToggleBtn.style.display = "none";
+    if($statusPill) $statusPill.style.display = "none";
+  }else{
+    if($envToggleBtn) $envToggleBtn.style.display = "";
+    if($statusPill) $statusPill.style.display = "";
+  }
 }
 
 /* =====================================================
@@ -777,28 +772,20 @@ function saveSettings(){
 
 let settings = loadSettings();
 
-// migrate channels (add new channel if not present)
+// migrate channels
 if(!Array.isArray(settings.channels)) settings.channels = ["マルシェ","インスタグラム","ストーリー販売","onlinestore"];
 if(!settings.channels.includes("ストーリー販売")) settings.channels.splice(2, 0, "ストーリー販売");
 saveSettings();
-
 
 /* =====================================================
    商品マスタ（bundle + patch）
 ===================================================== */
 const BUNDLE_URL = "./products_bundle.json";
 
-/**
- * 表示に使う“確定後の一覧”（bundle+patch反映済み）
- */
+/** 表示に使う“確定後の一覧”（bundle+patch反映済み） */
 let products = [];
 
-/**
- * 編集モード用ドラフト
- * - draftBase: 既存商品の編集値（id -> {name, price, active}）
- * - draftAdds: 追加商品（[{tempKey,name,price,active}]）
- * - baseSnapshot: 編集前の products を覚えておく（差分計算に使う）
- */
+/** 編集モード用ドラフト */
 let isEditMode = false;
 let baseSnapshot = [];
 let draftBase = new Map();
@@ -846,7 +833,7 @@ async function loadProductsWithPatch(){
     if(merged.active !== false) ordered.push(merged);
     map.delete(p.id);
   }
-  // any extra (should be rare)
+  // any extra
   for(const merged of map.values()){
     if(merged.active !== false) ordered.push(merged);
   }
@@ -858,7 +845,7 @@ async function loadProductsWithPatch(){
       const a = d.data() || {};
       if(a.active === false) return;
       ordered.push({
-        id: a.tempKey || d.id,     // 表示用id（決済では使わない/編集用）
+        id: a.tempKey || d.id,
         name: a.name || "(no name)",
         price: Number(a.price || 0),
         active: a.active !== false,
@@ -914,11 +901,10 @@ function setEditIcon(){
 function enterEditMode(){
   $addProductBtn.style.display = "inline-flex";
   isEditMode = true;
-  baseSnapshot = products.map(p => ({...p})); // shallow copy
+  baseSnapshot = products.map(p => ({...p}));
 
   draftBase = new Map();
   for(const p of products){
-    // patch_adds は“既存編集”対象外（管理者取り込み待ち扱い）
     if(p._isPatchedAdd) continue;
     draftBase.set(p.id, {
       id: p.id,
@@ -951,7 +937,7 @@ async function exitEditModeWithSave(){
   }catch(e){
     console.error(e);
     alert("保存に失敗しました（rules/authを確認してね）");
-    return; // 失敗時は編集モード継続
+    return;
   }
 
   isEditMode = false;
@@ -960,7 +946,6 @@ async function exitEditModeWithSave(){
   draftAdds = [];
   setEditIcon();
 
-  // patch反映後の表示へ更新
   await reloadProducts();
 }
 
@@ -971,11 +956,9 @@ function renderProducts(){
   $products.innerHTML = "";
 
   if(!isEditMode){
-    // sale mode
     products
       .filter(p => p.active !== false)
       .forEach(p=>{
-        // patch_adds も売る可能性あるならここで表示OK（今回は“本番”なので表示する）
         const row = document.createElement("div");
         row.className = "product-row";
 
@@ -985,7 +968,6 @@ function renderProducts(){
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.dataset.id = p.id;
-        cb.disabled = false; // 追加品もそのまま販売OK
 
         const name = document.createElement("div");
         name.className = "product-name";
@@ -1035,8 +1017,7 @@ function renderProducts(){
     return;
   }
 
-  // edit mode (edit-only screen)
-  // existing products
+  // edit mode
   for(const [id, d] of draftBase.entries()){
     const row = document.createElement("div");
     row.className = "product-row";
@@ -1052,18 +1033,14 @@ function renderProducts(){
     name.type = "text";
     name.value = d.name;
     name.placeholder = "商品名";
-    name.addEventListener("input", ()=>{
-      d.name = name.value;
-    });
+    name.addEventListener("input", ()=>{ d.name = name.value; });
 
     const price = document.createElement("input");
     price.type = "number";
     price.inputMode = "numeric";
     price.value = Number(d.price);
     price.placeholder = "価格";
-    price.addEventListener("input", ()=>{
-      d.price = Number(price.value);
-    });
+    price.addEventListener("input", ()=>{ d.price = Number(price.value); });
 
     fields.appendChild(name);
     fields.appendChild(price);
@@ -1076,9 +1053,7 @@ function renderProducts(){
     const active = document.createElement("input");
     active.type = "checkbox";
     active.checked = d.active !== false;
-    active.addEventListener("change", ()=>{
-      d.active = active.checked;
-    });
+    active.addEventListener("change", ()=>{ d.active = active.checked; });
     label.appendChild(active);
     label.appendChild(document.createTextNode(" 表示"));
 
@@ -1089,7 +1064,6 @@ function renderProducts(){
     $products.appendChild(row);
   }
 
-  // adds
   for(const a of draftAdds){
     const row = document.createElement("div");
     row.className = "product-row";
@@ -1183,7 +1157,6 @@ async function writeSale(){
   const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
 
-  // kind（stock/order）は確認画面のチェックで決める（マルシェ以外のみUI表示）
   const isOrder = ($receiptOrderRow && $receiptOrderRow.style.display !== "none" && $receiptOrderCheck)
     ? !!$receiptOrderCheck.checked
     : false;
@@ -1198,12 +1171,10 @@ async function writeSale(){
                 : 300;
   }
 
-  // 進捗：マルシェ以外は未着手で開始（あとでこのページで進捗管理・集計する）
   const progress = (settings.currentChannel !== "マルシェ")
     ? "未着手"
     : "";
 
-  // オプション料金（orderのみ）を合計に加算
   const optionFee = shippingFee;
   const grandTotal = total + optionFee;
 
@@ -1217,21 +1188,15 @@ async function writeSale(){
     optionFee,
     total: grandTotal,
     items,
-
-    // 将来の管理用
-    // progressの許容値（将来の管理画面側で選択UIに反映）:
-    // - order: 未着手 / 作成中 / 完了
-    // - stock: 未着手 / 進行中 / 完了
-
     kind: isOrder ? "order" : "stock",
-    progress,                // 未着手 / 進行中 / 完了（初期は未着手）
-    shippingOption,          // 3d / 5d / none（orderのみ）
-    shippingFee,             // 700 / 500 / 300（orderのみ）
+    progress,
+    shippingOption,
+    shippingFee,
   });
 }
 
 /* =====================================================
-   Patch write (updates / adds) : schema-fixed
+   Patch write (updates / adds)
 ===================================================== */
 function diffUpdate(before, after){
   const diff = {};
@@ -1245,14 +1210,12 @@ async function savePatchesFromDraft(){
   const actor = getActor();
   const batch = writeBatch(db);
 
-  // updates：差分があるものだけ書く
   const beforeMap = new Map(baseSnapshot.filter(p=>!p._isPatchedAdd).map(p=>[p.id, p]));
   for(const [id, d] of draftBase.entries()){
     const before = beforeMap.get(id);
     if(!before) continue;
     const diff = diffUpdate(before, d);
-    const keys = Object.keys(diff);
-    if(keys.length === 0) continue;
+    if(Object.keys(diff).length === 0) continue;
 
     const ref = doc(db, "products_patch_updates", id);
     batch.set(ref, {
@@ -1264,7 +1227,6 @@ async function savePatchesFromDraft(){
     }, { merge: true });
   }
 
-  // adds：必須2項目が揃ってるものだけ
   for(const a of draftAdds){
     const name = (a.name || "").trim();
     const price = Number(a.price);
@@ -1290,9 +1252,7 @@ async function savePatchesFromDraft(){
 /* =====================================================
    Modal helpers
 ===================================================== */
-
 function calcOptionFee(){
-  // order OFF or UI hidden -> 0
   if(!$receiptOrderRow || $receiptOrderRow.style.display === "none") return 0;
   if(!$receiptOrderCheck || !$receiptOrderCheck.checked) return 0;
   const opt = document.querySelector('input[name="shipOpt"]:checked');
@@ -1304,14 +1264,12 @@ function updateReceiptUI(){
   receiptOptionFee = calcOptionFee();
   const grand = receiptBaseTotal + receiptOptionFee;
 
-  // total text
   if($receiptTotal){
     $receiptTotal.textContent = (receiptOptionFee > 0)
       ? `合計：￥${grand}（商品￥${receiptBaseTotal} + オプション￥${receiptOptionFee}）`
       : `合計：￥${grand}`;
   }
 
-  // listにオプション行も表示（分かりやすく）
   const optLine = document.getElementById("receiptOptionLine");
   if(optLine){
     optLine.style.display = (receiptOptionFee > 0) ? "" : "none";
@@ -1323,7 +1281,6 @@ function updateReceiptUI(){
     }
   }
 }
-
 
 function showToast(msg){
   $toast.textContent = msg;
@@ -1359,13 +1316,11 @@ $checkoutBtn.onclick = ()=>{
   receiptBaseTotal = total;
   updateReceiptUI();
 
-  // マルシェ以外 → order チェック表示（デフォルトOFF）
   if($receiptOrderRow && $receiptOrderCheck && $receiptShipOptions){
     const isNonMarche = settings.currentChannel !== "マルシェ";
     $receiptOrderRow.style.display = isNonMarche ? "" : "none";
     $receiptOrderCheck.checked = false;
     $receiptShipOptions.style.display = "none";
-    // ラジオはデフォルト 3d
     const radios = $receiptShipOptions.querySelectorAll('input[name="shipOpt"]');
     radios.forEach(r=> r.checked = (r.value==="3d"));
     updateReceiptUI();
@@ -1375,7 +1330,6 @@ $checkoutBtn.onclick = ()=>{
 };
 
 $envToggleBtn.onclick = ()=>{
-  // 管理者のみ
   if($envToggleBtn.style.display === "none") return;
 
   const url = new URL(location.href);
@@ -1396,6 +1350,7 @@ $confirmBtn.onclick = async ()=>{
     document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true;s.value=1});
     updateTotal();
   }catch(e){
+    console.error(e);
     alert("保存に失敗しました");
   }
 };
@@ -1403,21 +1358,18 @@ $confirmBtn.onclick = async ()=>{
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
   ()=> $receiptModal.classList.remove("show");
 
-// orderチェック → 発送オプション表示
 if($receiptOrderCheck && $receiptShipOptions){
   $receiptOrderCheck.onchange = ()=>{
     $receiptShipOptions.style.display = $receiptOrderCheck.checked ? "" : "none";
     updateReceiptUI();
   };
 }
-// 発送オプション変更 → 合計をリアルタイム反映
 document.addEventListener("change", (e) => {
   if(!e.target) return;
   if(e.target.name === "shipOpt"){
     updateReceiptUI();
   }
 });
-
 
 /* edit toggle */
 $editToggleBtn.onclick = ()=>{
@@ -1462,13 +1414,11 @@ $addOkBtn.onclick = ()=>{
 ===================================================== */
 bootFirebase();
 
-// Auth状態で「管理者判定」→ UI制御（非管理者は本番固定）
 if(auth){
   onAuthStateChanged(auth, (user)=>{
     const admin = isAdminUser(user);
     applyRoleUI(admin);
 
-    // 非管理者なのに ?env=dev 等で開いていたら、本番へ戻す
     if(!admin){
       const url = new URL(location.href);
       if(url.searchParams.get("env") && url.searchParams.get("env") !== "prod"){
@@ -1479,7 +1429,6 @@ if(auth){
     }
   });
 }else{
-  // auth が無い場合は「非管理者扱い」= 本番固定（安全側）
   applyRoleUI(false);
   const url = new URL(location.href);
   if(url.searchParams.get("env") && url.searchParams.get("env") !== "prod"){
@@ -1490,14 +1439,9 @@ if(auth){
 
 renderSettingsUI();
 
-// =====================
-// Settings listeners
-// =====================
 $channelSelect.addEventListener("change", () => {
   settings.currentChannel = $channelSelect.value;
-  // マルシェ以外は開催場所を非表示
   $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
-  // venueはマルシェ以外なら空でもいいが、値は保持してOK
   saveSettings();
 });
 
@@ -1511,7 +1455,6 @@ $paymentSelect.addEventListener("change", () => {
   saveSettings();
 });
 
-
 async function reloadProducts(){
   const loaded = await loadProductsWithPatch();
   products = loaded.products;
@@ -1522,119 +1465,6 @@ async function reloadProducts(){
 await reloadProducts();
 
 setEditIcon();
-</script>
-
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getFirestore, collection, getDocs, query, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-
-/* 本番 */
-const firebaseConfig = {
-  apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
-  authDomain: "handmade-pos.firebaseapp.com",
-  projectId: "handmade-pos",
-  storageBucket: "handmade-pos.firebasestorage.app",
-  messagingSenderId: "174873514252",
-  appId: "1:174873514252:web:c26659bffca850d475f929",
-  measurementId: "G-3F8BYRBXDC"
-};
-
-const app = initializeApp(firebaseConfig);
-const db  = getFirestore(app);
-
-const pad2 = (n)=> String(n).padStart(2,"0");
-const ymd = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-
-function toMillis(ts){
-  if(!ts) return 0;
-  if(typeof ts === "number") return ts;
-  if(ts instanceof Date) return ts.getTime();
-  if(ts instanceof Timestamp) return ts.toMillis();
-  if(typeof ts === "string"){
-    const t = Date.parse(ts);
-    return Number.isFinite(t) ? t : 0;
-  }
-  return 0;
-}
-function readCalendarCache(){
-  try{
-    const raw = localStorage.getItem("enue_calendar_cache_v1");
-    if(!raw) return null;
-    return JSON.parse(raw);
-  }catch{ return null; }
-}
-function isNowInWindow(ev){
-  const s = toMillis(ev.startAt);
-  const e = toMillis(ev.endAt);
-  const n = Date.now();
-  return s && e && n>=s && n<=e;
-}
-
-/** POS側デフォルト切替：マルシェ/ストーリー中だけ「マルシェ扱い & 現金」 */
-function applyDefaultsByActiveEvent(){
-  const cache = readCalendarCache() || {};
-  const key = ymd(new Date());
-  const arr = cache[key] || [];
-  const active = arr.find(ev => (ev.type==="marche" || ev.type==="story") && isNowInWindow(ev));
-  if(!active) return;
-
-  // ここは POS の実装に合わせて id/name を後で微調整する必要があるかも。
-  // よくある要素名を広めに拾う：
-  const methodSel = document.querySelector('select[name="salesMethod"], select#salesMethod, select#method, select[name="method"]');
-  const paySel    = document.querySelector('select[name="payMethod"], select#payMethod, select#paymentMethod, select[name="paymentMethod"]');
-
-  if(methodSel){
-    // ストーリー販売も「イベント扱い」なので、販売方法は "マルシェ" に寄せたい場合はここで固定
-    // ただしユーザー要件：ストーリーは販売場所を選ばない → method自体は任意。今回はPOS側UI次第で無理に固定しない。
-    // methodSel.value = "マルシェ";
-  }
-  if(paySel){
-    paySel.value = "現金";
-    paySel.dispatchEvent(new Event("change", { bubbles:true }));
-  }
-}
-
-async function loadVenues(){
-  // 1) bundle
-  let venues = [];
-  try{
-    const res = await fetch("./venues_bundle.json", { cache:"no-store" });
-    if(res.ok){
-      const b = await res.json();
-      if(Array.isArray(b.venues)) venues = b.venues.slice();
-    }
-  }catch{}
-
-  // 2) patch (Firestore: venues)
-  try{
-    const snap = await getDocs(query(collection(db,"venues"), orderBy("updatedAt","desc"), limit(200)));
-    snap.forEach(d=>{
-      const v = d.data();
-      const name = v.name || v.title || "";
-      if(!name) return;
-      if(!venues.includes(name)) venues.push(name);
-    });
-  }catch(err){
-    console.warn("venues load failed:", err);
-  }
-
-  // 3) 反映（POSの販売場所selectを探してoptionsを更新）
-  const venueSel = document.querySelector('select[name="venue"], select#venue, select#salesVenue, select[name="salesVenue"]');
-  if(!venueSel) return;
-
-  // 既存を壊さないように、見つからない時だけ追加
-  const existing = new Set([...venueSel.options].map(o=>o.value));
-  for(const v of venues){
-    if(existing.has(v)) continue;
-    const opt = document.createElement("option");
-    opt.value = v;
-    opt.textContent = v;
-    venueSel.appendChild(opt);
-  }
-}
-
-applyDefaultsByActiveEvent();
-loadVenues();
 </script>
 
 </body>
