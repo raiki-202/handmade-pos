@@ -442,6 +442,7 @@ body{
 .secOrders .tableWrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
 .secOrders .ordersTable{ width:100%; border-collapse:collapse; min-width:720px; }
 .secOrders .ordersTable th,.secOrders .ordersTable td{ padding:10px; font-size:13px; vertical-align:middle; }
+.secOrders .cellText{ white-space:nowrap; }
 .secOrders .ordersTable th{ text-align:left; background:#f3f3f3; position:sticky; top:0; z-index:1; }
 .secOrders .ordersTable tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
 
@@ -811,6 +812,7 @@ body{
         </div>
       </section>
 
+      
       <!-- 3) 受注残：stock -->
       <section class="card">
         <div class="listTitle">受注残：stock</div>
@@ -819,20 +821,22 @@ body{
             <table class="ordersTable" aria-label="stock orders">
               <thead class="thead">
                 <tr>
-                  <th style="width:46%;">名前</th>
-                  <th style="width:22%;">期日</th>
-                  <th style="width:20%;">進捗</th>
-                  <th style="width:12%; text-align:right;">担当</th>
+                  <th style="min-width:180px;">名前</th>
+                  <th style="width:78px;">日付</th>
+                  <th style="width:78px;">種別</th>
+                  <th style="min-width:140px;">担当</th>
+                  <th style="width:98px;">進捗</th>
                 </tr>
               </thead>
               <tbody id="tbodyStock"></tbody>
             </table>
-            <div id="emptyStock" class="emptyOrders" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+            <div id="emptyStock" class="emptyOrders" style="display:none;">表示できるデータがありません</div>
           </div>
         </div>
       </section>
 
       <!-- 4) 受注残：order -->
+<!-- 4) 受注残：order -->
       <section class="card">
         <div class="listTitle">受注残：order</div>
         <div class="list secOrders" id="secOrder">
@@ -938,9 +942,30 @@ body{
     </main>
   </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+import { 
+  getFirestore, collection, query, where, orderBy, onSnapshot, doc, updateDoc 
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
 (()=> {
   try{
+    /* ===== Firebase init ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+      authDomain: "handmade-pos.firebaseapp.com",
+      projectId: "handmade-pos",
+      storageBucket: "handmade-pos.firebasestorage.app",
+      messagingSenderId: "174873514252",
+      appId: "1:174873514252:web:c26659bffca850d475f929",
+      measurementId: "G-3F8BYRBXDC"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
     /* ===== 画面切替 ===== */
     const tabs = document.querySelectorAll(".tab");
     const viewHome = document.getElementById("view-home");
@@ -1760,6 +1785,127 @@ body{
     const tbodyOrder = document.getElementById("tbodyOrder");
     const emptyOrder = document.getElementById("emptyOrder");
 
+    /* ===== Stock(受注残) : Firestore購読 ===== */
+    const STOCK_PROGRESS = ["未着手","進行中","完了"];
+    let rowsStock = [];
+
+    function tsToMs(v){
+      if(!v) return Date.now();
+      // Firestore Timestamp
+      if(typeof v === "object" && typeof v.toDate === "function"){
+        return v.toDate().getTime();
+      }
+      // {seconds, nanoseconds}
+      if(typeof v === "object" && typeof v.seconds === "number"){
+        return v.seconds * 1000;
+      }
+      // ISO string / ms
+      const n = (typeof v === "number") ? v : Date.parse(v);
+      return Number.isFinite(n) ? n : Date.now();
+    }
+
+    function startStockListener(){
+      const col = collection(db, "orders");
+      // kind=stock だけサーバー側で絞る（channel/progressはクライアント側で表示制御）
+      const q = query(col, where("kind","==","stock"), orderBy("createdAt","asc"));
+      onSnapshot(q, (snap)=>{
+        rowsStock = snap.docs.map(d=>{
+          const data = d.data() || {};
+          const createdAtMs = tsToMs(data.createdAt);
+          return {
+            id: d.id,
+            customerName: data.customerName || "",
+            createdAtMs,
+            kind: data.kind || "stock",
+            channel: data.channel || "",
+            progress: data.progress || "未着手",
+            assignees: Array.isArray(data.assignees) ? data.assignees : []
+          };
+        });
+        renderTable("stock");
+      }, (err)=>{
+        console.error("stock listener error:", err);
+      });
+    }
+
+    async function editStockProgress(docId, current){
+      const now = current || "未着手";
+      openSheet("進捗を選択", ()=>{
+        const body = document.createElement("div");
+        body.className = "enueOptList";
+
+        STOCK_PROGRESS.forEach(s=>{
+          const opt = document.createElement("div");
+          opt.className = "enueOpt";
+          opt.innerHTML = `
+            <div class="left">
+              <span class="statusPill ${statusClass(s)}" style="margin:0;">
+                <span class="dot"></span><span>${escapeHtml(s)}</span>
+              </span>
+            </div>
+            <div class="right">${now===s ? "選択中" : ""}</div>
+          `;
+          opt.onclick = async ()=>{
+            try{
+              await updateDoc(doc(db, "orders", docId), { progress: s });
+              closeSheet();
+            }catch(e){
+              alert("更新に失敗しました（進捗）。Consoleを見てね。");
+              console.error(e);
+            }
+          };
+          body.appendChild(opt);
+        });
+
+        return body;
+      });
+    }
+
+    async function editStockAssignees(docId, current){
+      const selected = new Set(Array.isArray(current) ? current : []);
+      openSheet("担当を選択", ()=>{
+        const body = document.createElement("div");
+        body.className = "enueOptList";
+
+        ASSIGNEE_OPTIONS.forEach(a=>{
+          const opt = document.createElement("div");
+          opt.className = "enueOpt";
+          opt.innerHTML = `
+            <div class="left"><span class="chip" style="margin:0;">${escapeHtml(a)}</span></div>
+            <div class="right">${selected.has(a) ? "選択中" : ""}</div>
+          `;
+          opt.onclick = ()=>{
+            if(selected.has(a)) selected.delete(a);
+            else selected.add(a);
+            // その場で表示更新
+            opt.querySelector(".right").textContent = selected.has(a) ? "選択中" : "";
+          };
+          body.appendChild(opt);
+        });
+
+        const foot = document.createElement("div");
+        foot.style.marginTop = "10px";
+        const save = document.createElement("button");
+        save.className = "primaryBtn";
+        save.textContent = "保存";
+        save.onclick = async ()=>{
+          try{
+            await updateDoc(doc(db, "orders", docId), { assignees: Array.from(selected) });
+            closeSheet();
+          }catch(e){
+            alert("更新に失敗しました（担当）。Consoleを見てね。");
+            console.error(e);
+          }
+        };
+        foot.appendChild(save);
+
+        const wrap = document.createElement("div");
+        wrap.appendChild(body);
+        wrap.appendChild(foot);
+        return wrap;
+      });
+    }
+
     const overlay = document.getElementById("overlayOrders");
     const sheetTitle = document.getElementById("sheetTitle");
     const sheetBody  = document.getElementById("sheetBody");
@@ -1782,12 +1928,16 @@ body{
     }
 
     function renderTable(kind){
-      const tbody = (kind==="stock") ? tbodyStock : tbodyOrder;
-      const emptyEl = (kind==="stock") ? emptyStock : emptyOrder;
+      if(kind==="stock"){
+        renderStockTable();
+        return;
+      }
+      // order（既存ローカル表示を維持）
+      const tbody = tbodyOrder;
+      const emptyEl = emptyOrder;
       if(!tbody || !emptyEl) return;
 
       tbody.innerHTML = "";
-
       const visible = rows
         .filter(r => r.method !== "マルシェ")
         .filter(r => r.status !== "完了");
@@ -1799,39 +1949,90 @@ body{
         tr.appendChild(td("名前", nameCell(r)));
         tr.appendChild(td("期日", dueCell(r)));
         tr.appendChild(td("進捗", statusCell(r)));
-        tr.appendChild(td("担当", assigneeCell(r)));
+        tr.appendChild(td("担当", assigneeCell(r), {align:"right"}));
         tbody.appendChild(tr);
       });
     }
 
-    function td(label, child){
-      const cell = document.createElement("td");
-      cell.setAttribute("data-label", label);
-      cell.appendChild(child);
-      return cell;
+    function renderStockTable(){
+      if(!tbodyStock || !emptyStock) return;
+      tbodyStock.innerHTML = "";
+
+      const visible = rowsStock
+        .filter(r => r.channel !== "マルシェ")
+        .filter(r => r.progress !== "完了")
+        .sort((a,b)=> a.createdAtMs - b.createdAtMs);
+
+      emptyStock.style.display = (visible.length===0) ? "block" : "none";
+
+      visible.forEach(r=>{
+        const tr = document.createElement("tr");
+        tr.appendChild(td("名前", textCell(r.customerName || "-")));
+        tr.appendChild(td("日付", textCell(fmtMD(new Date(r.createdAtMs)))));
+        tr.appendChild(td("種別", textCell(r.kind || "-")));
+        tr.appendChild(td("担当", stockAssigneeCell(r)));
+        tr.appendChild(td("進捗", stockProgressCell(r)));
+        tbodyStock.appendChild(tr);
+      });
     }
 
-    function nameCell(r){
-      const btn = document.createElement("button");
-      btn.className = "nameBtn";
-      btn.type = "button";
-      btn.innerHTML = `<span>${escapeHtml(r.name)}</span><span class="chev">›</span>`;
-      btn.onclick = ()=> openReceiptById(r.receiptId);
-      return btn;
+    function textCell(t){
+      const div = document.createElement("div");
+      div.className = "cellText";
+      div.textContent = t;
+      return div;
     }
 
-    function dueCell(r){
+    function stockProgressCell(r){
       const btn = document.createElement("div");
-      btn.className = "tap duePill";
+      btn.className = "tap";
       btn.role = "button";
       btn.tabIndex = 0;
-      btn.textContent = formatNoYear(r.due);
-      btn.onclick = ()=> editDue(r.receiptId);
-      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editDue(r.receiptId); } };
+
+      const pill = document.createElement("div");
+      pill.className = "statusPill " + statusClass(r.progress);
+      pill.innerHTML = `<span class="dot"></span><span>${escapeHtml(r.progress || "未着手")}</span>`;
+      btn.appendChild(pill);
+
+      const open = ()=> editStockProgress(r.id, r.progress || "未着手");
+      btn.onclick = open;
+      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } };
       return btn;
     }
 
-    function statusCell(r){
+    function stockAssigneeCell(r){
+      const btn = document.createElement("div");
+      btn.className = "tap";
+      btn.role = "button";
+      btn.tabIndex = 0;
+
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
+
+      const list = Array.isArray(r.assignees) ? r.assignees : [];
+      if(list.length===0){
+        const c = document.createElement("span");
+        c.className = "chip muted";
+        c.textContent = "未設定";
+        wrap.appendChild(c);
+      }else{
+        list.forEach(a=>{
+          const c = document.createElement("span");
+          c.className = "chip";
+          c.textContent = a;
+          wrap.appendChild(c);
+        });
+      }
+
+      btn.appendChild(wrap);
+
+      const open = ()=> editStockAssignees(r.id, list);
+      btn.onclick = open;
+      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } };
+      return btn;
+    }
+
+    function statusCellfunction statusCell(r){
       const btn = document.createElement("div");
       btn.className = "tap";
       btn.role = "button";
@@ -2109,7 +2310,7 @@ body{
     }
 
     /* first render */
-    renderTable("stock");
+    startStockListener();
     renderTable("order");
 
   }catch(err){
