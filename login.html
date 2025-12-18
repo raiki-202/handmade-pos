@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>e.nue Login</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <style>
+    body{
+      margin:0;
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background: linear-gradient(135deg, #e3ddd4, #d4ccc1);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card{
+      width:100%;
+      max-width:360px;
+      background: rgba(255,255,255,.9);
+      border-radius:20px;
+      box-shadow:0 18px 45px rgba(0,0,0,.14);
+      padding:20px;
+      border: 1px solid rgba(0,0,0,.06);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    h1{
+      margin:0 0 4px;
+      text-align:center;
+      font-family: Georgia, "Times New Roman", serif;
+      letter-spacing:.08em;
+      font-weight: 600;
+    }
+    .sub{
+      margin:0 0 16px;
+      text-align:center;
+      font-size: 12px;
+      color: rgba(0,0,0,.6);
+    }
+    label{
+      display:block;
+      font-size:12px;
+      margin-top:12px;
+      color: rgba(0,0,0,.75);
+    }
+    input{
+      width:100%;
+      padding:10px 12px;
+      margin-top:6px;
+      border-radius:12px;
+      border:1px solid rgba(0,0,0,.18);
+      background: rgba(255,255,255,.95);
+      outline: none;
+      font-size: 14px;
+    }
+    input:focus{
+      border-color: rgba(225,138,106,.9);
+      box-shadow: 0 0 0 3px rgba(225,138,106,.18);
+    }
+    button{
+      width:100%;
+      margin-top:16px;
+      padding:12px 14px;
+      border-radius:999px;
+      border:none;
+      background:#e18a6a;
+      color:#fff;
+      font-weight:700;
+      cursor:pointer;
+      font-size: 14px;
+    }
+    button:active{ transform: translateY(1px); }
+    #msg{
+      margin-top:10px;
+      font-size:12px;
+      color:#c00;
+      text-align:center;
+      min-height: 1.2em;
+    }
+    .note{
+      margin-top: 10px;
+      font-size: 11px;
+      color: rgba(0,0,0,.55);
+      text-align:center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h1>e.nue</h1>
+    <p class="sub">ログイン</p>
+
+    <label>
+      メールアドレス
+      <input id="email" type="email" autocomplete="username" inputmode="email" />
+    </label>
+
+    <label>
+      パスワード
+      <input id="password" type="password" autocomplete="current-password" />
+    </label>
+
+    <button id="login" type="button">ログイン</button>
+    <p id="msg"></p>
+
+    <p class="note">※ ログイン済みの場合は自動で index.html に移動します</p>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+
+    // ★ あなたのFirebaseプロジェクト（公開されてOKな情報）
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+      authDomain: "handmade-pos.firebaseapp.com",
+      projectId: "handmade-pos",
+      storageBucket: "handmade-pos.firebasestorage.app",
+      messagingSenderId: "174873514252",
+      appId: "1:174873514252:web:c26659bffca850d475f929"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+
+    const $email = document.getElementById("email");
+    const $password = document.getElementById("password");
+    const $login = document.getElementById("login");
+    const $msg = document.getElementById("msg");
+
+    // すでにログイン済みなら index.html へ
+    onAuthStateChanged(auth, (user) => {
+      if (user) location.href = "index.html";
+    });
+
+    async function doLogin(){
+      $msg.textContent = "";
+      $login.disabled = true;
+      $login.textContent = "ログイン中...";
+
+      try{
+        await signInWithEmailAndPassword(auth, $email.value.trim(), $password.value);
+        location.href = "index.html";
+      }catch(e){
+        // セキュリティのため詳細は出さず、短く
+        $msg.textContent = "ログイン失敗（メールアドレス／パスワードを確認してください）";
+        console.error(e);
+      }finally{
+        $login.disabled = false;
+        $login.textContent = "ログイン";
+      }
+    }
+
+    $login.addEventListener("click", doLogin);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doLogin();
+    });
+  </script>
+</body>
+</html>
