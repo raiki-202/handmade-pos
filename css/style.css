@@ -1,0 +1,228 @@
+
+:root{
+  --bg1:#e3ddd4;
+  --bg2:#d4ccc1;
+
+  --glass-bg: rgba(255,255,255,.86);
+  --glass-bg2: rgba(255,255,255,.78);
+  --glass-border: rgba(0,0,0,.06);
+  --line-soft: rgba(0,0,0,.10);
+  --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+  --text-main:#222222;
+  --text-sub:#555555;
+  --muted: rgba(34,34,34,.55);
+
+  --accent:#e18a6a;
+  --accent2:#d06463;
+
+  --r:18px;
+}
+
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+body{
+  margin:0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text-main);
+  background: linear-gradient(135deg, var(--bg1), var(--bg2));
+}
+
+/* iOS link blue fix */
+a, a:visited, a:hover, a:active{
+  color: inherit;
+  text-decoration: none;
+}
+button, input, select, textarea{
+  font: inherit;
+  color: inherit;
+}
+a, button{
+  -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+.safe{
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+}
+
+.brand{
+  font-weight: 900;
+  letter-spacing: .02em;
+}
+
+.nav{
+  display:flex;
+  gap:10px;
+}
+
+.pill{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:10px 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.65);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+  cursor:pointer;
+  user-select:none;
+}
+.pill:active{ transform: translateY(1px); }
+
+.grid{
+  display:grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap:12px;
+}
+
+.card{
+  grid-column: span 12;
+  background: linear-gradient(180deg, var(--glass-bg), var(--glass-bg2));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow:hidden;
+  position: relative;
+}
+
+.cardHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.cardTitle{
+  font-weight: 900;
+}
+
+.cardBody{
+  padding: 14px;
+}
+
+.sub{
+  color: var(--text-sub);
+  font-size: 13px;
+}
+
+@media (min-width: 820px){
+  .span6{ grid-column: span 6; }
+  .span7{ grid-column: span 7; }
+  .span5{ grid-column: span 5; }
+}
+
+.kpiRow{
+  display:flex;
+  gap:10px;
+  flex-wrap: wrap;
+}
+.kpi{
+  flex: 1 1 140px;
+  min-width: 140px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.55);
+  border: 1px solid var(--glass-border);
+}
+.kpi .label{
+  font-size:12px;
+  color: var(--text-sub);
+  margin-bottom:6px;
+}
+.kpi .value{
+  font-weight: 900;
+  font-size: 20px;
+}
+.kpi .hint{
+  margin-top:6px;
+  font-size:12px;
+  color: var(--muted);
+}
+
+.calendarWrap{
+  width:100%;
+  height: 420px;
+  border-radius: 14px;
+  overflow:hidden;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,.55);
+}
+.calendarWrap iframe{
+  width:100%;
+  height:100%;
+  border:0;
+  display:block;
+}
+
+/* chart swap motion */
+.swapStage{
+  position: relative;
+  min-height: 240px;
+}
+.panel{
+  position:absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateX(10px);
+  pointer-events:none;
+  transition: opacity .25s ease, transform .25s ease;
+}
+.panel.active{
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events:auto;
+}
+.chartPlaceholder{
+  width:100%;
+  height:240px;
+  border-radius: 14px;
+  border: 1px dashed rgba(0,0,0,.18);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--muted);
+  background: rgba(255,255,255,.35);
+}
+
+/* Other page grid buttons */
+.tileGrid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media (max-width: 420px){
+  .tileGrid{ grid-template-columns: repeat(2, 1fr); }
+}
+.tile{
+  display:block;
+  aspect-ratio: 1 / 1;
+  border-radius: 16px;
+  background: rgba(255,255,255,.50);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 12px 28px rgba(0,0,0,.10);
+  padding: 12px;
+  position: relative;
+  cursor: pointer;
+}
+.tile:active{ transform: translateY(1px); }
+.tile .t{
+  font-weight: 900;
+}
+.tile .d{
+  margin-top:6px;
+  font-size: 12px;
+  color: var(--text-sub);
+}

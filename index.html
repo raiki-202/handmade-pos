@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="format-detection" content="telephone=no">
+  <title>e.nue Dashboard</title>
+  <link rel="stylesheet" href="./css/style.css" />
+</head>
+<body>
+  <div class="safe">
+    <div class="topbar">
+      <div class="brand">e.nue</div>
+      <div class="nav">
+        <a class="pill" href="./index.html">HOME</a>
+        <a class="pill" href="./otherpage.html">other</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card span7">
+        <div class="cardHead">
+          <div>
+            <div class="cardTitle">サマリー</div>
+            <div class="sub">※ここは bundle + 当月patch を想定</div>
+          </div>
+        </div>
+        <div class="cardBody">
+          <div class="kpiRow">
+            <div class="kpi">
+              <div class="label">総資産</div>
+              <div class="value">¥<span id="kpiAssets">-</span></div>
+              <div class="hint">当月</div>
+            </div>
+            <div class="kpi">
+              <div class="label">受注件数</div>
+              <div class="value"><span id="kpiOrders">-</span></div>
+              <div class="hint">当月</div>
+            </div>
+            <div class="kpi">
+              <div class="label">売上</div>
+              <div class="value">¥<span id="kpiRevenue">-</span></div>
+              <div class="hint">当月</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card span5">
+        <div class="cardHead">
+          <div>
+            <div class="cardTitle">カレンダー</div>
+            <div class="sub">枠だけ問題を潰す（iframe高さ固定 + overflow）</div>
+          </div>
+        </div>
+        <div class="cardBody">
+          <div class="calendarWrap">
+            <iframe
+              title="Google Calendar"
+              src="https://calendar.google.com/calendar/embed?mode=AGENDA&showTitle=0&showTz=0&showCalendars=0&showNav=0&showPrint=0&showDate=1&wkst=1&hl=ja"
+              loading="lazy"
+              referrerpolicy="no-referrer-when-downgrade">
+            </iframe>
+          </div>
+          <div class="sub" style="margin-top:10px;">
+            ※ここは後で「あなたの3カレンダー統合表示URL」に差し替えでOK
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardHead">
+          <div>
+            <div class="cardTitle">受注件数 / 総資産</div>
+            <div class="sub">タップ切替のモーション復活（panel切替 + CSS transition）</div>
+          </div>
+          <div class="nav" style="margin-left:auto;">
+            <button class="pill" id="btnOrders" type="button">受注件数</button>
+            <button class="pill" id="btnAssets" type="button">総資産</button>
+          </div>
+        </div>
+        <div class="cardBody">
+          <div class="swapStage">
+            <div class="panel" id="panelOrders">
+              <div class="chartPlaceholder">
+                <div id="ordersText">読み込み中…</div>
+              </div>
+            </div>
+            <div class="panel" id="panelAssets">
+              <div class="chartPlaceholder">
+                <div id="assetsText">読み込み中…</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sub" style="margin-top:12px;">
+            ※受注件数の「仮データ表示」は削除済み（bundle/patchへ移行する前提の骨組み）
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="cardHead">
+          <div>
+            <div class="cardTitle">購入履歴（パッチ化の方針）</div>
+            <div class="sub">購入履歴 = 追加されるたび patch 扱い → 週次/任意でbundle再生成</div>
+          </div>
+        </div>
+        <div class="cardBody">
+          <div class="sub">
+            ・今週/今月分：Firestoreから読み取り（patch）<br>
+            ・過去分：/data に bundle として配布（GitHub Pages）<br>
+            ・「bundleを更新した以降の購入のみ」ではなく、購入履歴は salesデータとして時系列に追加される想定
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script type="module" src="./js/app.js"></script>
+  <!-- Firebaseを使うなら ./js/firebase-optional.js を参考に initDashboard({getPatchFn}) で差し替え -->
+</body>
+</html>
