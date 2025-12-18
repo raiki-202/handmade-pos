@@ -477,7 +477,7 @@
         <div id="receiptOptionLine" style="margin-top:8px; font-weight:900; display:none;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
-        <!-- customer (マルシェ以外のときだけ表示) -->
+        <!-- customer（任意） -->
         <div id="receiptCustomerRow" style="display:none; margin-top:12px; padding:12px; border:1px solid rgba(0,0,0,.08); border-radius:16px; background: rgba(255,255,255,.75);">
           <div class="muted" style="margin-bottom:8px;">購入者名（任意）</div>
           <input id="receiptCustomerName" type="text" placeholder="例：田中様" style="width:100%;" />
@@ -1165,7 +1165,7 @@ async function writeSale(){
                 : 300;
   }
 
-  const customerName = (settings.currentChannel !== "マルシェ") ? (($receiptCustomerName?.value || "").trim()) : "";
+  const customerName = (($receiptCustomerName?.value || "").trim());
 
   const progress = (settings.currentChannel !== "マルシェ")
     ? "未着手"
@@ -1316,7 +1316,7 @@ $checkoutBtn.onclick = ()=>{
   if($receiptOrderRow && $receiptOrderCheck && $receiptShipOptions){
     const isNonMarche = settings.currentChannel !== "マルシェ";
     if($receiptCustomerRow && $receiptCustomerName){
-      $receiptCustomerRow.style.display = isNonMarche ? "" : "none";
+      $receiptCustomerRow.style.display = "";
       $receiptCustomerName.value = "";
     }
     $receiptOrderRow.style.display = isNonMarche ? "" : "none";
@@ -1327,11 +1327,9 @@ $checkoutBtn.onclick = ()=>{
     updateReceiptUI();
   }
 
-  // customer row toggle（念のため）
+  // customer row（常に表示）
   if($receiptCustomerRow && $receiptCustomerName){
-    const isNonMarche = settings.currentChannel !== "マルシェ";
-    $receiptCustomerRow.style.display = isNonMarche ? "" : "none";
-    if(!isNonMarche) $receiptCustomerName.value = "";
+    $receiptCustomerRow.style.display = "";
   }
 
   $receiptModal.classList.add("show");
