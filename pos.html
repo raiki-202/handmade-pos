@@ -1356,6 +1356,28 @@ $addOkBtn.onclick = ()=>{
 bootFirebase();
 renderSettingsUI();
 
+// =====================
+// Settings listeners
+// =====================
+$channelSelect.addEventListener("change", () => {
+  settings.currentChannel = $channelSelect.value;
+  // マルシェ以外は開催場所を非表示
+  $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
+  // venueはマルシェ以外なら空でもいいが、値は保持してOK
+  saveSettings();
+});
+
+$venueSelect.addEventListener("change", () => {
+  settings.currentVenue = $venueSelect.value;
+  saveSettings();
+});
+
+$paymentSelect.addEventListener("change", () => {
+  settings.paymentMethod = $paymentSelect.value;
+  saveSettings();
+});
+
+
 async function reloadProducts(){
   const loaded = await loadProductsWithPatch();
   products = loaded.products;
