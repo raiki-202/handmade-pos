@@ -1823,29 +1823,43 @@ import {
     function startStockListener(){
       const col = collection(db, "sales");
       // Firestore側は並びだけ確定（!= は環境/インデックスで躓きやすいのでクライアントでフィルタ）
-      const q = query(col, orderBy("clientCreatedAt","asc"));
+      let q;
+      try{
+        q = query(col, orderBy("createdAt","asc"));
+      }catch(e){
+        q = col;
+      }
       onSnapshot(q, (snap)=>{
         rowsStock = snap.docs.map(d=>{
           const data = d.data() || {};
           const createdAtMs =
-            tsToMs(data.clientCreatedAt) ??
             tsToMs(data.createdAt) ??
+            tsToMs(data.clientCreatedAt) ??
             null;
 
           return {
             id: d.id,
             customerName: data.customerName || "",
             createdAtMs: createdAtMs ?? 0,
-            kind: data.kind || "",           // kindが無いデータは表示対象外
+            kind: data.kind || "stock",     // kindが無いデータはstock扱い（初期データ救済）
             channel: data.channel || "",
             progress: data.progress || "未着手",
             assignees: Array.isArray(data.assignees) ? data.assignees : []
           };
         });
         renderTable("stock");
+      
       }, (err)=>{
         console.error("stock(sales) listener error:", err);
+        try{
+          const el = document.getElementById("emptyStock");
+          if(el){
+            el.style.display = "block";
+            el.textContent = "読込エラー（Firestore）: Consoleを確認";
+          }
+        }catch(_e){}
       });
+
     }
 
     async function editStockProgress(docId, current){
