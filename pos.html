@@ -3,10 +3,19 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
   <title>e.nue POS</title>
 
   <style>
-    :root{
+    
+/* iOS: 青文字(自動リンク)対策 */
+a, a:link, a:visited, a:hover, a:active{
+  color: inherit;
+  text-decoration:none;
+}
+*{ -webkit-tap-highlight-color: transparent; }
+
+:root{
       --bg1:#e3ddd4;
       --bg2:#d4ccc1;
 
@@ -1514,5 +1523,119 @@ await reloadProducts();
 
 setEditIcon();
 </script>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { getFirestore, collection, getDocs, query, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* 本番 */
+const firebaseConfig = {
+  apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+  authDomain: "handmade-pos.firebaseapp.com",
+  projectId: "handmade-pos",
+  storageBucket: "handmade-pos.firebasestorage.app",
+  messagingSenderId: "174873514252",
+  appId: "1:174873514252:web:c26659bffca850d475f929",
+  measurementId: "G-3F8BYRBXDC"
+};
+
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+const pad2 = (n)=> String(n).padStart(2,"0");
+const ymd = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+
+function toMillis(ts){
+  if(!ts) return 0;
+  if(typeof ts === "number") return ts;
+  if(ts instanceof Date) return ts.getTime();
+  if(ts instanceof Timestamp) return ts.toMillis();
+  if(typeof ts === "string"){
+    const t = Date.parse(ts);
+    return Number.isFinite(t) ? t : 0;
+  }
+  return 0;
+}
+function readCalendarCache(){
+  try{
+    const raw = localStorage.getItem("enue_calendar_cache_v1");
+    if(!raw) return null;
+    return JSON.parse(raw);
+  }catch{ return null; }
+}
+function isNowInWindow(ev){
+  const s = toMillis(ev.startAt);
+  const e = toMillis(ev.endAt);
+  const n = Date.now();
+  return s && e && n>=s && n<=e;
+}
+
+/** POS側デフォルト切替：マルシェ/ストーリー中だけ「マルシェ扱い & 現金」 */
+function applyDefaultsByActiveEvent(){
+  const cache = readCalendarCache() || {};
+  const key = ymd(new Date());
+  const arr = cache[key] || [];
+  const active = arr.find(ev => (ev.type==="marche" || ev.type==="story") && isNowInWindow(ev));
+  if(!active) return;
+
+  // ここは POS の実装に合わせて id/name を後で微調整する必要があるかも。
+  // よくある要素名を広めに拾う：
+  const methodSel = document.querySelector('select[name="salesMethod"], select#salesMethod, select#method, select[name="method"]');
+  const paySel    = document.querySelector('select[name="payMethod"], select#payMethod, select#paymentMethod, select[name="paymentMethod"]');
+
+  if(methodSel){
+    // ストーリー販売も「イベント扱い」なので、販売方法は "マルシェ" に寄せたい場合はここで固定
+    // ただしユーザー要件：ストーリーは販売場所を選ばない → method自体は任意。今回はPOS側UI次第で無理に固定しない。
+    // methodSel.value = "マルシェ";
+  }
+  if(paySel){
+    paySel.value = "現金";
+    paySel.dispatchEvent(new Event("change", { bubbles:true }));
+  }
+}
+
+async function loadVenues(){
+  // 1) bundle
+  let venues = [];
+  try{
+    const res = await fetch("./venues_bundle.json", { cache:"no-store" });
+    if(res.ok){
+      const b = await res.json();
+      if(Array.isArray(b.venues)) venues = b.venues.slice();
+    }
+  }catch{}
+
+  // 2) patch (Firestore: venues)
+  try{
+    const snap = await getDocs(query(collection(db,"venues"), orderBy("updatedAt","desc"), limit(200)));
+    snap.forEach(d=>{
+      const v = d.data();
+      const name = v.name || v.title || "";
+      if(!name) return;
+      if(!venues.includes(name)) venues.push(name);
+    });
+  }catch(err){
+    console.warn("venues load failed:", err);
+  }
+
+  // 3) 反映（POSの販売場所selectを探してoptionsを更新）
+  const venueSel = document.querySelector('select[name="venue"], select#venue, select#salesVenue, select[name="salesVenue"]');
+  if(!venueSel) return;
+
+  // 既存を壊さないように、見つからない時だけ追加
+  const existing = new Set([...venueSel.options].map(o=>o.value));
+  for(const v of venues){
+    if(existing.has(v)) continue;
+    const opt = document.createElement("option");
+    opt.value = v;
+    opt.textContent = v;
+    venueSel.appendChild(opt);
+  }
+}
+
+applyDefaultsByActiveEvent();
+loadVenues();
+</script>
+
 </body>
 </html>
