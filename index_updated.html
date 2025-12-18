@@ -1,0 +1,2117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no,date=no,address=no,email=no">
+  <title>e.nue Dashboard</title>
+
+<style>
+
+/* ===== iOS: 青文字(自動リンク)対策 ===== */
+a, a:link, a:visited, a:hover, a:active{
+  color: var(--text-main);
+  text-decoration:none;
+}
+*{ -webkit-tap-highlight-color: transparent; }
+
+/* ===== list title（見切れ対策） ===== */
+.listTitle{
+  padding: 12px 14px 8px;
+  font-weight: 1000;
+  letter-spacing: .04em;
+  border-bottom: 1px solid rgba(0,0,0,.06);
+  text-align: right;           /* 右寄せで枠内に収める */
+  white-space: nowrap;
+  font-size: 13px;
+}
+@media (max-width: 360px){
+  .listTitle{ font-size:12px; }
+}
+
+/* ===== calendar viewport fix ===== */
+.secCal .calViewport{ overflow:hidden; }
+.secCal .calGrid{ width:100%; }
+
+:root{
+  --bg1:#e3ddd4;
+  --bg2:#d4ccc1;
+
+  --glass-bg: rgba(255,255,255,.86);
+  --glass-bg2: rgba(255,255,255,.78);
+  --glass-border: rgba(0,0,0,.06);
+  --line-soft: rgba(0,0,0,.10);
+  --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+  --text-main:#222222;
+  --text-sub:#555555;
+  --muted: rgba(34,34,34,.55);
+
+  --accent:#e18a6a;
+  --accent2:#d06463;
+
+  --ok:#2fbf7a;
+  --wait:#f0a33a;
+  --done:#6d78d8;
+  --todo:#9097a6;
+
+  --r:18px;
+  --maxw:980px;
+
+  /* otherpage tiles */
+  --safe-pad:14px;
+  --gap:10px;
+  --tile-r:18px;
+  --blur:16px;
+  --shadow2: 0 10px 26px rgba(0,0,0,.10);
+  --icon: rgba(0,0,0,.72);
+  --tile-size: calc((100vw - (var(--safe-pad) * 2) - (var(--gap) * 2)) / 3);
+
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+
+body{
+  margin:0;
+  font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
+  color:var(--text-main);
+  background:
+    radial-gradient(1200px 800px at 18% 8%, rgba(225,138,106,.18), transparent 55%),
+    radial-gradient(1200px 800px at 88% 0%, rgba(208,100,99,.14), transparent 52%),
+    linear-gradient(135deg,var(--bg1),var(--bg2));
+}
+
+.safe{
+  padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+  max-width:var(--maxw);
+  margin:0 auto;
+}
+
+/* ===== top bar ===== */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:6px 0 14px;
+}
+.brand{ font-weight:900; letter-spacing:.02em; }
+
+.tabs{
+  display:flex; gap:4px; padding:4px;
+  border-radius:999px;
+  background:rgba(255,255,255,.55);
+  border:1px solid var(--glass-border);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.tab{
+  border:0; background:transparent;
+  padding:10px 14px; border-radius:999px;
+  font-weight:800; cursor:pointer;
+  color:rgba(34,34,34,.65);
+}
+.tab.active{
+  background:rgba(255,255,255,.85);
+  color:var(--text-main);
+  box-shadow:0 8px 18px rgba(0,0,0,.08);
+}
+
+/* ===== layout ===== */
+.grid{ display:flex; flex-direction:column; gap:14px; }
+
+.card{
+  background:linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
+  border:1px solid var(--glass-border);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+/* =====================================================
+   “非3D” flip（Safariでもスクロール壊れない）
+===================================================== */
+.hint{ display:none; }
+.cardFlip{ position:relative; cursor:pointer; }
+.cardFlipInner{
+  position:relative;
+  min-height:360px;
+}
+
+/* 2面を重ねてフェード切替（transform無し） */
+.cardFace{
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .75s ease;
+  will-change: opacity, filter;
+}
+.cardFace.front{ opacity:1; pointer-events:auto; }
+.cardFlip.is-flipped .cardFace.front{ opacity:0; pointer-events:none; }
+.cardFlip.is-flipped .cardFace.back { opacity:1; pointer-events:auto; }
+
+/* 上品な切替演出 */
+.cardFace::after{
+  content:"";
+  position:absolute;
+  inset:-20%;
+  pointer-events:none;
+  opacity:0;
+  background:
+    radial-gradient(800px 520px at 18% 20%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(900px 560px at 85% 10%, rgba(225,138,106,.20), transparent 62%),
+    radial-gradient(900px 640px at 80% 90%, rgba(208,100,99,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0));
+  filter: blur(10px);
+  transform: translateY(-6px);
+  transition: opacity .75s ease, transform .75s ease, filter .75s ease;
+}
+.cardFlip.is-animating .cardFace{ filter: blur(2.2px) saturate(1.03); }
+.cardFlip.is-animating .cardFace::after{
+  opacity:1;
+  transform: translateY(0);
+  filter: blur(14px);
+}
+
+/* ===== card head ===== */
+.cardHead{
+  display:flex; justify-content:space-between;
+  gap:10px;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+.title .h{ font-weight:900; font-size:14px; letter-spacing:.06em; }
+.title .s{ font-size:12px; color:rgba(34,34,34,.6); }
+
+.badgeBig{
+  text-align:right;
+  min-width: 88px;
+  flex: 0 0 auto;
+}
+.badgeBig .k{
+  font-size:11px; font-weight:800; color:rgba(34,34,34,.55);
+  white-space:nowrap;
+  display:inline-block;
+}
+.badgeBig .v{ font-size:18px; font-weight:900; }
+
+/* ===== chart ===== */
+.chartWrap{
+  padding:12px 0;
+  overflow:hidden;
+  cursor:default;
+}
+.chartFrame{ position:relative; padding:0 12px 10px; }
+
+.yAxisFixed{
+  position:absolute; left:12px; top:0;
+  width:42px; height:220px;
+  pointer-events:none;
+  z-index:2;
+}
+
+/* スクロール領域 */
+.chartScroller{
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action: pan-x;
+}
+
+/* 左余白（Y軸固定分） */
+.chartInner{
+  padding-left:42px;
+  display:inline-block;
+}
+.chartMount{
+  display:inline-block;
+}
+.chartMount svg{
+  display:block;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ===== tooltip（SVG内） ===== */
+.chartTooltip{ pointer-events:none; }
+.chartTooltip rect{ fill: rgba(34,34,34,.92); rx:8; }
+.chartTooltip text{ fill:#fff; font-size:12px; font-weight:900; }
+
+/* ===== section2 (calendar) ===== */
+:root{ --cell:52px; } /* fallback */
+.secCal .calendar{ padding:12px; }
+.secCal .calBox{
+  border-radius:14px;
+  border:1px solid rgba(0,0,0,.08);
+  background:rgba(255,255,255,.60);
+  overflow:hidden;
+}
+.secCal .calTop{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 10px 8px;
+  font-weight:900; gap:10px;
+}
+.secCal .calTopLeft,.secCal .calTopRight{ display:flex; align-items:center; gap:8px; }
+.secCal .navBtn,.secCal .todayBtn,.secCal .modeBtn{
+  appearance:none; border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.75);
+  border-radius:999px;
+  padding:8px 10px;
+  font-weight:900;
+  font-size:12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  cursor:pointer;
+}
+.secCal .navBtn:active,.secCal .todayBtn:active,.secCal .modeBtn:active{ transform:translateY(1px); }
+.secCal .navBtn[disabled]{ opacity:.35; cursor:not-allowed; }
+.secCal .monthLabel{ font-weight:1000; letter-spacing:.2px; }
+.secCal .calViewport{ position:relative; overflow:hidden; border-top:1px solid rgba(0,0,0,.06); }
+.secCal .calGrid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:1px;
+  background:rgba(0,0,0,.08);
+  will-change: transform, opacity;
+}
+.secCal .dow,.secCal .day{
+  background:rgba(255,255,255,.62);
+  padding:6px;
+  font-size:12px;
+  min-height: var(--cell);
+  height: var(--cell);
+}
+.secCal .dow{
+  text-align:center;
+  font-weight:1000;
+  display:flex; align-items:center; justify-content:center;
+  user-select:none;
+}
+.secCal .day{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  border:none;
+  width:100%;
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  touch-action:manipulation;
+}
+.secCal .day.dim{ opacity:.45; }
+.secCal .num{
+  font-weight:1000;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:26px; height:26px;
+  border-radius:999px;
+}
+.secCal .centerMark{
+  margin-top:auto;
+  margin-bottom:4px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height: 22px;
+}
+.secCal .stamp{
+  display:inline-grid;
+  grid-template-rows:auto auto;
+  place-items:center;
+  padding:6px 10px 7px;
+  border-radius:999px;
+  border:2px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.78);
+  box-shadow:
+    0 10px 18px rgba(0,0,0,.10),
+    inset 0 0 0 2px rgba(225,138,106,.35);
+  transform: rotate(-10deg);
+}
+.secCal .stamp span{
+  font-weight:1000;
+  font-size:11px;
+  line-height:1.05;
+  letter-spacing:.6px;
+  color: var(--accent2);
+}
+.secCal .eventDot{
+  width:10px; height:10px;
+  border-radius:999px;
+  box-shadow:
+    0 10px 16px rgba(0,0,0,.10),
+    inset 0 0 0 2px rgba(255,255,255,.85);
+}
+.secCal .eventDot.orange{ background: rgba(225,138,106,.95); }
+.secCal .eventDot.blue{ background: rgba(109,120,216,.95); }
+.secCal .eventDot.red{ background: rgba(208,100,99,.95); }
+.secCal .eventDot.gray{ background: rgba(34,34,34,.28); }
+.secCal .day.dim .eventDot,
+.secCal .day.dim .stamp{ opacity:.45; transform: rotate(-10deg) scale(.92); }
+
+/* 土日・祝 */
+.secCal .day.sun{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(208,100,99,.16); }
+.secCal .day.sat{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(109,120,216,.16); }
+.secCal .day.holiday{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(208,100,99,.20); }
+.secCal .day.sun .num, .secCal .day.holiday .num{ color: var(--accent2); }
+.secCal .day.sat .num{ color: rgba(109,120,216,.95); }
+
+/* 今日 */
+.secCal .day.today .num{
+  box-shadow:
+    0 0 0 2px rgba(225,138,106,.30),
+    0 0 14px rgba(225,138,106,.45);
+  background: rgba(255,255,255,.75);
+}
+
+/* スライド */
+.secCal .slideEnterRight{ transform: translateX(14%); opacity:0; }
+.secCal .slideEnterLeft { transform: translateX(-14%); opacity:0; }
+.secCal .slideActive{ transform: translateX(0%); opacity:1; transition: transform .28s ease, opacity .28s ease; }
+.secCal .slideExitLeft{ transform: translateX(-14%); opacity:0; transition: transform .28s ease, opacity .28s ease; position:absolute; inset:0; }
+.secCal .slideExitRight{ transform: translateX(14%); opacity:0; transition: transform .28s ease, opacity .28s ease; position:absolute; inset:0; }
+
+/* 吹き出し（class名は .popover に統一） */
+.popover{
+  position:fixed;
+  z-index:9999;
+  max-width:min(320px, calc(100vw - 28px));
+  background: rgba(255,255,255,.92);
+  border:1px solid rgba(0,0,0,.10);
+  border-radius:14px;
+  box-shadow: 0 22px 55px rgba(0,0,0,.18);
+  padding:10px 12px;
+  transform-origin: top left;
+  animation: secCalPop .12s ease;
+}
+@keyframes secCalPop{
+  from{ transform: scale(.98); opacity:0; }
+  to{ transform: scale(1); opacity:1; }
+}
+.secCal .popHead{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.secCal .popTitle{ font-weight:1000; }
+.secCal .popSub{ font-size:12px; color:rgba(0,0,0,.55); margin-top:2px; }
+.secCal .iconBtn{
+  appearance:none;
+  border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.75);
+  border-radius:12px;
+  padding:6px 8px;
+  cursor:pointer;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  font-weight:1000;
+  font-size:14px;
+  line-height:1;
+}
+.secCal .iconBtn:active{ transform:translateY(1px); }
+.secCal .popRow{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+.secCal .badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:900;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(225,138,106,.16);
+  border: 1px solid rgba(225,138,106,.28);
+}
+.secCal .badge.blue{ background: rgba(109,120,216,.14); border-color: rgba(109,120,216,.24); }
+.secCal .badge.red{ background: rgba(208,100,99,.14); border-color: rgba(208,100,99,.24); }
+.secCal .editBox{
+  margin-top:10px;
+  padding:10px;
+  border-radius:12px;
+  border:1px dashed rgba(0,0,0,.18);
+  background: rgba(255,255,255,.72);
+  display:none;
+}
+.secCal .editBox.show{ display:block; }
+.secCal .editBox label{ display:block; font-size:12px; color:rgba(0,0,0,.55); font-weight:900; margin-bottom:6px; }
+.secCal .editRow{ display:flex; gap:8px; align-items:center; }
+.secCal .dateInput{
+  flex:1; appearance:none;
+  border:1px solid rgba(0,0,0,.14);
+  border-radius:12px;
+  padding:10px 10px;
+  background: rgba(255,255,255,.85);
+  font-weight:900;
+}
+.secCal .saveBtn{
+  appearance:none; border:none;
+  border-radius:12px;
+  padding:10px 12px;
+  font-weight:1000;
+  background: rgba(225,138,106,.95);
+  color:#fff;
+  box-shadow: 0 10px 18px rgba(0,0,0,.12);
+  cursor:pointer;
+}
+.secCal .saveBtn:active{ transform:translateY(1px); }
+.secCal .note{ margin-top:8px; font-size:11px; color:rgba(0,0,0,.55); opacity:.85; }
+.secCal .closeHint{ margin-top:10px; font-size:11px; color: rgba(0,0,0,.55); opacity:.75; }
+
+@supports (aspect-ratio: 1 / 1){
+  .secCal .day{ aspect-ratio: 1 / 1; height:auto; min-height:auto; }
+  .secCal .dow{ height:auto; min-height:34px; }
+}
+@media (max-width: 380px){
+  .secCal .calendar{ padding:10px; }
+  .secCal .dow,.secCal .day{ padding:5px; }
+  .secCal .num{ width:24px; height:24px; }
+}
+
+/* ===== section3/4 (orders tables) ===== */
+.secOrders .tableWrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
+.secOrders .ordersTable{ width:100%; border-collapse:collapse; min-width:720px; }
+.secOrders .ordersTable th,.secOrders .ordersTable td{ padding:10px; font-size:13px; vertical-align:middle; }
+.secOrders .ordersTable th{ text-align:left; background:#f3f3f3; position:sticky; top:0; z-index:1; }
+.secOrders .ordersTable tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+
+.secOrders .tap{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  border-radius:12px;
+  border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.7);
+  cursor:pointer;
+  user-select:none;
+  max-width:100%;
+}
+.secOrders .tap:active{ transform: translateY(1px); }
+
+.secOrders .nameBtn{
+  border:none; background:transparent; padding:0; margin:0;
+  cursor:pointer; text-align:left; font:inherit; color:inherit;
+  display:inline-flex; align-items:center; gap:8px;
+}
+.secOrders .nameBtn .chev{ opacity:.55; font-weight:900; }
+.secOrders .duePill{ white-space:nowrap; }
+
+.secOrders .statusPill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:2px solid rgba(0,0,0,.12);
+  font-weight:900;
+  background:rgba(255,255,255,.85);
+  white-space:nowrap;
+}
+.secOrders .dot{
+  width:8px; height:8px; border-radius:50%;
+  background:rgba(0,0,0,.35);
+  box-shadow:0 0 0 3px rgba(0,0,0,.06);
+  flex:0 0 auto;
+}
+.secOrders .s-michakushu{ border-color: rgba(139,139,139,.55); }
+.secOrders .s-michakushu .dot{ background:rgba(62,62,62,1); box-shadow:0 0 0 3px rgba(139,139,139,.18); }
+
+.secOrders .s-nyuukin{ border-color: rgba(240,163,58,.70); }
+.secOrders .s-nyuukin .dot{ background:rgba(185,98,0,1); box-shadow:0 0 0 3px rgba(240,163,58,.22); }
+
+.secOrders .s-shinkochu{ border-color: rgba(47,191,122,.70); }
+.secOrders .s-shinkochu .dot{ background:rgba(15,122,69,1); box-shadow:0 0 0 3px rgba(47,191,122,.20); }
+
+/* 完了（保険。表示はしないフィルタだけど） */
+.secOrders .s-done{ border-color: rgba(109,120,216,.70); }
+.secOrders .s-done .dot{ background:rgba(66,76,175,1); box-shadow:0 0 0 3px rgba(109,120,216,.20); }
+
+.secOrders .chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
+.secOrders .chip{
+  display:inline-flex; align-items:center;
+  padding:5px 8px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background:rgba(0,0,0,.03);
+  font-weight:800;
+  white-space:nowrap;
+}
+.secOrders .chip.muted{ opacity:.55; font-weight:700; }
+.emptyOrders{ padding:18px 14px; color:rgba(0,0,0,.55); font-weight:800; }
+
+/* mobile card rows */
+@media (max-width: 620px){
+  .secOrders .tableWrap{ overflow:visible; }
+  .secOrders .ordersTable{ min-width:0; }
+  .secOrders .ordersTable thead{ display:none; }
+  .secOrders .ordersTable tr{ display:block; padding:10px 12px; border-top:1px solid rgba(0,0,0,.07); }
+  .secOrders .ordersTable tr:first-child{ border-top:none; }
+  .secOrders .ordersTable tr+tr td{ border-top:none; }
+  .secOrders .ordersTable td{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:13px; }
+  .secOrders .ordersTable td::before{
+    content: attr(data-label);
+    color:rgba(0,0,0,.55);
+    font-weight:800;
+    margin-right:10px;
+    flex:0 0 auto;
+  }
+}
+
+/* bottom sheet (shared) */
+.enueOverlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.35);
+  display:none;
+  align-items:flex-end;
+  z-index:999;
+  padding:10px;
+}
+.enueOverlay.show{ display:flex; }
+.enueSheet{
+  width:min(640px,100%);
+  margin:0 auto;
+  background:#fff;
+  border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.enueSheetHead{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-weight:900;
+}
+.enueSheetBody{ padding:12px 14px; }
+.enueSheetFoot{
+  padding:12px 14px;
+  border-top:1px solid rgba(0,0,0,.08);
+  display:flex; gap:10px;
+}
+.enueBtn{
+  flex:1;
+  border:none;
+  border-radius:14px;
+  padding:12px 12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.enueBtnGhost{ background:rgba(0,0,0,.06); }
+.enueBtnPrimary{ background:#111; color:#fff; }
+
+.enueOptList{ display:grid; gap:10px; }
+.enueOpt{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 12px;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,.12);
+  cursor:pointer;
+  user-select:none;
+}
+.enueOpt:active{ transform: translateY(1px); }
+.enueOpt .left{ display:flex; align-items:center; gap:10px; font-weight:900; }
+.enueOpt .right{ color:rgba(0,0,0,.55); font-weight:800; }
+.enueCheck{
+  width:18px; height:18px;
+  border-radius:6px;
+  border:2px solid rgba(0,0,0,.25);
+  background:transparent;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:900;
+}
+.enueCheck.on{ background:#111; border-color:#111; color:#fff; }
+
+.enueHiddenDate{
+  position:fixed; left:-9999px; top:-9999px;
+  opacity:0; pointer-events:none;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .cardFace{ transition:none; }
+  .cardFlip.is-animating .cardFace{ filter:none; }
+  .cardFace::after{ transition:none; }
+}
+
+
+/* ===== OTHER page tiles (merged) ===== */
+/* OTHER */
+.otherCard{ padding:14px; }
+.tileGrid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+
+.tile{
+  position:relative;
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  height: var(--tile-size);  /* ← iPhoneで確実に収める */
+  border-radius: var(--tile-r);
+
+  border: 1px solid rgba(255,255,255,.62);
+  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
+  box-shadow: var(--shadow2);
+
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+
+  padding: 11px;
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:6px;
+
+  transition: transform .08s ease, background .12s ease, border-color .12s ease;
+}
+.tile::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: var(--tile-r);
+  pointer-events:none;
+  border: 1px solid rgba(0,0,0,.06);
+}
+.tile:active{ transform: scale(.985); }
+.tile:hover{
+  background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.14));
+  border-color: rgba(255,255,255,.75);
+}
+
+/* アイコン */
+.tileIcon{
+  position:absolute;
+  top:10px;
+  left:10px;
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  opacity:.95;
+}
+.tileIcon svg{
+  width:26px;
+  height:26px;
+  stroke: var(--icon);
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tileTitle{ font-weight:900; font-size:13px; line-height:1.2; }
+.tileSub{ font-weight:700; font-size:10.5px; color: rgba(34,34,34,.60); line-height:1.2; }
+
+/* さらに小さい端末（SE級）でも余裕を作る */
+@media (max-width: 360px){
+  :root{
+    --safe-pad: 12px;
+    --gap: 8px;
+    --tile-size: calc((100vw - (var(--safe-pad) * 2) - (var(--gap) * 2)) / 3);
+  }
+  .tile{ padding:10px; }
+  .tileIcon{ top:9px; left:9px; width:24px; height:24px; }
+  .tileIcon svg{ width:24px; height:24px; }
+}
+
+/* iPad以上は少し大きく（見やすさ） */
+@media (min-width: 600px){
+  :root{ --tile-size: 160px; --gap: 12px; }
+  .tileTitle{ font-size:14px; }
+  .tileSub{ font-size:11px; }
+}
+@media (min-width: 900px){
+  :root{ --tile-size: 180px; }
+}
+
+</style>
+</head>
+
+<body>
+  <div class="safe">
+    <div class="topbar">
+      <div class="brand">e.nue</div>
+      <div class="tabs" role="tablist" aria-label="page switch">
+        <button class="tab active" data-view="home" type="button">HOME</button>
+        <button class="tab" data-view="other" type="button">OTHER</button>
+      </div>
+    </div>
+
+    <!-- HOME -->
+    <main id="view-home" class="grid">
+
+      <!-- 1) グラフ（切替） -->
+      <section class="card cardFlip" id="card-chart">
+        <div class="cardFlipInner">
+
+          <!-- FRONT：受注件数 -->
+          <div class="cardFace front">
+            <div class="cardHead">
+              <div class="title">
+                <div class="h" id="chartTitleA">受注件数の推移</div>
+                <div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+              </div>
+              <div class="badgeBig">
+                <div class="k" id="metricLabelA">受注件数</div>
+                <div class="v" id="metricValueA">—</div>
+              </div>
+            </div>
+
+            <div class="chartWrap">
+              <div class="chartFrame">
+                <div class="yAxisFixed" id="yAxisFixedA"></div>
+                <div class="chartScroller" id="chartScrollerA">
+                  <div class="chartInner">
+                    <div class="chartMount" id="chartMountA"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="hint">
+                <span class="tapHint" id="flipHintA">👆 タップで「総資産の推移」に切替</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- BACK：総資産 -->
+          <div class="cardFace back">
+            <div class="cardHead">
+              <div class="title">
+                <div class="h" id="chartTitleB">総資産の推移</div>
+                <div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+              </div>
+              <div class="badgeBig">
+                <div class="k" id="metricLabelB">総資産</div>
+                <div class="v" id="metricValueB">—</div>
+              </div>
+            </div>
+
+            <div class="chartWrap">
+              <div class="chartFrame">
+                <div class="yAxisFixed" id="yAxisFixedB"></div>
+                <div class="chartScroller" id="chartScrollerB">
+                  <div class="chartInner">
+                    <div class="chartMount" id="chartMountB"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="hint">
+                <span class="tapHint" id="flipHintB">👆 タップで「受注件数の推移」に切替</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- 2) カレンダー -->
+      <section class="card">
+        <div class="cardHead">
+          <div class="title">
+            <div class="h">カレンダー</div>
+            <div class="s">予定日の吹き出しに✏️を付けて日付変更（ローカル保存）</div>
+          </div>
+          <div class="badgeBig">
+            <div class="k">表示月</div>
+            <div class="v" id="monthLabelMini">—</div>
+          </div>
+        </div>
+
+        <div class="secCal">
+          <div class="calendar">
+            <div class="calBox" id="calBox">
+              <div class="calTop">
+                <div class="calTopLeft">
+                  <button class="todayBtn" id="todayBtn" type="button">today</button>
+                  <button class="navBtn" id="prevBtn" type="button">≪</button>
+                  <button class="navBtn" id="nextBtn" type="button">≫</button>
+                </div>
+
+                <div class="monthLabel" id="monthLabel">----</div>
+
+                <div class="calTopRight">
+                  <button class="modeBtn" id="modeBtn" type="button">Sun–Sat</button>
+                </div>
+              </div>
+
+              <div class="calViewport" id="calViewport"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3) 受注残：stock -->
+      <section class="card">
+        <div class="listTitle">受注残：stock</div>
+        <div class="list secOrders" id="secStock">
+          <div class="tableWrap">
+            <table class="ordersTable" aria-label="stock orders">
+              <thead class="thead">
+                <tr>
+                  <th style="width:46%;">名前</th>
+                  <th style="width:22%;">期日</th>
+                  <th style="width:20%;">進捗</th>
+                  <th style="width:12%; text-align:right;">担当</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyStock"></tbody>
+            </table>
+            <div id="emptyStock" class="emptyOrders" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4) 受注残：order -->
+      <section class="card">
+        <div class="listTitle">受注残：order</div>
+        <div class="list secOrders" id="secOrder">
+          <div class="tableWrap">
+            <table class="ordersTable" aria-label="made-to-order">
+              <thead class="thead">
+                <tr>
+                  <th style="width:46%;">名前</th>
+                  <th style="width:22%;">期日</th>
+                  <th style="width:20%;">進捗</th>
+                  <th style="width:12%; text-align:right;">担当</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyOrder"></tbody>
+            </table>
+            <div id="emptyOrder" class="emptyOrders" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stock/Order 共通：Bottom sheet -->
+      <div class="enueOverlay" id="overlayOrders" role="dialog" aria-modal="true">
+        <div class="enueSheet" onclick="event.stopPropagation()">
+          <div class="enueSheetHead">
+            <div id="sheetTitle">編集</div>
+            <button class="enueBtn enueBtnGhost" style="flex:0 0 auto; padding:10px 12px;" id="closeBtn">閉じる</button>
+          </div>
+          <div class="enueSheetBody" id="sheetBody"></div>
+          <div class="enueSheetFoot" id="sheetFoot" style="display:none;">
+            <button class="enueBtn enueBtnGhost" id="cancelBtn">キャンセル</button>
+            <button class="enueBtn enueBtnPrimary" id="saveBtn">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <input class="enueHiddenDate" id="datePicker" type="date" />
+    </main>
+
+    <!-- OTHER -->
+    <main id="view-other" class="grid" style="display:none;">
+      <section class="card otherCard">
+        <div class="tileGrid" id="tileGrid">
+
+          <!-- POS（レジアイコン付き） -->
+          <button class="tile" type="button" data-href="pos_prod_toggle.html" aria-label="POSへ">
+            <div class="tileIcon" aria-hidden="true">
+              <!-- レジ（黒線）SVG -->
+              <svg viewBox="0 0 24 24">
+                <path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-8z"/>
+                <path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/>
+                <path d="M8 14h2M12 14h2M16 14h2"/>
+                <path d="M8 17h2M12 17h2M16 17h2"/>
+                <path d="M5 12h14"/>
+                <path d="M16 5h2v3"/>
+              </svg>
+            </div>
+            <div class="tileTitle">POS</div>
+            <div class="tileSub">pos_prod_toggle.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="categories.html">
+            <div class="tileTitle">カテゴリ</div>
+            <div class="tileSub">categories.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="stock.html">
+            <div class="tileTitle">在庫</div>
+            <div class="tileSub">stock.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="customers.html">
+            <div class="tileTitle">顧客管理</div>
+            <div class="tileSub">customers.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="order.html">
+            <div class="tileTitle">オーダー</div>
+            <div class="tileSub">order.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="shipping.html">
+            <div class="tileTitle">発送</div>
+            <div class="tileSub">shipping.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="sales.html">
+            <div class="tileTitle">売上</div>
+            <div class="tileSub">sales.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="income.html">
+            <div class="tileTitle">入金</div>
+            <div class="tileSub">income.html</div>
+          </button>
+
+          <button class="tile" type="button" data-href="analytics.html">
+            <div class="tileTitle">分析</div>
+            <div class="tileSub">analytics.html</div>
+          </button>
+
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+<script type="module">
+/**
+ * e.nue Dashboard (index)
+ * - iPhone青文字対策: meta + CSS
+ * - カレンダー: Firestore(パッチ) + 任意bundle(JSON) でスタンプ表示/追加
+ * - 受注件数: bundle(JSON)があれば差分だけ読み、無ければ直近12ヶ月を集計
+ * - 受注残(stock/order): Firestore sales から取得し、進捗/期日/担当を直接更新
+ * - カレンダーの「マルシェ/ストーリー」中は自動でPOSをトップ(=posへリダイレクト)
+ */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import {
+  getFirestore, collection, doc, getDoc, getDocs, query, where, orderBy, limit,
+  updateDoc, setDoc, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+
+/* =========================
+   Firebase env切替
+   - ?env=prod で本番
+   - それ以外は dev（ここは必要なら後で差し替え）
+========================= */
+const ENV = new URLSearchParams(location.search).get("env") === "prod" ? "prod" : "prod";
+
+/** 本番（ユーザー提供の設定） */
+const firebaseConfigProd = {
+  apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+  authDomain: "handmade-pos.firebaseapp.com",
+  projectId: "handmade-pos",
+  storageBucket: "handmade-pos.firebasestorage.app",
+  messagingSenderId: "174873514252",
+  appId: "1:174873514252:web:c26659bffca850d475f929",
+  measurementId: "G-3F8BYRBXDC"
+};
+
+/** dev（未使用。必要なら後で入れ替え） */
+const firebaseConfigDev = firebaseConfigProd;
+
+const firebaseConfig = (ENV === "prod") ? firebaseConfigProd : firebaseConfigDev;
+const app = initializeApp(firebaseConfig);
+const db  = getFirestore(app);
+
+/* =========================
+   Small utils
+========================= */
+const pad2 = (n)=> String(n).padStart(2,"0");
+const ymd = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+const ymdhm = (d)=> `${ymd(d)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+const escapeHtml = (s)=> String(s ?? "")
+  .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+  .replaceAll('"',"&quot;").replaceAll("'","&#39;");
+
+function toMillis(ts){
+  if(!ts) return 0;
+  if(typeof ts === "number") return ts;
+  if(ts instanceof Date) return ts.getTime();
+  if(ts instanceof Timestamp) return ts.toMillis();
+  if(typeof ts === "string"){
+    const t = Date.parse(ts);
+    return Number.isFinite(t) ? t : 0;
+  }
+  return 0;
+}
+function isoDate(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+function addDays(d, days){
+  const x = new Date(d);
+  x.setDate(x.getDate()+days);
+  return x;
+}
+function fmtNoYear(iso){
+  if(!iso) return "-";
+  const d = new Date(iso + "T00:00:00");
+  if(Number.isNaN(d.getTime())) return "-";
+  return `${pad2(d.getMonth()+1)}/${pad2(d.getDate())}`;
+}
+
+/* =========================
+   UI: tab switch
+========================= */
+const tabs = document.querySelectorAll(".tab");
+const viewHome = document.getElementById("view-home");
+const viewOther = document.getElementById("view-other");
+tabs.forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    tabs.forEach(b=>b.classList.remove("active"));
+    btn.classList.add("active");
+    const v = btn.dataset.view;
+    viewHome.style.display = (v==="home") ? "" : "none";
+    viewOther.style.display = (v==="other") ? "" : "none";
+  });
+});
+
+/* OTHER tile nav */
+const tileGrid = document.getElementById("tileGrid");
+if(tileGrid){
+  tileGrid.addEventListener("click", (e)=>{
+    const tile = e.target.closest(".tile");
+    if(!tile) return;
+    const href = tile.dataset.href;
+    if(href) location.href = href;
+  });
+}
+
+/* =========================
+   Chart (受注件数 / 総資産)
+   - 受注件数は Firestore sales から月別集計
+   - 総資産は従来のローカルテスト（後で置換）
+========================= */
+/* ---- 総資産（既存の仮データ） ---- */
+const monthsLabel = ["9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月","8月"];
+const assetsSeries = [80000,120000,150000,180000,210000,190000,240000,260000,300000,280000,320000,360000];
+const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+
+/* ---- 受注件数（Firestore集計結果を差し込み） ---- */
+let ordersSeries = Array(12).fill(0);
+
+/** bundleがある場合は極力それを使い、bundle以降だけsalesを読んで差分加算 */
+async function loadMonthlyOrderCounts(){
+  // 直近12ヶ月キーを作る（古い→新しい）
+  const now = new Date();
+  const keys = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    keys.push(`${d.getFullYear()}-${pad2(d.getMonth()+1)}`);
+  }
+
+  // 1) bundleを読む（無ければスキップ）
+  let bundle = null;
+  try{
+    const res = await fetch("./analytics_bundle.json", { cache:"no-store" });
+    if(res.ok) bundle = await res.json();
+  }catch{}
+
+  const baseCounts = {};
+  let bundleGeneratedAtMs = 0;
+
+  if(bundle && bundle.monthlyOrderCounts && typeof bundle.monthlyOrderCounts === "object"){
+    for(const k of keys){
+      baseCounts[k] = Number(bundle.monthlyOrderCounts[k] ?? 0);
+    }
+    bundleGeneratedAtMs = toMillis(bundle.generatedAt);
+  }else{
+    for(const k of keys) baseCounts[k] = 0;
+    bundleGeneratedAtMs = 0;
+  }
+
+  // 2) bundle以降の sales を読んで差分を集計
+  //    ※ bundleが無い場合は「直近12ヶ月の開始日」から読む（読みは増えるが動く）
+  const start = bundleGeneratedAtMs
+    ? new Date(bundleGeneratedAtMs)
+    : new Date(now.getFullYear(), now.getMonth()-11, 1);
+
+  // Firestore query
+  const salesRef = collection(db, "sales");
+  // createdAt が Timestamp の前提。なければ clientCreatedAt を使う（後方互換）
+  const q1 = query(salesRef, orderBy("createdAt", "asc"), where("createdAt", ">=", Timestamp.fromDate(start)));
+  let docs = [];
+  try{
+    const snap = await getDocs(q1);
+    snap.forEach(d=> docs.push({id:d.id, ...d.data()}));
+  }catch(err){
+    // createdAtが無い古いデータ用フォールバック（createdAtでorderByできない場合）
+    console.warn("createdAt query failed, fallback to limited scan:", err);
+    const q2 = query(salesRef, orderBy("clientCreatedAt","desc"), limit(500));
+    const snap2 = await getDocs(q2);
+    snap2.forEach(d=> docs.push({id:d.id, ...d.data()}));
+    // start以降だけに絞る
+    docs = docs.filter(x=> toMillis(x.clientCreatedAt) >= start.getTime());
+  }
+
+  // 「受注件数」の定義：マルシェ以外（＝受注）をカウント
+  // kind が order/stock どちらでも「受注」扱い（必要なら後で order のみに変更可）
+  for(const s of docs){
+    const method = s.method ?? s.salesMethod ?? s.channel ?? s.saleType ?? "";
+    if(method === "マルシェ") continue;
+
+    const tms = toMillis(s.createdAt ?? s.clientCreatedAt ?? 0);
+    if(!tms) continue;
+    const d = new Date(tms);
+    const key = `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+    if(key in baseCounts) baseCounts[key] += 1;
+  }
+
+  // seriesへ（古い→新しい）
+  return keys.map(k=> baseCounts[k] ?? 0);
+}
+
+/* ===== chart renderer（既存ロジックを短縮移植：見た目維持） ===== */
+function down5(v){ return Math.floor(v/5)*5; }
+function up5(v){ return Math.ceil(v/5)*5; }
+function makeTicks(minS,maxS,isOrders){
+  const ticks=[];
+  if(isOrders){
+    const d=(maxS-minS)/4;
+    for(let i=0;i<5;i++) ticks.push(minS + d*i);
+    ticks[0]=minS; ticks[4]=maxS;
+    return ticks;
+  }
+  const base=50000;
+  const step = base;
+  for(let i=0;i<5;i++) ticks.push(minS + step*i);
+  return ticks;
+}
+function labelFor(v,isOrders){
+  return isOrders ? `${Math.round(v)}` : `${Math.round(v/10000)}万`;
+}
+
+function renderChart({mount,yAxis,scroller,metricValue}, mode, series, xLabels){
+  const isOrders = (mode==="orders");
+  const N=series.length;
+  const xStep=96;
+  const H=220;
+  const padT=14, padB=42, padR=16;
+  const innerH=H-padT-padB;
+  const W=16 + xStep*(N-1) + padR;
+
+  mount.style.width = `${42 + W}px`;
+  metricValue.textContent = isOrders ? `${series[N-1] ?? 0}件` : formatJPY(series[N-1] ?? 0);
+
+  // scale
+  const minV = Math.min(...series);
+  const maxV = Math.max(...series);
+  const range = (maxV-minV) || 1;
+  const pad = range*0.05;
+  let minS = minV - pad;
+  let maxS = maxV + pad;
+
+  if(isOrders){
+    minS = down5(minS);
+    maxS = up5(maxS);
+    if(maxS - minS < 20) maxS = minS + 20;
+  }else{
+    const base=50000;
+    minS = Math.floor(minS/base)*base;
+    maxS = Math.ceil(maxS/base)*base;
+    maxS = minS + base*4;
+  }
+
+  const ticks = makeTicks(minS,maxS,isOrders);
+  const denom = (maxS-minS)||1;
+  const yToPx = v => padT + (1 - (v - minS) / denom) * innerH;
+
+  // y axis
+  yAxis.innerHTML = `
+    <svg width="42" height="${H}">
+      ${ticks.map(v=>{
+        const y=yToPx(v);
+        return `<text x="34" y="${y+4}" text-anchor="end"
+          font-size="11" fill="rgba(34,34,34,.55)" font-weight="900">${labelFor(v,isOrders)}</text>`;
+      }).join("")}
+    </svg>
+  `;
+
+  const pts = series.map((v,i)=>({x:42+i*xStep, y:yToPx(v), v}));
+  const path = pts.map((p,i)=> i ? `L ${p.x},${p.y}` : `M ${p.x},${p.y}`).join(" ");
+
+  mount.innerHTML = `
+    <svg width="${42+W}" height="${H}" viewBox="0 0 ${42+W} ${H}">
+      ${ticks.map(v=>{
+        const y=yToPx(v);
+        return `<line x1="42" y1="${y}" x2="${42+W-padR}" y2="${y}" stroke="rgba(0,0,0,.10)"/>`;
+      }).join("")}
+      <path d="${path} L ${pts.at(-1).x},${padT+innerH} L ${pts[0].x},${padT+innerH} Z" fill="rgba(225,138,106,.18)"/>
+      <path d="${path}" fill="none" stroke="rgba(225,138,106,.95)" stroke-width="3" stroke-linecap="round"/>
+      ${pts.map(p=>`<circle cx="${p.x}" cy="${p.y}" r="6" fill="rgba(255,255,255,.95)" stroke="rgba(34,34,34,.28)" stroke-width="2"/>`).join("")}
+      ${xLabels.map((m,i)=>`<text x="${42+i*xStep}" y="${H-18}" text-anchor="middle" font-size="12" fill="rgba(34,34,34,.65)" font-weight="900">${m}</text>`).join("")}
+    </svg>
+  `;
+
+  // rightmost (latest)
+  scroller.scrollLeft = scroller.scrollWidth - scroller.clientWidth;
+}
+
+const A = {
+  mount: document.getElementById("chartMountA"),
+  yAxis: document.getElementById("yAxisFixedA"),
+  scroller: document.getElementById("chartScrollerA"),
+  metricValue: document.getElementById("metricValueA"),
+};
+const B = {
+  mount: document.getElementById("chartMountB"),
+  yAxis: document.getElementById("yAxisFixedB"),
+  scroller: document.getElementById("chartScrollerB"),
+  metricValue: document.getElementById("metricValueB"),
+};
+
+const cardChart = document.getElementById("card-chart");
+let isFlipped = false;
+const ANIM_MS = 650;
+function flip(){
+  isFlipped = !isFlipped;
+  cardChart.classList.add("is-animating");
+  cardChart.classList.toggle("is-flipped", isFlipped);
+  setTimeout(()=> cardChart.classList.remove("is-animating"), ANIM_MS);
+}
+cardChart.addEventListener("click", (e)=>{
+  if(e.target.closest(".chartScroller")) return;
+  flip();
+});
+
+/* =========================
+   Calendar (stamp only)
+   - 表示はスタンプのみ
+   - 情報はイベントに保持:
+     { type: "marche"|"story", startAt, endAt, venue(optional) }
+   - 追加/編集はポップオーバーから
+   - bundle(JSON)があればそれを優先し、patch(Firestore)で差分
+========================= */
+const HOLIDAY_API = "https://holidays-jp.github.io/api/v1/date.json";
+let holidayMap = null;
+
+const calBox = document.getElementById("calBox");
+const calViewport = document.getElementById("calViewport");
+const monthLabel = document.getElementById("monthLabel");
+const monthLabelMini = document.getElementById("monthLabelMini");
+const todayBtn = document.getElementById("todayBtn");
+const prevBtn  = document.getElementById("prevBtn");
+const nextBtn  = document.getElementById("nextBtn");
+const modeBtn  = document.getElementById("modeBtn");
+
+const now = new Date();
+const baseMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+let view = new Date(baseMonth);
+const MIN = new Date(baseMonth.getFullYear(), baseMonth.getMonth()-12, 1);
+const MAX = new Date(baseMonth.getFullYear(), baseMonth.getMonth()+12, 1);
+
+let dowMode = (localStorage.getItem("enue_dow_mode") === "mon") ? "mon" : "sun";
+function getDows(){
+  return (dowMode === "mon")
+    ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+}
+function dayToCol(day){
+  if(dowMode === "sun") return day;
+  return (day + 6) % 7;
+}
+function syncModeBtn(){
+  if(!modeBtn) return;
+  modeBtn.textContent = (dowMode === "sun") ? "Sun–Sat" : "Mon–Sun";
+}
+
+function updateCellSize(){
+  if(!calBox) return;
+  const rect = calBox.getBoundingClientRect();
+  const innerW = rect.width - 2;
+  const cell = Math.floor(innerW / 7);
+  const clamped = Math.max(44, Math.min(74, cell));
+  document.documentElement.style.setProperty("--cell", clamped + "px");
+}
+if(calBox && window.ResizeObserver){
+  new ResizeObserver(updateCellSize).observe(calBox);
+}
+updateCellSize();
+
+async function loadHolidays(){
+  if(holidayMap) return holidayMap;
+  try{
+    const res = await fetch(HOLIDAY_API, { cache:"force-cache" });
+    holidayMap = await res.json();
+  }catch{
+    holidayMap = {};
+  }
+  return holidayMap;
+}
+
+/** calendar bundle + patch */
+const LS_CAL_CACHE = "enue_calendar_cache_v1";
+let CAL_EVENTS = new Map(); // key: ymd -> array of events
+
+function normalizeEvent(e){
+  if(!e) return null;
+  const type = e.type || e.kind || "";
+  const startAt = e.startAt || e.start || e.startISO || e.start_at;
+  const endAt   = e.endAt || e.end || e.endISO || e.end_at || startAt;
+  if(!type || !startAt) return null;
+  return {
+    id: e.id || e.eventId || crypto.randomUUID(),
+    type, // "marche"|"story"
+    startAt, endAt,
+    venue: e.venue || ""
+  };
+}
+function packCache(){
+  const obj = {};
+  for(const [k, arr] of CAL_EVENTS.entries()){
+    obj[k] = arr;
+  }
+  localStorage.setItem(LS_CAL_CACHE, JSON.stringify(obj));
+}
+function loadCache(){
+  try{
+    const raw = localStorage.getItem(LS_CAL_CACHE);
+    if(!raw) return;
+    const parsed = JSON.parse(raw);
+    CAL_EVENTS = new Map(Object.entries(parsed));
+  }catch{}
+}
+loadCache();
+
+async function loadCalendarFromBundle(){
+  try{
+    const res = await fetch("./calendar_bundle.json", { cache:"no-store" });
+    if(!res.ok) return;
+    const b = await res.json();
+    if(!b || !Array.isArray(b.events)) return;
+    // rebuild
+    const map = new Map();
+    for(const evRaw of b.events){
+      const ev = normalizeEvent(evRaw);
+      if(!ev) continue;
+      const d = new Date(toMillis(ev.startAt));
+      const key = ymd(d);
+      const arr = map.get(key) || [];
+      arr.push(ev);
+      map.set(key, arr);
+    }
+    CAL_EVENTS = map;
+  }catch{}
+}
+
+async function loadCalendarPatchesAround(monthDate){
+  // monthDate: first day
+  const y = monthDate.getFullYear();
+  const m = monthDate.getMonth()+1;
+  const start = new Date(y, m-1, 1, 0, 0, 0);
+  const end   = new Date(y, m,   1, 0, 0, 0);
+
+  // patches collection: calendar_events
+  // fields: type, startAt(Timestamp or ISO), endAt, venue
+  const ref = collection(db, "calendar_events");
+  let snap;
+  try{
+    snap = await getDocs(query(ref, orderBy("startAt","asc"), where("startAt", ">=", Timestamp.fromDate(start)), where("startAt","<", Timestamp.fromDate(end))));
+  }catch(err){
+    // index無し対策（小規模運用想定）：全取得→月で絞る
+    console.warn("calendar index missing? fallback get all (limit 500):", err);
+    snap = await getDocs(query(ref, orderBy("startAt","desc"), limit(500)));
+  }
+
+  // merge into CAL_EVENTS
+  const map = new Map(CAL_EVENTS);
+  snap.forEach(d=>{
+    const data = d.data();
+    const ev = normalizeEvent({ id:d.id, ...data, startAt: data.startAt, endAt: data.endAt });
+    if(!ev) return;
+    const key = ymd(new Date(toMillis(ev.startAt)));
+    const arr = map.get(key) || [];
+    // replace by id
+    const idx = arr.findIndex(x=>x.id===ev.id);
+    if(idx>=0) arr[idx]=ev; else arr.push(ev);
+    map.set(key, arr);
+  });
+
+  CAL_EVENTS = map;
+  packCache();
+}
+
+function hasStampOnDay(key){
+  const arr = CAL_EVENTS.get(key);
+  if(!arr || arr.length===0) return null;
+  // 優先: marche > story
+  const m = arr.find(x=>x.type==="marche");
+  if(m) return { kind:"marche", ev:m };
+  const s = arr.find(x=>x.type==="story");
+  if(s) return { kind:"story", ev:s };
+  return null;
+}
+
+let popEl = null;
+function closePopover(){ if(popEl){ popEl.remove(); popEl=null; } }
+function openPopover(targetEl, html, onMount){
+  closePopover();
+  const r = targetEl.getBoundingClientRect();
+  popEl = document.createElement("div");
+  popEl.className = "popover";
+  popEl.innerHTML = html;
+  document.body.appendChild(popEl);
+
+  const pr = popEl.getBoundingClientRect();
+  let x = r.left + 6;
+  let y = r.bottom + 8;
+  if(x + pr.width > window.innerWidth - 10) x = window.innerWidth - pr.width - 10;
+  if(y + pr.height > window.innerHeight - 10) y = r.top - pr.height - 8;
+  if(y < 10) y = 10;
+  popEl.style.left = x + "px";
+  popEl.style.top  = y + "px";
+
+  if(typeof onMount === "function") onMount(popEl);
+}
+
+async function upsertCalendarEvent(dayKey, type, startHHMM="09:00", endHHMM="17:00", venue=""){
+  // doc id: `${dayKey}_${type}` (同日同typeは1つ)
+  const id = `${dayKey}_${type}`;
+  const startAt = new Date(`${dayKey}T${startHHMM}:00`);
+  const endAt   = new Date(`${dayKey}T${endHHMM}:00`);
+  await setDoc(doc(db,"calendar_events", id), {
+    type,
+    startAt: Timestamp.fromDate(startAt),
+    endAt: Timestamp.fromDate(endAt),
+    venue: venue || "",
+    updatedAt: serverTimestamp()
+  }, { merge:true });
+}
+
+function buildGrid(year, month){
+  const grid = document.createElement("div");
+  grid.className = "calGrid";
+
+  const dows = getDows();
+  for(let i=0;i<7;i++){
+    const dow = document.createElement("div");
+    dow.className = "dow";
+    dow.textContent = dows[i];
+    grid.appendChild(dow);
+  }
+
+  const firstDow = new Date(year, month-1, 1).getDay();
+  const firstCol = dayToCol(firstDow);
+  const lastDate = new Date(year, month, 0).getDate();
+
+  const needed = firstCol + lastDate;
+  const weeks = Math.ceil(needed / 7);
+  const totalCells = weeks * 7;
+
+  const prevLast = new Date(year, month-1, 0).getDate();
+  const nextY = (month === 12) ? year+1 : year;
+  const nextM = (month === 12) ? 1 : month+1;
+  const prevY = (month === 1) ? year-1 : year;
+  const prevM = (month === 1) ? 12 : month-1;
+
+  const todayKey = ymd(new Date());
+
+  for(let idx=0; idx<totalCells; idx++){
+    let d, cellY=year, cellM=month, outside=false;
+
+    if(idx < firstCol){
+      outside = true;
+      cellY = prevY; cellM = prevM;
+      d = prevLast - (firstCol - 1 - idx);
+    }else if(idx >= firstCol + lastDate){
+      outside = true;
+      cellY = nextY; cellM = nextM;
+      d = (idx - (firstCol + lastDate)) + 1;
+    }else{
+      d = (idx - firstCol) + 1;
+    }
+
+    const key = `${cellY}-${pad2(cellM)}-${pad2(d)}`;
+    const isToday = key === todayKey;
+
+    const realDay = new Date(cellY, cellM-1, d).getDay();
+    const isSun = realDay === 0;
+    const isSat = realDay === 6;
+
+    const hName = holidayMap?.[key] || "";
+    const isHoliday = !!hName;
+
+    const stampInfo = hasStampOnDay(key);
+
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "day"
+      + (outside ? " dim" : "")
+      + (isSun ? " sun" : "")
+      + (isSat ? " sat" : "")
+      + (isHoliday ? " holiday" : "")
+      + (isToday ? " today" : "");
+
+    let centerHtml = `<div class="centerMark"></div>`;
+    if(stampInfo?.kind==="marche"){
+      centerHtml = `<div class="centerMark"><span class="stamp" aria-label="MARCHE"><span>MAR</span><span>CHE</span></span></div>`;
+    }else if(stampInfo?.kind==="story"){
+      centerHtml = `<div class="centerMark"><span class="eventDot blue" aria-label="STORY"></span></div>`;
+    }
+
+    cell.innerHTML = `
+      <div class="num">${d}</div>
+      ${centerHtml}
+    `;
+
+    cell.addEventListener("click", ()=>{
+      const ev = stampInfo?.ev || null;
+
+      const pills = [];
+      if(stampInfo?.kind==="marche") pills.push(`<span class="badge">マルシェ</span>`);
+      if(stampInfo?.kind==="story")  pills.push(`<span class="badge blue">ストーリー販売</span>`);
+      if(isHoliday) pills.push(`<span class="badge red">祝日：${escapeHtml(hName)}</span>`);
+      if(isSun && !isHoliday) pills.push(`<span class="badge red">日曜</span>`);
+      if(isSat) pills.push(`<span class="badge blue">土曜</span>`);
+      if(!stampInfo && !isHoliday) pills.push(`<span class="badge">予定なし</span>`);
+
+      const timeLine = ev
+        ? `<div class="popSub" style="margin-top:6px;">${escapeHtml(ymdhm(new Date(toMillis(ev.startAt))))}〜${escapeHtml(pad2(new Date(toMillis(ev.endAt))).getHours())}:${escapeHtml(pad2(new Date(toMillis(ev.endAt))).getMinutes()))}${ev.venue ? " / "+escapeHtml(ev.venue):""}</div>`
+        : "";
+
+      const html = `
+        <div class="popHead">
+          <div>
+            <div class="popTitle">${key}</div>
+            <div class="popSub">${cellY}.${pad2(cellM)}${outside ? "（前後月）" : ""}</div>
+            ${timeLine}
+          </div>
+          <button class="iconBtn" type="button" id="editBtn" title="追加/編集">✏️</button>
+        </div>
+        <div class="popRow">${pills.join("")}</div>
+
+        <div class="editBox" id="editBox">
+          <label>スタンプを追加 / 編集</label>
+
+          <div class="editRow" style="gap:10px; margin-bottom:10px;">
+            <select class="dateInput" id="typeSel" style="flex:1;">
+              <option value="marche">マルシェ</option>
+              <option value="story">ストーリー販売</option>
+            </select>
+          </div>
+
+          <div class="editRow" style="gap:10px; margin-bottom:10px;">
+            <input class="dateInput" id="startTime" type="time" value="${ev ? pad2(new Date(toMillis(ev.startAt)).getHours())+":"+pad2(new Date(toMillis(ev.startAt)).getMinutes()) : "09:00"}">
+            <input class="dateInput" id="endTime" type="time" value="${ev ? pad2(new Date(toMillis(ev.endAt)).getHours())+":"+pad2(new Date(toMillis(ev.endAt)).getMinutes()) : "17:00"}">
+          </div>
+
+          <div class="editRow" style="gap:10px;">
+            <input class="dateInput" id="venue" type="text" placeholder="販売場所（マルシェのみ）" value="${ev?.venue ? escapeHtml(ev.venue) : ""}">
+          </div>
+
+          <div class="note">※表示はスタンプのみ。情報はスタンプに保持します。</div>
+
+          <div class="editRow" style="margin-top:10px;">
+            <button class="saveBtn" type="button" id="saveStamp">保存</button>
+          </div>
+        </div>
+
+        <div class="closeHint">外側タップで閉じる</div>
+      `;
+
+      openPopover(cell, html, (pop)=>{
+        const editBtn = pop.querySelector("#editBtn");
+        const editBox = pop.querySelector("#editBox");
+        const typeSel = pop.querySelector("#typeSel");
+        const startTime = pop.querySelector("#startTime");
+        const endTime = pop.querySelector("#endTime");
+        const venue = pop.querySelector("#venue");
+        const saveStamp = pop.querySelector("#saveStamp");
+
+        if(ev?.type) typeSel.value = ev.type;
+
+        // storyの時は venue 無効
+        const syncVenueDisable = ()=>{
+          const isStory = typeSel.value === "story";
+          venue.disabled = isStory;
+          if(isStory) venue.value = "";
+          venue.placeholder = isStory ? "ストーリー販売は販売場所なし" : "販売場所（マルシェのみ）";
+        };
+        syncVenueDisable();
+        typeSel.addEventListener("change", syncVenueDisable);
+
+        editBtn.addEventListener("click", (e)=>{
+          e.stopPropagation();
+          editBox.classList.toggle("show");
+        });
+
+        saveStamp.addEventListener("click", async (e)=>{
+          e.stopPropagation();
+          try{
+            await upsertCalendarEvent(key, typeSel.value, startTime.value || "09:00", endTime.value || "17:00", venue.value || "");
+            // 即反映
+            await loadCalendarPatchesAround(new Date(cellY, cellM-1, 1));
+            renderMonth("none");
+            closePopover();
+          }catch(err){
+            alert("保存に失敗: " + err);
+          }
+        });
+      });
+    }, { passive:true });
+
+    grid.appendChild(cell);
+  }
+
+  return grid;
+}
+
+function setNavDisabled(){
+  if(!prevBtn || !nextBtn) return;
+  prevBtn.disabled = view <= MIN;
+  nextBtn.disabled = view >= MAX;
+}
+function setHeader(){
+  const y = view.getFullYear();
+  const m = view.getMonth()+1;
+  const label = `${y}.${pad2(m)}`;
+  if(monthLabel) monthLabel.textContent = label;
+  if(monthLabelMini) monthLabelMini.textContent = label;
+  syncModeBtn();
+}
+
+function renderMonth(direction){
+  closePopover();
+  setNavDisabled();
+  setHeader();
+
+  const y = view.getFullYear();
+  const m = view.getMonth()+1;
+
+  const incoming = buildGrid(y, m);
+
+  if(direction === "none" || !calViewport){
+    if(calViewport){
+      calViewport.innerHTML = "";
+      calViewport.appendChild(incoming);
+    }
+    incoming.classList.add("slideActive");
+    return;
+  }
+
+  const current = calViewport.querySelector(".calGrid");
+  calViewport.appendChild(incoming);
+
+  if(direction === "left"){
+    incoming.classList.add("slideEnterRight");
+    requestAnimationFrame(()=>{
+      incoming.classList.add("slideActive");
+      incoming.classList.remove("slideEnterRight");
+      if(current){
+        current.classList.add("slideExitLeft");
+        setTimeout(()=> current.remove(), 300);
+      }
+    });
+  }else{
+    incoming.classList.add("slideEnterLeft");
+    requestAnimationFrame(()=>{
+      incoming.classList.add("slideActive");
+      incoming.classList.remove("slideEnterLeft");
+      if(current){
+        current.classList.add("slideExitRight");
+        setTimeout(()=> current.remove(), 300);
+      }
+    });
+  }
+}
+
+prevBtn?.addEventListener("click", async ()=>{
+  if(view <= MIN) return;
+  view = new Date(view.getFullYear(), view.getMonth()-1, 1);
+  await loadCalendarPatchesAround(view);
+  renderMonth("right");
+});
+nextBtn?.addEventListener("click", async ()=>{
+  if(view >= MAX) return;
+  view = new Date(view.getFullYear(), view.getMonth()+1, 1);
+  await loadCalendarPatchesAround(view);
+  renderMonth("left");
+});
+todayBtn?.addEventListener("click", async ()=>{
+  view = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+  await loadCalendarPatchesAround(view);
+  renderMonth("none");
+});
+modeBtn?.addEventListener("click", ()=>{
+  dowMode = (dowMode === "sun") ? "mon" : "sun";
+  localStorage.setItem("enue_dow_mode", dowMode);
+  renderMonth("none");
+});
+
+document.addEventListener("click", (e)=>{
+  if(!popEl) return;
+  const t = e.target;
+  if(popEl.contains(t)) return;
+  if(t.closest && t.closest(".day")) return;
+  closePopover();
+}, { passive:true });
+window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePopover(); });
+
+/* =========================
+   Orders list (stock/order)
+========================= */
+const STATUS = ["未着手","入金待ち","進行中","完了"];
+const ASSIGNEE_OPTIONS = ["藤原","川原"];
+
+const tbodyStock = document.getElementById("tbodyStock");
+const emptyStock = document.getElementById("emptyStock");
+const tbodyOrder = document.getElementById("tbodyOrder");
+const emptyOrder = document.getElementById("emptyOrder");
+
+const overlay = document.getElementById("overlayOrders");
+const sheetTitle = document.getElementById("sheetTitle");
+const sheetBody  = document.getElementById("sheetBody");
+const sheetFoot  = document.getElementById("sheetFoot");
+const closeBtn   = document.getElementById("closeBtn");
+const cancelBtn  = document.getElementById("cancelBtn");
+const saveBtn    = document.getElementById("saveBtn");
+const datePicker = document.getElementById("datePicker");
+
+let SALES = []; // raw
+let ROWS_STOCK = [];
+let ROWS_ORDER = [];
+
+function statusClass(status){
+  if(status==="未着手") return "s-michakushu";
+  if(status==="入金待ち") return "s-nyuukin";
+  if(status==="進行中") return "s-shinkochu";
+  if(status==="完了") return "s-done";
+  return "s-michakushu";
+}
+
+function openReceiptById(receiptId){
+  location.href = `receipt.html?id=${encodeURIComponent(receiptId)}`;
+}
+
+async function loadSalesRecent(){
+  const salesRef = collection(db,"sales");
+  const snap = await getDocs(query(salesRef, orderBy("createdAt","desc"), limit(250)));
+  const arr=[];
+  snap.forEach(d=> arr.push({ id:d.id, ...d.data() }));
+  return arr;
+}
+
+function mapSaleToRow(s){
+  const receiptId = s.id;
+  const method = s.method ?? s.salesMethod ?? s.channel ?? s.saleType ?? "";
+  const kind = s.kind ?? ""; // "stock"|"order"
+  const progress = s.progress ?? s.status ?? "未着手";
+  const assignees = Array.isArray(s.assignees) ? s.assignees : [];
+  const due = (typeof s.due === "string") ? s.due : (s.due?.toDate ? isoDate(s.due.toDate()) : "");
+  const createdAtMs = toMillis(s.createdAt ?? s.clientCreatedAt ?? 0);
+  const name = s.title ?? s.name ?? (Array.isArray(s.items) && s.items[0]?.name ? `${s.items[0].name}${s.items.length>1 ? ` 他${s.items.length-1}` : ""}` : "（名称なし）");
+  return { receiptId, method, kind, progress, assignees, due, createdAtMs, name };
+}
+
+function rebuildRows(){
+  const rows = SALES.map(mapSaleToRow)
+    .filter(r=> r.method !== "マルシェ")
+    .filter(r=> r.progress !== "完了")
+    .filter(r=> r.kind === "stock" || r.kind === "order");
+
+  ROWS_STOCK = rows
+    .filter(r=> r.kind === "stock")
+    .sort((a,b)=> (b.createdAtMs||0) - (a.createdAtMs||0));
+
+  ROWS_ORDER = rows
+    .filter(r=> r.kind === "order")
+    .sort((a,b)=>{
+      const ad = a.due ? Date.parse(a.due) : 9e15;
+      const bd = b.due ? Date.parse(b.due) : 9e15;
+      return ad - bd;
+    });
+}
+
+function td(label, child){
+  const cell = document.createElement("td");
+  cell.setAttribute("data-label", label);
+  cell.appendChild(child);
+  return cell;
+}
+function nameCell(r){
+  const btn = document.createElement("button");
+  btn.className = "nameBtn";
+  btn.type = "button";
+  btn.innerHTML = `<span>${escapeHtml(r.name)}</span><span class="chev">›</span>`;
+  btn.onclick = ()=> openReceiptById(r.receiptId);
+  return btn;
+}
+function dueCell(r){
+  const btn = document.createElement("div");
+  btn.className = "tap duePill";
+  btn.role = "button";
+  btn.tabIndex = 0;
+  btn.textContent = r.due ? fmtNoYear(r.due) : "-";
+  btn.onclick = ()=> editDue(r.receiptId);
+  btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editDue(r.receiptId); } };
+  return btn;
+}
+function statusCell(r){
+  const btn = document.createElement("div");
+  btn.className = "tap";
+  btn.role = "button";
+  btn.tabIndex = 0;
+  const pill = document.createElement("div");
+  pill.className = "statusPill " + statusClass(r.progress);
+  pill.innerHTML = `<span class="dot"></span><span>${escapeHtml(r.progress)}</span>`;
+  btn.appendChild(pill);
+  btn.onclick = ()=> editProgress(r.receiptId);
+  btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editProgress(r.receiptId); } };
+  return btn;
+}
+function assigneeCell(r){
+  const btn = document.createElement("div");
+  btn.className = "tap";
+  btn.role = "button";
+  btn.tabIndex = 0;
+
+  const wrap = document.createElement("div");
+  wrap.className = "chips";
+  if(!r.assignees || r.assignees.length===0){
+    const c = document.createElement("span");
+    c.className = "chip muted";
+    c.textContent = "未設定";
+    wrap.appendChild(c);
+  }else{
+    r.assignees.forEach(a=>{
+      const c = document.createElement("span");
+      c.className = "chip";
+      c.textContent = a;
+      wrap.appendChild(c);
+    });
+  }
+  btn.appendChild(wrap);
+  btn.onclick = ()=> editAssignees(r.receiptId);
+  btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editAssignees(r.receiptId); } };
+  return btn;
+}
+
+function renderTables(){
+  // stock
+  tbodyStock.innerHTML = "";
+  emptyStock.style.display = (ROWS_STOCK.length===0) ? "block" : "none";
+  ROWS_STOCK.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.appendChild(td("名前", nameCell(r)));
+    tr.appendChild(td("期日", dueCell(r)));
+    tr.appendChild(td("進捗", statusCell(r)));
+    tr.appendChild(td("担当", assigneeCell(r)));
+    tbodyStock.appendChild(tr);
+  });
+
+  // order
+  tbodyOrder.innerHTML = "";
+  emptyOrder.style.display = (ROWS_ORDER.length===0) ? "block" : "none";
+  ROWS_ORDER.forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.appendChild(td("名前", nameCell(r)));
+    tr.appendChild(td("期日", dueCell(r)));
+    tr.appendChild(td("進捗", statusCell(r)));
+    tr.appendChild(td("担当", assigneeCell(r)));
+    tbodyOrder.appendChild(tr);
+  });
+}
+
+/* bottom sheet */
+overlay?.addEventListener("click", closeSheet);
+closeBtn?.addEventListener("click", closeSheet);
+
+function openSheet(title, bodyFactory){
+  sheetTitle.textContent = title;
+  sheetBody.innerHTML = "";
+  sheetFoot.style.display = "none";
+  cancelBtn && (cancelBtn.onclick = null);
+  saveBtn && (saveBtn.onclick = null);
+
+  const body = bodyFactory();
+  sheetBody.appendChild(body);
+  overlay.classList.add("show");
+}
+function showSheetFooter(onCancel, onSave){
+  sheetFoot.style.display = "flex";
+  if(cancelBtn) cancelBtn.onclick = onCancel;
+  if(saveBtn) saveBtn.onclick = onSave;
+}
+function closeSheet(){
+  overlay.classList.remove("show");
+  sheetBody.innerHTML = "";
+  sheetFoot.style.display = "none";
+}
+
+async function patchSale(receiptId, patch){
+  await updateDoc(doc(db,"sales", receiptId), patch);
+}
+
+function editDue(receiptId){
+  const all = [...ROWS_STOCK, ...ROWS_ORDER];
+  const r = all.find(x=>x.receiptId===receiptId);
+  if(!r || !datePicker) return;
+
+  datePicker.value = r.due || "";
+  datePicker.onchange = async ()=>{
+    const next = datePicker.value || "";
+    try{
+      await patchSale(receiptId, { due: next, updatedAt: serverTimestamp() });
+      await refreshAll();
+    }catch(err){
+      alert("更新に失敗: " + err);
+    }
+  };
+  datePicker.focus();
+  datePicker.click();
+}
+
+function editProgress(receiptId){
+  const all = [...ROWS_STOCK, ...ROWS_ORDER];
+  const r = all.find(x=>x.receiptId===receiptId);
+  if(!r) return;
+
+  openSheet("進捗を選択", ()=>{
+    const body = document.createElement("div");
+    body.className = "enueOptList";
+
+    STATUS.forEach(s=>{
+      const opt = document.createElement("div");
+      opt.className = "enueOpt";
+      opt.innerHTML = `
+        <div class="left">
+          <span class="statusPill ${statusClass(s)}" style="margin:0;">
+            <span class="dot"></span><span>${escapeHtml(s)}</span>
+          </span>
+        </div>
+        <div class="right">${r.progress===s ? "選択中" : ""}</div>
+      `;
+      opt.onclick = async ()=>{
+        try{
+          await patchSale(receiptId, { progress: s, updatedAt: serverTimestamp() });
+          closeSheet();
+          await refreshAll();
+        }catch(err){
+          alert("更新に失敗: " + err);
+        }
+      };
+      body.appendChild(opt);
+    });
+
+    return body;
+  });
+}
+
+function editAssignees(receiptId){
+  const all = [...ROWS_STOCK, ...ROWS_ORDER];
+  const r = all.find(x=>x.receiptId===receiptId);
+  if(!r) return;
+
+  const draft = new Set(r.assignees || []);
+
+  openSheet("担当を選択（複数可）", ()=>{
+    const body = document.createElement("div");
+    body.className = "enueOptList";
+
+    ASSIGNEE_OPTIONS.forEach(a=>{
+      const opt = document.createElement("div");
+      opt.className = "enueOpt";
+
+      const check = document.createElement("span");
+      check.className = "enueCheck" + (draft.has(a) ? " on" : "");
+      check.textContent = draft.has(a) ? "✓" : "";
+
+      const left = document.createElement("div");
+      left.className = "left";
+      left.innerHTML = `<span style="font-weight:900;">${escapeHtml(a)}</span>`;
+      left.prepend(check);
+
+      const right = document.createElement("div");
+      right.className = "right";
+      right.textContent = draft.has(a) ? "選択中" : "";
+
+      opt.appendChild(left);
+      opt.appendChild(right);
+
+      opt.onclick = ()=>{
+        if(draft.has(a)) draft.delete(a); else draft.add(a);
+        check.className = "enueCheck" + (draft.has(a) ? " on" : "");
+        check.textContent = draft.has(a) ? "✓" : "";
+        right.textContent = draft.has(a) ? "選択中" : "";
+      };
+
+      body.appendChild(opt);
+    });
+
+    showSheetFooter(
+      ()=> closeSheet(),
+      async ()=>{
+        try{
+          await patchSale(receiptId, { assignees: Array.from(draft), updatedAt: serverTimestamp() });
+          closeSheet();
+          await refreshAll();
+        }catch(err){
+          alert("更新に失敗: " + err);
+        }
+      }
+    );
+
+    return body;
+  });
+}
+
+async function refreshAll(){
+  SALES = await loadSalesRecent();
+  rebuildRows();
+  renderTables();
+}
+
+/* =========================
+   POSをトップにする（自動リダイレクト）
+   - 今日のイベントで「今が開催時間内」なら pos に飛ばす
+========================= */
+function isNowInEventWindow(ev){
+  const s = toMillis(ev.startAt);
+  const e = toMillis(ev.endAt);
+  const n = Date.now();
+  return s && e && (n >= s) && (n <= e);
+}
+function shouldRedirectToPos(){
+  const key = ymd(new Date());
+  const arr = CAL_EVENTS.get(key) || [];
+  const active = arr.find(ev => (ev.type==="marche" || ev.type==="story") && isNowInEventWindow(ev));
+  return !!active;
+}
+
+/* =========================
+   Boot
+========================= */
+(async function boot(){
+  await loadHolidays();
+
+  // calendar: bundle -> patch (current view month)
+  await loadCalendarFromBundle();
+  await loadCalendarPatchesAround(view);
+
+  // redirect check (できるだけ早く)
+  if(shouldRedirectToPos()){
+    location.replace("pos_prod_toggle.html");
+    return;
+  }
+
+  renderMonth("none");
+
+  // orders list
+  await refreshAll();
+
+  // chart: monthly order counts
+  try{
+    ordersSeries = await loadMonthlyOrderCounts();
+  }catch(err){
+    console.warn("monthly counts failed:", err);
+    ordersSeries = Array(12).fill(0);
+  }
+
+  // x labels: "YYYY-MM" → "M月" 表示
+  const now2 = new Date();
+  const xLabels = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now2.getFullYear(), now2.getMonth()-i, 1);
+    xLabels.push(`${d.getMonth()+1}月`);
+  }
+
+  renderChart(A, "orders", ordersSeries, xLabels);
+  renderChart(B, "assets", assetsSeries, monthsLabel);
+
+  // 受注件数の総計（カード右上）
+  // metricValueA/B は renderChart 内で更新済み
+})();
+</script>
+</body>
+</html>
