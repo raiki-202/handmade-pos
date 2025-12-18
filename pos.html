@@ -447,7 +447,7 @@
             </div>
 
             <div class="editRow">
-              <button class="miniBtn edit-only" id="addProductBtn" type="button">＋商品追加</button>
+              <button class="miniBtn edit-only" id="addProductBtn" type="button" style="display:none;">＋商品追加</button>
               <span class="pill" id="masterPill">商品マスタ：読込中</span>
             </div>
           </div>
@@ -830,6 +830,7 @@ function setEditIcon(){
 }
 
 function enterEditMode(){
+  $addProductBtn.style.display = "inline-flex";
   isEditMode = true;
   baseSnapshot = products.map(p => ({...p})); // shallow copy
 
@@ -851,6 +852,7 @@ function enterEditMode(){
 }
 
 function exitEditModeWithoutSave(){
+  $addProductBtn.style.display = "none";
   isEditMode = false;
   baseSnapshot = [];
   draftBase = new Map();
@@ -860,6 +862,7 @@ function exitEditModeWithoutSave(){
 }
 
 async function exitEditModeWithSave(){
+  $addProductBtn.style.display = "none";
   try{
     await savePatchesFromDraft();
     showToast("保存しました");
