@@ -940,7 +940,7 @@ body{
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { getFirestore, collection, query, orderBy, limit, getDocs, documentId } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 (()=> {
   try{
     /* ===== 画面切替 ===== */
@@ -1012,7 +1012,7 @@ import { getFirestore, collection, query, orderBy, limit, getDocs } from "https:
       // doc id を YYYY-MM にしておく（例：2025-12）
       const qy = query(
         collection(db, "monthly_metrics"),
-        orderBy("__name__", "desc"),
+        orderBy(documentId(), "desc"),
         limit(24)
       );
 
