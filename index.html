@@ -943,1381 +943,151 @@ body{
   </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
-import { 
-  getFirestore, collection, query, where, orderBy, onSnapshot, doc, updateDoc 
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
+import {
+  collection, query, orderBy, getDocs,
+  doc, updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-(()=> {
-  try{
-    /* ===== Firebase init ===== */
-    const firebaseConfig = {
-      apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
-      authDomain: "handmade-pos.firebaseapp.com",
-      projectId: "handmade-pos",
-      storageBucket: "handmade-pos.firebasestorage.app",
-      messagingSenderId: "174873514252",
-      appId: "1:174873514252:web:c26659bffca850d475f929",
-      measurementId: "G-3F8BYRBXDC"
-    };
+/* ===== 設定 ===== */
+const SALES_COL = "sales";
+const STOCK_TBODY_ID = "stockTbody"; // ← HTMLのtbody idと一致させる
 
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
+/* ===== util ===== */
+const pad2 = n => String(n).padStart(2,"0");
 
-    /* ===== 画面切替 ===== */
-    const tabs = document.querySelectorAll(".tab");
-    const viewHome = document.getElementById("view-home");
-    const viewOther = document.getElementById("view-other");
+function toDate(v){
+  if(!v) return null;
+  if(typeof v === "object" && v.seconds) return new Date(v.seconds * 1000);
+  if(typeof v === "number") return new Date(v);
+  const d = new Date(v);
+  return isNaN(d) ? null : d;
+}
+function fmtMMDD(v){
+  const d = toDate(v);
+  return d ? `${pad2(d.getMonth()+1)}/${pad2(d.getDate())}` : "--/--";
+}
+const arr = v => Array.isArray(v) ? v : [];
 
-    tabs.forEach(btn=>{
-      btn.addEventListener("click", ()=>{
-        tabs.forEach(b=>b.classList.remove("active"));
-        btn.classList.add("active");
-        const v = btn.dataset.view;
-        viewHome.style.display = (v==="home") ? "" : "none";
-        viewOther.style.display = (v==="other") ? "" : "none";
-      });
-    });
+/* ===== UI ===== */
+function chip(text, active){
+  const el = document.createElement("div");
+  el.textContent = text;
+  el.style.padding = "6px 10px";
+  el.style.borderRadius = "999px";
+  el.style.border = "1px solid rgba(0,0,0,.15)";
+  el.style.fontSize = "13px";
+  el.style.fontWeight = "600";
+  el.style.cursor = "pointer";
+  el.style.userSelect = "none";
+  el.style.background = active ? "rgba(0,0,0,.12)" : "rgba(255,255,255,.7)";
+  return el;
+}
 
+/* ===== Firestore更新 ===== */
+async function toggleAssignee(id, current){
+  const cur = new Set(arr(current));
+  const targets = ["藤原","川原"];
 
-    /* ===== OTHER: tile navigation ===== */
-    const tileGrid = document.getElementById("tileGrid");
-    if(tileGrid){
-      tileGrid.addEventListener("click", (e)=>{
-        const tile = e.target.closest(".tile");
-        if(!tile) return;
-        const href = tile.dataset.href;
-        if(href) location.href = href;
-      });
+  for(const t of targets){
+    const on = cur.has(t);
+    if(confirm(`担当：${t}\n現在：${on ? "ON" : "OFF"}\n切り替えますか？`)){
+      on ? cur.delete(t) : cur.add(t);
     }
-
-    /* ===== グラフ用データ（※名前衝突しないように改名） ===== */
-    const months = ["9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月","8月"];
-    const ordersSeries = [3,6,9,7,8,12,10,14,9,6,11,15];
-    const assetsSeries = [80000,120000,150000,180000,210000,190000,240000,260000,300000,280000,320000,360000];
-
-    const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
-    const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
-    const down5 = v => Math.floor(v/5)*5;
-    const up5   = v => Math.ceil(v/5)*5;
-
-    /* ===== flip要素 ===== */
-    const cardChart = document.getElementById("card-chart");
-    const flipHintA = document.getElementById("flipHintA");
-    const flipHintB = document.getElementById("flipHintB");
-
-    if(flipHintA) flipHintA.style.display = "none";
-    if(flipHintB) flipHintB.style.display = "none";
-
-    const A = {
-      mount: document.getElementById("chartMountA"),
-      yAxis: document.getElementById("yAxisFixedA"),
-      scroller: document.getElementById("chartScrollerA"),
-      metricValue: document.getElementById("metricValueA"),
-      _pts:[],
-      scale: null,
-      anim: null
-    };
-    const B = {
-      mount: document.getElementById("chartMountB"),
-      yAxis: document.getElementById("yAxisFixedB"),
-      scroller: document.getElementById("chartScrollerB"),
-      metricValue: document.getElementById("metricValueB"),
-      _pts:[],
-      scale: null,
-      anim: null
-    };
-
-    let isFlipped = false;
-
-    /* ===== 表示範囲 ===== */
-    function getVisibleRange(scroller, {padL,xStep,N}){
-      const sl = scroller.scrollLeft;
-      const vw = scroller.clientWidth;
-      const s  = Math.floor((sl-padL)/xStep);
-      const e  = Math.ceil(((sl+vw)-padL)/xStep);
-      return [clamp(s,0,N-1), clamp(e,0,N-1)];
-    }
-
-    /* ===== スケール計算 ===== */
-    function computeScale(series,i0,i1,isOrders){
-      const slice = series.slice(i0,i1+1);
-      let minV = Math.min(...slice);
-      let maxV = Math.max(...slice);
-
-      const range = (maxV-minV) || 1;
-      const pad = range*0.05;
-
-      let minS = minV - pad;
-      let maxS = maxV + pad;
-
-      if(isOrders){
-        minS = down5(minS);
-        maxS = up5(maxS);
-        if(maxS - minS < 20) maxS = minS + 20;
-        if(maxS === minS) maxS = minS + 20;
-        return {minS,maxS,step:null};
-      }else{
-        const base = 50000; // 5万刻み
-        minS = Math.floor(minS/base)*base;
-        maxS = Math.ceil (maxS/base)*base;
-
-        let step = Math.ceil(((maxS - minS) / 4) / base) * base;
-        if(step < base) step = base;
-
-        maxS = minS + step*4;
-        return {minS,maxS,step};
-      }
-    }
-
-    function makeTicksFromScale(scale){
-      const {minS,maxS,step} = scale;
-      const arr=[];
-      if(step){
-        for(let i=0;i<5;i++) arr.push(minS + step*i);
-        return arr;
-      }
-      const d=(maxS-minS)/4;
-      for(let i=0;i<5;i++) arr.push(minS + d*i);
-      arr[0]=minS; arr[arr.length-1]=maxS;
-      return arr;
-    }
-
-    function labelFor(v,isOrders){
-      return isOrders ? `${Math.round(v)}` : `${Math.round(v/10000)}万`;
-    }
-
-    function renderYAxis(elems, {ticks,yToPx,H,isOrders}){
-      elems.yAxis.innerHTML = `
-        <svg width="42" height="${H}">
-          ${ticks.map(v=>{
-            const y=yToPx(v);
-            return `<text x="34" y="${y+4}" text-anchor="end"
-              font-size="11" fill="rgba(34,34,34,.55)" font-weight="900">
-              ${labelFor(v,isOrders)}
-            </text>`;
-          }).join("")}
-        </svg>
-      `;
-    }
-
-    /* ===== tooltip ===== */
-    function removeTooltip(svg){
-      const old = svg.querySelector(".chartTooltip");
-      if(old) old.remove();
-    }
-    function showTooltip(svg, x, y, text){
-      removeTooltip(svg);
-
-      const ns = "http://www.w3.org/2000/svg";
-      const g = document.createElementNS(ns, "g");
-      g.setAttribute("class","chartTooltip");
-
-      const t = document.createElementNS(ns, "text");
-      t.textContent = text;
-      t.setAttribute("text-anchor","middle");
-      t.setAttribute("x", x);
-      t.setAttribute("y", y - 14);
-
-      g.appendChild(t);
-      svg.appendChild(g);
-
-      const bbox = t.getBBox();
-      const padX = 10, padY = 6;
-
-      const r = document.createElementNS(ns, "rect");
-      r.setAttribute("x", bbox.x - padX);
-      r.setAttribute("y", bbox.y - padY);
-      r.setAttribute("width", bbox.width + padX*2);
-      r.setAttribute("height", bbox.height + padY*2);
-
-      g.insertBefore(r, t);
-    }
-
-    /* ===== 描画：scale指定で描く ===== */
-    function renderWithScale(elems, mode, scale){
-      const isOrders = (mode === "orders");
-      const series = isOrders ? ordersSeries : assetsSeries;
-
-      const N=series.length;
-      const xStep=96;
-      const H=220;
-      const padT=14, padB=42, padR=16;
-      const innerH=H-padT-padB;
-      const W=16 + xStep*(N-1) + padR;
-
-      elems.mount.style.width = `${42 + W}px`;
-
-      const ticks = scale.ticks;
-      const {minS,maxS} = scale;
-
-      const latest=series[N-1];
-      elems.metricValue.textContent = isOrders ? `${latest}件` : formatJPY(latest);
-
-      const denom = (maxS - minS) || 1;
-      const yToPx = v => padT + (1 - (v - minS) / denom) * innerH;
-
-      renderYAxis(elems, {ticks,yToPx,H,isOrders});
-
-      const pts = series.map((v,i)=>({x:42+i*xStep, y:yToPx(v), v}));
-      const path = pts.map((p,i)=> i ? `L ${p.x},${p.y}` : `M ${p.x},${p.y}`).join(" ");
-
-      elems.mount.innerHTML = `
-        <svg width="${42+W}" height="${H}" viewBox="0 0 ${42+W} ${H}">
-          ${ticks.map(v=>{
-            const y=yToPx(v);
-            return `<line x1="42" y1="${y}" x2="${42+W-padR}" y2="${y}" stroke="rgba(0,0,0,.10)"/>`;
-          }).join("")}
-
-          <path d="${path} L ${pts.at(-1).x},${padT+innerH} L ${pts[0].x},${padT+innerH} Z"
-                fill="rgba(225,138,106,.18)"/>
-
-          <path d="${path}" fill="none" stroke="rgba(225,138,106,.95)"
-                stroke-width="3" stroke-linecap="round"/>
-
-          ${pts.map(p=>`
-            <circle cx="${p.x}" cy="${p.y}" r="6"
-              fill="rgba(255,255,255,.95)" stroke="rgba(34,34,34,.28)" stroke-width="2"/>
-          `).join("")}
-
-          ${months.map((m,i)=>`
-            <text x="${42+i*xStep}" y="${H-18}" text-anchor="middle"
-              font-size="12" fill="rgba(34,34,34,.65)" font-weight="900">${m}</text>
-          `).join("")}
-        </svg>
-      `;
-
-      elems._pts = pts.map(p=>({
-        x:p.x, y:p.y,
-        label: isOrders ? `${p.v}件` : formatJPY(p.v)
-      }));
-    }
-
-    function calcTargetScale(elems, mode){
-      const isOrders = (mode === "orders");
-      const series = isOrders ? ordersSeries : assetsSeries;
-      const N = series.length;
-      const xStep = 96;
-
-      const [i0,i1] = getVisibleRange(elems.scroller, {padL:42, xStep, N});
-      const s = computeScale(series, i0, i1, isOrders);
-      const ticks = makeTicksFromScale(s);
-
-      return { ...s, ticks, isOrders };
-    }
-
-    function lerp(a,b,t){ return a + (b-a)*t; }
-    function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
-
-    function animateScale(elems, mode, toScale){
-      const fromScale = elems.scale || toScale;
-
-      const same = (Math.abs(fromScale.minS - toScale.minS) < 1e-6) && (Math.abs(fromScale.maxS - toScale.maxS) < 1e-6);
-      if(same){
-        elems.scale = toScale;
-        renderWithScale(elems, mode, toScale);
-        return;
-      }
-
-      if(elems.anim && elems.anim.raf) cancelAnimationFrame(elems.anim.raf);
-
-      const anim = {
-        from: fromScale,
-        to: toScale,
-        start: performance.now(),
-        dur: 260,
-        raf: 0
-      };
-      elems.anim = anim;
-
-      const step = (now)=>{
-        const t = clamp((now - anim.start) / anim.dur, 0, 1);
-        const k = easeOutCubic(t);
-
-        const cur = {
-          minS: lerp(anim.from.minS, anim.to.minS, k),
-          maxS: lerp(anim.from.maxS, anim.to.maxS, k),
-          step: anim.to.step,
-          isOrders: anim.to.isOrders,
-          ticks: anim.to.ticks.map((tv, i)=>{
-            const fv = anim.from.ticks[i] ?? anim.from.ticks.at(-1);
-            return lerp(fv, tv, k);
-          })
-        };
-
-        elems.scale = cur;
-        renderWithScale(elems, mode, cur);
-
-        if(t < 1){
-          anim.raf = requestAnimationFrame(step);
-        }else{
-          elems.scale = anim.to;
-          renderWithScale(elems, mode, anim.to);
-        }
-      };
-
-      anim.raf = requestAnimationFrame(step);
-    }
-
-    function initChart(elems, mode){
-      const target = calcTargetScale(elems, mode);
-      elems.scale = target;
-      renderWithScale(elems, mode, target);
-
-      elems.scroller.scrollLeft = elems.scroller.scrollWidth - elems.scroller.clientWidth;
-
-      const target2 = calcTargetScale(elems, mode);
-      elems.scale = target2;
-      renderWithScale(elems, mode, target2);
-    }
-
-    function attachSmoothScaleOnScroll(elems, mode){
-      let raf = 0;
-      elems.scroller.addEventListener("scroll", ()=>{
-        if(raf) return;
-        raf = requestAnimationFrame(()=>{
-          raf = 0;
-          const target = calcTargetScale(elems, mode);
-          animateScale(elems, mode, target);
-        });
-      }, {passive:true});
-    }
-
-    function attachTapToShowTooltip(elems){
-      let downX=0, downY=0, moved=false;
-
-      const onDown = (e)=>{
-        const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
-        downX=p.clientX; downY=p.clientY;
-        moved=false;
-      };
-      const onMove = (e)=>{
-        const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
-        if(Math.abs(p.clientX-downX)>6 || Math.abs(p.clientY-downY)>6) moved=true;
-      };
-      const onUp = (e)=>{
-        if(moved) return;
-
-        const svg = elems.mount.querySelector("svg");
-        if(!svg) return;
-
-        const rect = svg.getBoundingClientRect();
-        const p = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
-        const x = p.clientX - rect.left;
-        const y = p.clientY - rect.top;
-
-        if(x<0 || y<0 || x>rect.width || y>rect.height){
-          removeTooltip(svg);
-          return;
-        }
-
-        const vb = svg.viewBox.baseVal;
-        const sx = vb.width / rect.width;
-        const sy = vb.height / rect.height;
-        const vx = x * sx;
-        const vy = y * sy;
-
-        const pts = elems._pts || [];
-        let best=null, bestD=1e9;
-        for(const pt of pts){
-          const dx=pt.x-vx, dy=pt.y-vy;
-          const d2=dx*dx+dy*dy;
-          if(d2<bestD){bestD=d2; best=pt;}
-        }
-
-        const threshold = 14*14;
-        if(best && bestD<=threshold){
-          showTooltip(svg, best.x, best.y, best.label);
-        }else{
-          removeTooltip(svg);
-        }
-      };
-
-      elems.scroller.addEventListener("pointerdown", onDown, {passive:true});
-      elems.scroller.addEventListener("pointermove", onMove, {passive:true});
-      elems.scroller.addEventListener("pointerup",   onUp,   {passive:true});
-
-      elems.scroller.addEventListener("touchstart", onDown, {passive:true});
-      elems.scroller.addEventListener("touchmove",  onMove, {passive:true});
-      elems.scroller.addEventListener("touchend",   onUp,   {passive:true});
-    }
-
-    /* ===== 起動（グラフ） ===== */
-    initChart(A, "orders");
-    initChart(B, "assets");
-    attachSmoothScaleOnScroll(A, "orders");
-    attachSmoothScaleOnScroll(B, "assets");
-    attachTapToShowTooltip(A);
-    attachTapToShowTooltip(B);
-
-    /* ===== flip ===== */
-    const ANIM_MS = 650;
-    function flip(){
-      isFlipped = !isFlipped;
-      cardChart.classList.add("is-animating");
-      cardChart.classList.toggle("is-flipped", isFlipped);
-      setTimeout(()=> cardChart.classList.remove("is-animating"), ANIM_MS);
-    }
-    cardChart.addEventListener("click", (e)=>{
-      if(e.target.closest(".chartScroller")) return;
-      flip();
-    });
-    if(flipHintA) flipHintA.addEventListener("click", (e)=>{ e.stopPropagation(); flip(); });
-    if(flipHintB) flipHintB.addEventListener("click", (e)=>{ e.stopPropagation(); flip(); });
-
-    /* ===== section2: Calendar ===== */
-    const HOLIDAY_API = "https://holidays-jp.github.io/api/v1/date.json";
-    const LS_EVENTS = "enue_events_v1";
-    const LS_POPUPS = "enue_popups_v1";
-
-    const defaultPopups = ["2025-12-10","2025-12-11"];
-    const defaultEvents = {
-      "2025-12-08": { color:"blue",   title:"現地MT", memo:"14:00〜" },
-      "2025-12-15": { color:"orange", title:"発送締め", memo:"" }
-    };
-
-    function loadJson(key, fallback){
-      try{
-        const s = localStorage.getItem(key);
-        if(!s) return fallback;
-        return JSON.parse(s);
-      }catch(e){
-        return fallback;
-      }
-    }
-    function saveJson(key, value){
-      localStorage.setItem(key, JSON.stringify(value));
-    }
-
-    let POPUP_DATES = new Set(loadJson(LS_POPUPS, defaultPopups));
-    let EVENTS = loadJson(LS_EVENTS, defaultEvents);
-
-    const calBox = document.getElementById("calBox");
-    const calViewport = document.getElementById("calViewport");
-    const monthLabel = document.getElementById("monthLabel");
-    const monthLabelMini = document.getElementById("monthLabelMini");
-
-    const todayBtn = document.getElementById("todayBtn");
-    const prevBtn  = document.getElementById("prevBtn");
-    const nextBtn  = document.getElementById("nextBtn");
-    const modeBtn  = document.getElementById("modeBtn");
-
-    const pad2 = n => String(n).padStart(2,"0");
-    const ymd = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
-
-    const now = new Date();
-    const baseMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    let view = new Date(baseMonth);
-
-    const MIN = new Date(baseMonth.getFullYear(), baseMonth.getMonth()-12, 1);
-    const MAX = new Date(baseMonth.getFullYear(), baseMonth.getMonth()+12, 1);
-
-    const storedMode = localStorage.getItem("enue_dow_mode");
-    let dowMode = storedMode === "mon" ? "mon" : "sun";
-
-    let holidayMap = null;
-
-    function updateCellSize(){
-      if(!calBox) return;
-      const rect = calBox.getBoundingClientRect();
-      const innerW = rect.width - 2;
-      const cell = Math.floor(innerW / 7);
-      const clamped = Math.max(44, Math.min(74, cell));
-      document.documentElement.style.setProperty("--cell", clamped + "px");
-    }
-    if(calBox && window.ResizeObserver){
-      new ResizeObserver(updateCellSize).observe(calBox);
-    }
-    updateCellSize();
-
-    async function loadHolidays(){
-      if(holidayMap) return holidayMap;
-      try{
-        const res = await fetch(HOLIDAY_API, { cache:"force-cache" });
-        holidayMap = await res.json();
-      }catch(e){
-        console.warn("holiday api fetch failed", e);
-        holidayMap = {};
-      }
-      return holidayMap;
-    }
-
-    function getDows(){
-      return (dowMode === "mon")
-        ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-        : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-    }
-    function dayToCol(day){
-      if(dowMode === "sun") return day;
-      return (day + 6) % 7;
-    }
-    function syncModeBtn(){
-      if(!modeBtn) return;
-      modeBtn.textContent = (dowMode === "sun") ? "Sun–Sat" : "Mon–Sun";
-    }
-
-    let popEl = null;
-    function closePopover(){ if(popEl){ popEl.remove(); popEl=null; } }
-
-    function openPopover(targetEl, html, onMount){
-      closePopover();
-      const r = targetEl.getBoundingClientRect();
-      popEl = document.createElement("div");
-      popEl.className = "popover"; /* ★CSSと一致 */
-      popEl.innerHTML = html;
-      document.body.appendChild(popEl);
-
-      const pr = popEl.getBoundingClientRect();
-      let x = r.left + 6;
-      let y = r.bottom + 8;
-      if(x + pr.width > window.innerWidth - 10) x = window.innerWidth - pr.width - 10;
-      if(y + pr.height > window.innerHeight - 10) y = r.top - pr.height - 8;
-      if(y < 10) y = 10;
-      popEl.style.left = x + "px";
-      popEl.style.top  = y + "px";
-
-      if(typeof onMount === "function") onMount(popEl);
-    }
-
-    function escapeHtml(s){
-      return String(s)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#39;");
-    }
-
-    function moveSchedule(oldKey, newKey){
-      if(!newKey || newKey === oldKey) return;
-
-      const hadPopup = POPUP_DATES.has(oldKey);
-      const hadEvent = !!EVENTS[oldKey];
-
-      if(hadPopup){
-        POPUP_DATES.delete(oldKey);
-        POPUP_DATES.add(newKey);
-      }
-      if(hadEvent){
-        const payload = EVENTS[oldKey];
-        delete EVENTS[oldKey];
-        EVENTS[newKey] = payload;
-      }
-
-      saveJson(LS_POPUPS, Array.from(POPUP_DATES));
-      saveJson(LS_EVENTS, EVENTS);
-
-      const [yy,mm] = newKey.split("-").map(Number);
-      view = new Date(yy, mm-1, 1);
-
-      renderMonth("none");
-    }
-
-    function buildGrid(year, month){
-      const grid = document.createElement("div");
-      grid.className = "calGrid";
-
-      const dows = getDows();
-      for(let i=0;i<7;i++){
-        const dow = document.createElement("div");
-        dow.className = "dow";
-        dow.textContent = dows[i];
-        grid.appendChild(dow);
-      }
-
-      const firstDow = new Date(year, month-1, 1).getDay();
-      const firstCol = dayToCol(firstDow);
-      const lastDate = new Date(year, month, 0).getDate();
-
-      const needed = firstCol + lastDate;
-      const weeks = Math.ceil(needed / 7);
-      const totalCells = weeks * 7;
-
-      const prevLast = new Date(year, month-1, 0).getDate();
-      const nextY = (month === 12) ? year+1 : year;
-      const nextM = (month === 12) ? 1 : month+1;
-      const prevY = (month === 1) ? year-1 : year;
-      const prevM = (month === 1) ? 12 : month-1;
-
-      const todayKey = ymd(new Date());
-
-      for(let idx=0; idx<totalCells; idx++){
-        let d, cellY=year, cellM=month, outside=false;
-
-        if(idx < firstCol){
-          outside = true;
-          cellY = prevY; cellM = prevM;
-          d = prevLast - (firstCol - 1 - idx);
-        }else if(idx >= firstCol + lastDate){
-          outside = true;
-          cellY = nextY; cellM = nextM;
-          d = (idx - (firstCol + lastDate)) + 1;
-        }else{
-          d = (idx - firstCol) + 1;
-        }
-
-        const key = `${cellY}-${pad2(cellM)}-${pad2(d)}`;
-        const isToday = key === todayKey;
-
-        const realDay = new Date(cellY, cellM-1, d).getDay();
-        const isSun = realDay === 0;
-        const isSat = realDay === 6;
-
-        const hName = holidayMap?.[key] || "";
-        const isHoliday = !!hName;
-
-        const isPopup = POPUP_DATES.has(key);
-        const ev = EVENTS[key] || null;
-        const hasEvent = !!ev;
-
-        const cell = document.createElement("button");
-        cell.type = "button";
-        cell.className = "day"
-          + (outside ? " dim" : "")
-          + (isSun ? " sun" : "")
-          + (isSat ? " sat" : "")
-          + (isHoliday ? " holiday" : "")
-          + (isToday ? " today" : "");
-
-        let centerHtml = `<div class="centerMark"></div>`;
-        if(isPopup){
-          centerHtml = `<div class="centerMark"><span class="stamp" aria-label="POPUP"><span>POP</span><span>UP</span></span></div>`;
-        }else if(hasEvent){
-          const c = ev.color || "orange";
-          centerHtml = `<div class="centerMark"><span class="eventDot ${c}" aria-label="event"></span></div>`;
-        }
-
-        cell.innerHTML = `
-          <div class="num">${d}</div>
-          ${centerHtml}
-        `;
-
-        cell.addEventListener("click", ()=>{
-          const editable = (isPopup || hasEvent);
-
-          const pills = [];
-          if(isPopup) pills.push(`<span class="badge">POP UP</span>`);
-          if(hasEvent) pills.push(`<span class="badge">予定：${escapeHtml(ev.title || "予定")}</span>`);
-          if(isHoliday) pills.push(`<span class="badge red">祝日：${escapeHtml(hName)}</span>`);
-          if(isSun && !isHoliday) pills.push(`<span class="badge red">日曜</span>`);
-          if(isSat) pills.push(`<span class="badge blue">土曜</span>`);
-          if(!editable && !isHoliday) pills.push(`<span class="badge">予定なし</span>`);
-
-          const memoLine = hasEvent && ev.memo
-            ? `<div class="popSub" style="margin-top:6px;">${escapeHtml(ev.memo)}</div>`
-            : "";
-
-          const headRight = editable
-            ? `<button class="iconBtn" type="button" id="editBtn" title="日付を変更">✏️</button>`
-            : ``;
-
-          const html = `
-            <div class="popHead">
-              <div>
-                <div class="popTitle">${key}</div>
-                <div class="popSub">${cellY}.${pad2(cellM)}${outside ? "（前後月）" : ""}</div>
-                ${memoLine}
-              </div>
-              ${headRight}
-            </div>
-
-            <div class="popRow">${pills.join("")}</div>
-
-            ${editable ? `
-              <div class="editBox" id="editBox">
-                <label>日付を変更</label>
-                <div class="editRow">
-                  <input class="dateInput" id="dateInput" type="date" value="${key}">
-                  <button class="saveBtn" type="button" id="saveBtn">保存</button>
-                </div>
-                <div class="note">※この操作は（POPUP / 予定）を新しい日付へ移動します</div>
-              </div>
-            ` : ""}
-
-            <div class="closeHint">外側タップで閉じる</div>
-          `;
-
-          openPopover(cell, html, (pop)=>{
-            if(!editable) return;
-
-            const editBtn = pop.querySelector("#editBtn");
-            const editBox = pop.querySelector("#editBox");
-            const dateInput = pop.querySelector("#dateInput");
-            const saveBtn = pop.querySelector("#saveBtn");
-
-            editBtn.addEventListener("click", (e)=>{
-              e.stopPropagation();
-              editBox.classList.toggle("show");
-              if(editBox.classList.contains("show")){
-                setTimeout(()=> dateInput.focus(), 0);
-              }
-            });
-
-            saveBtn.addEventListener("click", (e)=>{
-              e.stopPropagation();
-              const newKey = dateInput.value;
-              moveSchedule(key, newKey);
-              closePopover();
-            });
-
-            dateInput.addEventListener("keydown", (e)=>{
-              if(e.key === "Enter"){
-                e.preventDefault();
-                const newKey = dateInput.value;
-                moveSchedule(key, newKey);
-                closePopover();
-              }
-            });
-          });
-        }, { passive:true });
-
-        grid.appendChild(cell);
-      }
-
-      return grid;
-    }
-
-    function setNavDisabled(){
-      if(!prevBtn || !nextBtn) return;
-      prevBtn.disabled = view <= MIN;
-      nextBtn.disabled = view >= MAX;
-    }
-
-    function setHeader(){
-      const y = view.getFullYear();
-      const m = view.getMonth()+1;
-      const label = `${y}.${pad2(m)}`;
-      if(monthLabel) monthLabel.textContent = label;
-      if(monthLabelMini) monthLabelMini.textContent = label;
-      syncModeBtn();
-    }
-
-    function renderMonth(direction){
-      closePopover();
-      setNavDisabled();
-      setHeader();
-
-      const y = view.getFullYear();
-      const m = view.getMonth()+1;
-
-      const incoming = buildGrid(y, m);
-
-      if(direction === "none" || !calViewport){
-        if(calViewport){
-          calViewport.innerHTML = "";
-          calViewport.appendChild(incoming);
-        }
-        incoming.classList.add("slideActive");
-        return;
-      }
-
-      const current = calViewport.querySelector(".calGrid");
-      calViewport.appendChild(incoming);
-
-      if(direction === "left"){
-        incoming.classList.add("slideEnterRight");
-        requestAnimationFrame(()=>{
-          incoming.classList.add("slideActive");
-          incoming.classList.remove("slideEnterRight");
-          if(current){
-            current.classList.add("slideExitLeft");
-            setTimeout(()=> current.remove(), 300);
-          }
-        });
-      }else{
-        incoming.classList.add("slideEnterLeft");
-        requestAnimationFrame(()=>{
-          incoming.classList.add("slideActive");
-          incoming.classList.remove("slideEnterLeft");
-          if(current){
-            current.classList.add("slideExitRight");
-            setTimeout(()=> current.remove(), 300);
-          }
-        });
-      }
-    }
-
-    if(prevBtn) prevBtn.addEventListener("click", ()=>{
-      if(view <= MIN) return;
-      view = new Date(view.getFullYear(), view.getMonth()-1, 1);
-      renderMonth("right");
-    });
-    if(nextBtn) nextBtn.addEventListener("click", ()=>{
-      if(view >= MAX) return;
-      view = new Date(view.getFullYear(), view.getMonth()+1, 1);
-      renderMonth("left");
-    });
-    if(todayBtn) todayBtn.addEventListener("click", ()=>{
-      view = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
-      renderMonth("none");
-    });
-    if(modeBtn) modeBtn.addEventListener("click", ()=>{
-      dowMode = (dowMode === "sun") ? "mon" : "sun";
-      localStorage.setItem("enue_dow_mode", dowMode);
-      renderMonth("none");
-    });
-
-    document.addEventListener("click", (e)=>{
-      if(!popEl) return;
-      const t = e.target;
-      if(popEl.contains(t)) return;
-      if(t.closest && t.closest(".day")) return;
-      closePopover();
-    }, { passive:true });
-    window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePopover(); });
-
-    (async function initCalendar(){
-      await loadHolidays();
-      renderMonth("none");
-    })();
-
-    /* ===== section3/4: Orders ===== */
-    const ORDERS_LS_KEY = "enue_orders_v1";       // 決済ページが作る購入履歴
-    const ROWS_LS_KEY   = "enue_stock_meta_v1";  // 期日/進捗/担当の上書き保存
-
-    const STATUS = ["未着手","入金待ち","進行中","完了"];
-    const ASSIGNEE_OPTIONS = ["藤原","川原"];
-
-    const tbodyStock = document.getElementById("tbodyStock");
-    const emptyStock = document.getElementById("emptyStock");
-    const tbodyOrder = document.getElementById("tbodyOrder");
-    const emptyOrder = document.getElementById("emptyOrder");
-
-    /* ===== Stock(受注残) : Firestore購読 ===== */
-    const STOCK_PROGRESS = ["未着手","進行中","完了"];
-    let rowsStock = [];
-
-    function tsToMs(v){
-      if(!v) return Date.now();
-      // Firestore Timestamp
-      if(typeof v === "object" && typeof v.toDate === "function"){
-        return v.toDate().getTime();
-      }
-      // {seconds, nanoseconds}
-      if(typeof v === "object" && typeof v.seconds === "number"){
-        return v.seconds * 1000;
-      }
-      // ISO string / ms
-      const n = (typeof v === "number") ? v : Date.parse(v);
-      return Number.isFinite(n) ? n : Date.now();
-    }
-
-    function startStockListener(){
-      const col = collection(db, "orders");
-      // kind=stock だけサーバー側で絞る（channel/progressはクライアント側で表示制御）
-      const q = query(col, where("kind","==","stock"), orderBy("createdAt","asc"));
-      onSnapshot(q, (snap)=>{
-        rowsStock = snap.docs.map(d=>{
-          const data = d.data() || {};
-          const createdAtMs = tsToMs(data.createdAt);
-          return {
-            id: d.id,
-            customerName: data.customerName || "",
-            createdAtMs,
-            kind: data.kind || "stock",
-            channel: data.channel || "",
-            progress: data.progress || "未着手",
-            assignees: Array.isArray(data.assignees) ? data.assignees : []
-          };
-        });
-        renderTable("stock");
-      }, (err)=>{
-        console.error("stock listener error:", err);
-      });
-    }
-
-    async function editStockProgress(docId, current){
-      const now = current || "未着手";
-      openSheet("進捗を選択", ()=>{
-        const body = document.createElement("div");
-        body.className = "enueOptList";
-
-        STOCK_PROGRESS.forEach(s=>{
-          const opt = document.createElement("div");
-          opt.className = "enueOpt";
-          opt.innerHTML = `
-            <div class="left">
-              <span class="statusPill ${statusClass(s)}" style="margin:0;">
-                <span class="dot"></span><span>${escapeHtml(s)}</span>
-              </span>
-            </div>
-            <div class="right">${now===s ? "選択中" : ""}</div>
-          `;
-          opt.onclick = async ()=>{
-            try{
-              await updateDoc(doc(db, "orders", docId), { progress: s });
-              closeSheet();
-            }catch(e){
-              alert("更新に失敗しました（進捗）。Consoleを見てね。");
-              console.error(e);
-            }
-          };
-          body.appendChild(opt);
-        });
-
-        return body;
-      });
-    }
-
-    async function editStockAssignees(docId, current){
-      const selected = new Set(Array.isArray(current) ? current : []);
-      openSheet("担当を選択", ()=>{
-        const body = document.createElement("div");
-        body.className = "enueOptList";
-
-        ASSIGNEE_OPTIONS.forEach(a=>{
-          const opt = document.createElement("div");
-          opt.className = "enueOpt";
-          opt.innerHTML = `
-            <div class="left"><span class="chip" style="margin:0;">${escapeHtml(a)}</span></div>
-            <div class="right">${selected.has(a) ? "選択中" : ""}</div>
-          `;
-          opt.onclick = ()=>{
-            if(selected.has(a)) selected.delete(a);
-            else selected.add(a);
-            // その場で表示更新
-            opt.querySelector(".right").textContent = selected.has(a) ? "選択中" : "";
-          };
-          body.appendChild(opt);
-        });
-
-        const foot = document.createElement("div");
-        foot.style.marginTop = "10px";
-        const save = document.createElement("button");
-        save.className = "primaryBtn";
-        save.textContent = "保存";
-        save.onclick = async ()=>{
-          try{
-            await updateDoc(doc(db, "orders", docId), { assignees: Array.from(selected) });
-            closeSheet();
-          }catch(e){
-            alert("更新に失敗しました（担当）。Consoleを見てね。");
-            console.error(e);
-          }
-        };
-        foot.appendChild(save);
-
-        const wrap = document.createElement("div");
-        wrap.appendChild(body);
-        wrap.appendChild(foot);
-        return wrap;
-      });
-    }
-
-    const overlay = document.getElementById("overlayOrders");
-    const sheetTitle = document.getElementById("sheetTitle");
-    const sheetBody  = document.getElementById("sheetBody");
-    const sheetFoot  = document.getElementById("sheetFoot");
-    const closeBtn   = document.getElementById("closeBtn");
-    const cancelBtn  = document.getElementById("cancelBtn");
-    const saveBtn    = document.getElementById("saveBtn");
-    const datePicker = document.getElementById("datePicker");
-
-    let ordersData = loadOrders();
-    let meta   = loadMeta();
-    let rows   = buildRows(ordersData, meta);
-
-    function rerenderAll(){
-      ordersData = loadOrders();
-      meta   = loadMeta();
-      rows   = buildRows(ordersData, meta);
-      renderTable("stock");
-      renderTable("order");
-    }
-
-    function renderTable(kind){
-      if(kind==="stock"){
-        renderStockTable();
-        return;
-      }
-      // order（既存ローカル表示を維持）
-      const tbody = tbodyOrder;
-      const emptyEl = emptyOrder;
-      if(!tbody || !emptyEl) return;
-
-      tbody.innerHTML = "";
-      const visible = rows
-        .filter(r => r.method !== "マルシェ")
-        .filter(r => r.status !== "完了");
-
-      emptyEl.style.display = (visible.length===0) ? "block" : "none";
-
-      visible.forEach(r=>{
-        const tr = document.createElement("tr");
-        tr.appendChild(td("名前", nameCell(r)));
-        tr.appendChild(td("期日", dueCell(r)));
-        tr.appendChild(td("進捗", statusCell(r)));
-        tr.appendChild(td("担当", assigneeCell(r), {align:"right"}));
-        tbody.appendChild(tr);
-      });
-    }
-
-    function renderStockTable(){
-      if(!tbodyStock || !emptyStock) return;
-      tbodyStock.innerHTML = "";
-
-      const visible = rowsStock
-        .filter(r => r.channel !== "マルシェ")
-        .filter(r => r.progress !== "完了")
-        .sort((a,b)=> a.createdAtMs - b.createdAtMs);
-
-      emptyStock.style.display = (visible.length===0) ? "block" : "none";
-
-      visible.forEach(r=>{
-        const tr = document.createElement("tr");
-        tr.appendChild(td("名前", textCell(r.customerName || "-")));
-        tr.appendChild(td("日付", textCell(fmtMD(new Date(r.createdAtMs)))));
-        tr.appendChild(td("種別", textCell(r.kind || "-")));
-        tr.appendChild(td("担当", stockAssigneeCell(r)));
-        tr.appendChild(td("進捗", stockProgressCell(r)));
-        tbodyStock.appendChild(tr);
-      });
-    }
-
-    function textCell(t){
-      const div = document.createElement("div");
-      div.className = "cellText";
-      div.textContent = t;
-      return div;
-    }
-
-    function stockProgressCell(r){
-      const btn = document.createElement("div");
-      btn.className = "tap";
-      btn.role = "button";
-      btn.tabIndex = 0;
-
-      const pill = document.createElement("div");
-      pill.className = "statusPill " + statusClass(r.progress);
-      pill.innerHTML = `<span class="dot"></span><span>${escapeHtml(r.progress || "未着手")}</span>`;
-      btn.appendChild(pill);
-
-      const open = ()=> editStockProgress(r.id, r.progress || "未着手");
-      btn.onclick = open;
-      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } };
-      return btn;
-    }
-
-    function stockAssigneeCell(r){
-      const btn = document.createElement("div");
-      btn.className = "tap";
-      btn.role = "button";
-      btn.tabIndex = 0;
-
-      const wrap = document.createElement("div");
-      wrap.className = "chips";
-
-      const list = Array.isArray(r.assignees) ? r.assignees : [];
-      if(list.length===0){
-        const c = document.createElement("span");
-        c.className = "chip muted";
-        c.textContent = "未設定";
-        wrap.appendChild(c);
-      }else{
-        list.forEach(a=>{
-          const c = document.createElement("span");
-          c.className = "chip";
-          c.textContent = a;
-          wrap.appendChild(c);
-        });
-      }
-
-      btn.appendChild(wrap);
-
-      const open = ()=> editStockAssignees(r.id, list);
-      btn.onclick = open;
-      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); open(); } };
-      return btn;
-    }
-
-    function statusCell(r){
-      const btn = document.createElement("div");
-      btn.className = "tap";
-      btn.role = "button";
-      btn.tabIndex = 0;
-
-      const pill = document.createElement("div");
-      pill.className = "statusPill " + statusClass(r.status);
-      pill.innerHTML = `<span class="dot"></span><span>${escapeHtml(r.status)}</span>`;
-      btn.appendChild(pill);
-
-      btn.onclick = ()=> editStatus(r.receiptId);
-      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editStatus(r.receiptId); } };
-      return btn;
-    }
-
-    function assigneeCell(r){
-      const btn = document.createElement("div");
-      btn.className = "tap";
-      btn.role = "button";
-      btn.tabIndex = 0;
-
-      const wrap = document.createElement("div");
-      wrap.className = "chips";
-
-      if(!r.assignees || r.assignees.length===0){
-        const c = document.createElement("span");
-        c.className = "chip muted";
-        c.textContent = "未設定";
-        wrap.appendChild(c);
-      }else{
-        r.assignees.forEach(a=>{
-          const c = document.createElement("span");
-          c.className = "chip";
-          c.textContent = a;
-          wrap.appendChild(c);
-        });
-      }
-
-      btn.appendChild(wrap);
-      btn.onclick = ()=> editAssignees(r.receiptId);
-      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editAssignees(r.receiptId); } };
-      return btn;
-    }
-
-    function openReceiptById(receiptId){
-      location.href = `receipt.html?id=${encodeURIComponent(receiptId)}`;
-    }
-
-    function editDue(receiptId){
-      const r = rows.find(x=>x.receiptId===receiptId);
-      if(!r || !datePicker) return;
-
-      datePicker.value = r.due || "";
-      datePicker.onchange = ()=>{
-        const next = datePicker.value || r.due;
-        upsertMeta(receiptId, { due: next });
-      };
-      datePicker.focus();
-      datePicker.click();
-    }
-
-    function editStatus(receiptId){
-      const r = rows.find(x=>x.receiptId===receiptId);
-      if(!r) return;
-
-      openSheet("進捗を選択", ()=>{
-        const body = document.createElement("div");
-        body.className = "enueOptList";
-
-        STATUS.forEach(s=>{
-          const opt = document.createElement("div");
-          opt.className = "enueOpt";
-          opt.innerHTML = `
-            <div class="left">
-              <span class="statusPill ${statusClass(s)}" style="margin:0;">
-                <span class="dot"></span><span>${escapeHtml(s)}</span>
-              </span>
-            </div>
-            <div class="right">${r.status===s ? "選択中" : ""}</div>
-          `;
-          opt.onclick = ()=> upsertMeta(receiptId, { status: s }, true);
-          body.appendChild(opt);
-        });
-
-        return body;
-      });
-    }
-
-    function editAssignees(receiptId){
-      const r = rows.find(x=>x.receiptId===receiptId);
-      if(!r) return;
-
-      const draft = new Set(r.assignees || []);
-
-      openSheet("担当を選択（複数可）", ()=>{
-        const body = document.createElement("div");
-        body.className = "enueOptList";
-
-        ASSIGNEE_OPTIONS.forEach(a=>{
-          const opt = document.createElement("div");
-          opt.className = "enueOpt";
-
-          const check = document.createElement("span");
-          check.className = "enueCheck" + (draft.has(a) ? " on" : "");
-          check.textContent = draft.has(a) ? "✓" : "";
-
-          const left = document.createElement("div");
-          left.className = "left";
-          left.innerHTML = `<span style="font-weight:900;">${escapeHtml(a)}</span>`;
-          left.prepend(check);
-
-          const right = document.createElement("div");
-          right.className = "right";
-          right.textContent = draft.has(a) ? "選択中" : "";
-
-          opt.appendChild(left);
-          opt.appendChild(right);
-
-          opt.onclick = ()=>{
-            if(draft.has(a)) draft.delete(a);
-            else draft.add(a);
-            check.className = "enueCheck" + (draft.has(a) ? " on" : "");
-            check.textContent = draft.has(a) ? "✓" : "";
-            right.textContent = draft.has(a) ? "選択中" : "";
-          };
-
-          body.appendChild(opt);
-        });
-
-        showSheetFooter(
-          ()=> closeSheet(),
-          ()=> upsertMeta(receiptId, { assignees: Array.from(draft) })
-        );
-
-        return body;
-      });
-    }
-
-    function upsertMeta(receiptId, patch, closeImmediately=false){
-      meta[receiptId] = { ...(meta[receiptId]||{}), ...patch };
-      saveMeta(meta);
-
-      if(closeImmediately) closeSheet();
-      rerenderAll();
-    }
-
-    function buildRows(orders, meta){
-      const mapped = (orders || [])
-        .map(mapOrderToRow)
-        .filter(Boolean)
-        .filter(r => r.method !== "マルシェ");
-
-      const merged = mapped.map(r=>{
-        const m = meta[r.receiptId];
-        if(!m) return r;
-        return {
-          ...r,
-          due: (m.due ?? r.due),
-          status: (m.status ?? r.status),
-          assignees: (m.assignees ?? r.assignees),
-        };
-      });
-
-      merged.sort((a,b)=> (b.createdAt ?? 0) - (a.createdAt ?? 0));
-      return merged;
-    }
-
-    function mapOrderToRow(o){
-      if(!o) return null;
-
-      const receiptId = o.id ?? o.receiptId ?? o.receipt_id ?? null;
-      if(!receiptId) return null;
-
-      const method = o.method ?? o.salesMethod ?? o.channel ?? o.saleType ?? "";
-
-      const name =
-        o.name ??
-        o.title ??
-        (Array.isArray(o.items) && o.items[0]?.name ? `${o.items[0].name}${o.items.length>1 ? ` 他${o.items.length-1}` : ""}` : "（名称なし）");
-
-      const due = normalizeDate(o.due ?? o.deadline ?? o.limit ?? "");
-      const status = (o.status && STATUS.includes(o.status)) ? o.status : "未着手";
-      const assignees = Array.isArray(o.assignees) ? o.assignees : [];
-
-      const createdAt = o.createdAt ?? o.created_at ?? o.ts ?? 0;
-
-      return { receiptId, method, name, due, status, assignees, createdAt };
-    }
-
-    if(overlay){
-      overlay.addEventListener("click", closeSheet);
-    }
-    if(closeBtn){
-      closeBtn.addEventListener("click", closeSheet);
-    }
-
-    function openSheet(title, bodyFactory){
-      if(!overlay || !sheetTitle || !sheetBody || !sheetFoot) return;
-
-      sheetTitle.textContent = title;
-      sheetBody.innerHTML = "";
-      sheetFoot.style.display = "none";
-      cancelBtn && (cancelBtn.onclick = null);
-      saveBtn && (saveBtn.onclick = null);
-
-      const body = bodyFactory();
-      sheetBody.appendChild(body);
-
-      overlay.classList.add("show");
-    }
-
-    function showSheetFooter(onCancel, onSave){
-      if(!sheetFoot) return;
-      sheetFoot.style.display = "flex";
-      if(cancelBtn) cancelBtn.onclick = onCancel;
-      if(saveBtn) saveBtn.onclick = onSave;
-    }
-
-    function closeSheet(){
-      if(!overlay || !sheetBody || !sheetFoot) return;
-      overlay.classList.remove("show");
-      sheetBody.innerHTML = "";
-      sheetFoot.style.display = "none";
-    }
-
-    function statusClass(status){
-      if(status==="未着手") return "s-michakushu";
-      if(status==="入金待ち") return "s-nyuukin";
-      if(status==="進行中") return "s-shinkochu";
-      if(status==="完了") return "s-done";
-      return "s-michakushu";
-    }
-
-    function formatNoYear(iso){
-      if(!iso) return "-";
-      const d = new Date(iso + "T00:00:00");
-      if(Number.isNaN(d.getTime())) return "-";
-      const m = String(d.getMonth()+1).padStart(2,"0");
-      const day = String(d.getDate()).padStart(2,"0");
-      return `${m}/${day}`;
-    }
-
-    function normalizeDate(v){
-      if(!v) return "";
-      const s = String(v).trim();
-      if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s)) return s;
-      if(/^[0-9]{4}\/[0-9]{2}\/[0-9]{2}$/.test(s)) return s.replaceAll("/","-");
-      return "";
-    }
-
-    function loadOrders(){
-      try{
-        const raw = localStorage.getItem(ORDERS_LS_KEY);
-        if(!raw) return [];
-        const parsed = JSON.parse(raw);
-        return Array.isArray(parsed) ? parsed : [];
-      }catch{
-        return [];
-      }
-    }
-
-    function loadMeta(){
-      try{
-        const raw = localStorage.getItem(ROWS_LS_KEY);
-        if(!raw) return {};
-        const parsed = JSON.parse(raw);
-        return (parsed && typeof parsed === "object") ? parsed : {};
-      }catch{
-        return {};
-      }
-    }
-
-    function saveMeta(meta){
-      localStorage.setItem(ROWS_LS_KEY, JSON.stringify(meta));
-    }
-
-    /* first render */
-    startStockListener();
-    renderTable("order");
-
-  }catch(err){
-    console.error("Dashboard init error:", err);
-    alert("JSエラーで描画が止まりました。Consoleを見てね: " + err);
   }
-})();
+  const next = [...cur];
+  await updateDoc(doc(db, SALES_COL, id), { assignees: next });
+  return next;
+}
+
+async function nextProgress(id, current){
+  const list = ["未着手","進行中","完了"];
+  const i = list.indexOf(current);
+  const next = list[(i + 1) % list.length];
+  await updateDoc(doc(db, SALES_COL, id), { progress: next });
+  return next;
+}
+
+/* ===== render ===== */
+function renderStock(rows){
+  const tbody = document.getElementById(STOCK_TBODY_ID);
+  if(!tbody) return;
+  tbody.innerHTML = "";
+
+  rows.forEach(r=>{
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>${r.customerName || "-"}</td>
+      <td>${fmtMMDD(r.created)}</td>
+      <td>${r.kind}</td>
+      <td class="assignees"></td>
+      <td class="progress"></td>
+    `;
+
+    /* 担当 */
+    const aCell = tr.querySelector(".assignees");
+    aCell.style.display = "flex";
+    aCell.style.gap = "6px";
+    aCell.style.flexWrap = "wrap";
+
+    const a = arr(r.assignees);
+    const f = chip("藤原", a.includes("藤原"));
+    const k = chip("川原", a.includes("川原"));
+
+    const openAssign = async ()=>{
+      const next = await toggleAssignee(r.id, r.assignees);
+      r.assignees = next;
+      f.style.background = next.includes("藤原") ? "rgba(0,0,0,.12)" : "rgba(255,255,255,.7)";
+      k.style.background = next.includes("川原") ? "rgba(0,0,0,.12)" : "rgba(255,255,255,.7)";
+    };
+    f.onclick = openAssign;
+    k.onclick = openAssign;
+    aCell.append(f,k);
+
+    /* 進捗 */
+    const pCell = tr.querySelector(".progress");
+    const p = chip(r.progress, false);
+    p.onclick = async ()=>{
+      const next = await nextProgress(r.id, r.progress);
+      r.progress = next;
+      p.textContent = next;
+      if(next === "完了") tr.remove(); // 表示ルール通り
+    };
+    pCell.appendChild(p);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===== load ===== */
+async function loadStock(){
+  const q = query(
+    collection(db, SALES_COL),
+    orderBy("clientCreatedAt","asc")
+  );
+  const snap = await getDocs(q);
+
+  const rows = snap.docs.map(d=>{
+    const v = d.data();
+    return {
+      id: d.id,
+      customerName: v.customerName,
+      channel: v.channel,
+      kind: v.kind ?? "stock",
+      progress: v.progress ?? "未着手",
+      assignees: v.assignees ?? [],
+      created: v.clientCreatedAt ?? v.createdAt
+    };
+  }).filter(r =>
+    r.channel !== "マルシェ" &&
+    r.kind === "stock" &&
+    r.progress !== "完了"
+  );
+
+  renderStock(rows);
+}
+
+loadStock().catch(console.error);
 </script>
 
 </body>
