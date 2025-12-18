@@ -477,6 +477,12 @@
         <div id="receiptOptionLine" style="margin-top:8px; font-weight:900; display:none;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
+        <!-- customer (マルシェ以外のときだけ表示) -->
+        <div id="receiptCustomerRow" style="display:none; margin-top:12px; padding:12px; border:1px solid rgba(0,0,0,.08); border-radius:16px; background: rgba(255,255,255,.75);">
+          <div class="muted" style="margin-bottom:8px;">購入者名（任意）</div>
+          <input id="receiptCustomerName" type="text" placeholder="例：田中様" style="width:100%;" />
+        </div>
+
         <!-- order / shipping (マルシェ以外のときだけ表示) -->
         <div id="receiptOrderRow" style="display:none; margin-top:12px; padding:12px; border:1px solid rgba(0,0,0,.08); border-radius:16px; background: rgba(255,255,255,.75);">
           <label style="display:flex; gap:10px; align-items:center; font-weight:900;">
@@ -641,6 +647,8 @@ const $confirmBtn = $("confirmBtn");
 const $receiptOrderRow = $("receiptOrderRow");
 const $receiptOrderCheck = $("receiptOrderCheck");
 const $receiptShipOptions = $("receiptShipOptions");
+const $receiptCustomerRow = $("receiptCustomerRow");
+const $receiptCustomerName = $("receiptCustomerName");
 
 const $toast = $("toast");
 
@@ -1157,6 +1165,8 @@ async function writeSale(){
                 : 300;
   }
 
+  const customerName = (settings.currentChannel !== "マルシェ") ? (($receiptCustomerName?.value || "").trim()) : "";
+
   const progress = (settings.currentChannel !== "マルシェ")
     ? "未着手"
     : "";
@@ -1178,6 +1188,7 @@ async function writeSale(){
     progress,
     shippingOption,
     shippingFee,
+    customerName,
   });
 }
 
@@ -1304,12 +1315,23 @@ $checkoutBtn.onclick = ()=>{
 
   if($receiptOrderRow && $receiptOrderCheck && $receiptShipOptions){
     const isNonMarche = settings.currentChannel !== "マルシェ";
+    if($receiptCustomerRow && $receiptCustomerName){
+      $receiptCustomerRow.style.display = isNonMarche ? "" : "none";
+      $receiptCustomerName.value = "";
+    }
     $receiptOrderRow.style.display = isNonMarche ? "" : "none";
     $receiptOrderCheck.checked = false;
     $receiptShipOptions.style.display = "none";
     const radios = $receiptShipOptions.querySelectorAll('input[name="shipOpt"]');
     radios.forEach(r=> r.checked = (r.value==="3d"));
     updateReceiptUI();
+  }
+
+  // customer row toggle（念のため）
+  if($receiptCustomerRow && $receiptCustomerName){
+    const isNonMarche = settings.currentChannel !== "マルシェ";
+    $receiptCustomerRow.style.display = isNonMarche ? "" : "none";
+    if(!isNonMarche) $receiptCustomerName.value = "";
   }
 
   $receiptModal.classList.add("show");
@@ -1319,6 +1341,7 @@ $confirmBtn.onclick = async ()=>{
   try{
     await writeSale();
     $receiptModal.classList.remove("show");
+    if($receiptCustomerName) $receiptCustomerName.value = "";
     showToast("保存しました");
     document.querySelectorAll(".product-row input[type=checkbox]").forEach(c=>c.checked=false);
     document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true;s.value=1});
@@ -1330,7 +1353,10 @@ $confirmBtn.onclick = async ()=>{
 };
 
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
-  ()=> $receiptModal.classList.remove("show");
+  ()=>{
+    $receiptModal.classList.remove("show");
+    if($receiptCustomerName) $receiptCustomerName.value = "";
+  };
 
 if($receiptOrderCheck && $receiptShipOptions){
   $receiptOrderCheck.onchange = ()=>{
