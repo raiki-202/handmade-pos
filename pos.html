@@ -105,6 +105,19 @@
     }
     .nav-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.82); }
 
+    /* 右上：編集トグル（白黒） */
+    .icon-nav{
+      width: 34px;
+      height: 30px;
+      padding: 0;
+      justify-content:center;
+    }
+    .icon-nav svg{
+      width: 16px;
+      height: 16px;
+      stroke: #111;
+    }
+
     .content{ padding: 12px; }
 
     .section{
@@ -242,6 +255,64 @@
       white-space:nowrap;
     }
 
+    /* ===== edit mode ===== */
+    .edit-only{ display:none; }
+    body.edit-mode .edit-only{ display:inline-flex; }
+    body.edit-mode .sale-only{ display:none !important; }
+
+    .editRow{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+    }
+    .miniBtn{
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor:pointer;
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+    }
+    .miniBtn.primaryMini{
+      border:0;
+      color:#fff;
+      background: linear-gradient(135deg, rgba(34,34,34,.95), rgba(34,34,34,.92));
+    }
+    .badge{
+      font-size:10px;
+      font-weight:900;
+      padding: 3px 7px;
+      border-radius:999px;
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      color: var(--text-sub);
+    }
+    .editFields{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      min-width:0;
+      flex:1;
+    }
+    .editFields input[type="text"]{ flex:1; min-width:0; }
+    .editFields input[type="number"]{ width:110px; }
+
+    .toggle{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      font-size: 11px;
+      color: var(--text-sub);
+      white-space:nowrap;
+      user-select:none;
+    }
+
     /* ===== modal ===== */
     .modal{
       position: fixed;
@@ -346,6 +417,23 @@
         <div class="nav">
           <a class="nav-btn" href="index.html" aria-label="戻る">← 戻る</a>
           <button class="nav-btn" id="envToggleBtn" type="button" aria-label="環境切替">環境：切替</button>
+
+          <!-- 編集トグル：✏️/×（白黒アイコン） -->
+          <button class="nav-btn icon-nav" id="editToggleBtn" type="button" aria-label="編集切替" title="編集">
+            <!-- pencil -->
+            <svg id="iconPencil" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            </svg>
+            <!-- x (hidden by default) -->
+            <svg id="iconX" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;">
+              <path d="M18 6 6 18"/>
+              <path d="M6 6l12 12"/>
+            </svg>
+          </button>
+
+          <button class="nav-btn edit-only" id="saveEditBtn" type="button" aria-label="保存して終了">保存</button>
+
           <span class="pill" id="statusPill">未接続</span>
         </div>
       </div>
@@ -357,11 +445,15 @@
               <h3>POS</h3>
               <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
             </div>
-            <span class="pill" id="masterPill">商品マスタ：読込中</span>
+
+            <div class="editRow">
+              <button class="miniBtn edit-only" id="addProductBtn" type="button">＋商品追加</button>
+              <span class="pill" id="masterPill">商品マスタ：読込中</span>
+            </div>
           </div>
 
           <div class="posBody">
-            <div class="row2">
+            <div class="row2 sale-only">
               <span class="label">
                 販売方法
                 <select id="channelSelect"></select>
@@ -385,8 +477,13 @@
 
             <div class="products" id="products"></div>
 
-            <button class="primary" id="checkoutBtn" type="button" disabled>決済へ進む</button>
-            <div class="total" id="totalText">合計：￥0</div>
+            <button class="primary sale-only" id="checkoutBtn" type="button" disabled>決済へ進む</button>
+            <div class="total sale-only" id="totalText">合計：￥0</div>
+
+            <div class="muted edit-only" style="margin-top:10px;">
+              ※ 編集モード中は販売UIを停止しています。<br>
+              ※ 保存すると <b>products_patch_updates</b> / <b>products_patch_adds</b> に差分が作成されます。
+            </div>
           </div>
         </div>
       </div>
@@ -418,6 +515,35 @@
     </div>
   </div>
 
+  <!-- Add Product Modal -->
+  <div class="modal" id="addModal" aria-hidden="true">
+    <div class="modalInner">
+      <div class="modalHead">
+        <h3>商品追加</h3>
+        <button class="iconBtn" id="closeAddBtn" type="button">×</button>
+      </div>
+      <div class="modalBody">
+        <div class="row2" style="gap:10px;">
+          <span class="label" style="flex:1;">
+            商品名
+            <input id="addName" type="text" placeholder="例：バンダナ" />
+          </span>
+          <span class="label">
+            価格
+            <input id="addPrice" type="number" inputmode="numeric" placeholder="1500" />
+          </span>
+        </div>
+        <div class="btnRow">
+          <button class="btn" id="addCancelBtn" type="button">キャンセル</button>
+          <button class="btn primaryBtn" id="addOkBtn" type="button">追加</button>
+        </div>
+        <div class="muted" style="margin-top:10px;">
+          ※ 追加は <b>products_patch_adds</b> に保存されます（管理者が後でbundleに取り込み）。
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast">保存しました</div>
 
 <script type="module">
@@ -430,12 +556,18 @@ import {
   collection,
   addDoc,
   getDocs,
+  doc,
+  setDoc,
+  writeBatch,
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 
+import {
+  getAuth,
+} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+
 /* =====================================================
    Firebase config（dev / prod 切替）
-   使い方：
    - dev（デフォ）：pos.html
    - 本番：        pos.html?env=prod
 ===================================================== */
@@ -458,7 +590,6 @@ const firebaseConfigProd = {
   measurementId: "G-3F8BYRBXDC"
 };
 
-// URL: ?env=prod なら本番。それ以外は dev
 const env = new URLSearchParams(location.search).get("env") === "prod" ? "prod" : "dev";
 const firebaseConfig = (env === "prod") ? firebaseConfigProd : firebaseConfigDev;
 
@@ -470,6 +601,13 @@ const $ = (id) => document.getElementById(id);
 const $statusPill   = $("statusPill");
 const $masterPill   = $("masterPill");
 const $envToggleBtn = $("envToggleBtn");
+
+const $editToggleBtn = $("editToggleBtn");
+const $saveEditBtn   = $("saveEditBtn");
+const $iconPencil    = $("iconPencil");
+const $iconX         = $("iconX");
+const $addProductBtn = $("addProductBtn");
+
 const $channelSelect = $("channelSelect");
 const $venueSelect   = $("venueSelect");
 const $venueWrap     = $("venueWrap");
@@ -489,10 +627,19 @@ const $confirmBtn = $("confirmBtn");
 
 const $toast = $("toast");
 
+/* add modal */
+const $addModal = $("addModal");
+const $closeAddBtn = $("closeAddBtn");
+const $addCancelBtn = $("addCancelBtn");
+const $addOkBtn = $("addOkBtn");
+const $addName = $("addName");
+const $addPrice = $("addPrice");
+
 /* =====================================================
    Firebase init
 ===================================================== */
 let db = null;
+let auth = null;
 let firebaseOk = false;
 
 function setStatus(ok, text){
@@ -507,12 +654,24 @@ function bootFirebase(){
   try{
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+
+    // Authは本番で使う想定。DEVは未設定でもOK（uidが取れなければ "no-auth" に落とす）
+    try{
+      auth = getAuth(app);
+    }catch(_){
+      auth = null;
+    }
+
     setStatus(true, "Firestore接続OK");
   }catch(e){
     console.error(e);
     setStatus(false, "Firestore未接続");
     alert("Firebase初期化に失敗しました");
   }
+}
+
+function getActor(){
+  return auth?.currentUser?.uid || "no-auth";
 }
 
 /* =====================================================
@@ -546,44 +705,92 @@ let settings = loadSettings();
    商品マスタ（bundle + patch）
 ===================================================== */
 const BUNDLE_URL = "./products_bundle.json";
+
+/**
+ * 表示に使う“確定後の一覧”（bundle+patch反映済み）
+ */
 let products = [];
+
+/**
+ * 編集モード用ドラフト
+ * - draftBase: 既存商品の編集値（id -> {name, price, active}）
+ * - draftAdds: 追加商品（[{tempKey,name,price,active}]）
+ * - baseSnapshot: 編集前の products を覚えておく（差分計算に使う）
+ */
+let isEditMode = false;
+let baseSnapshot = [];
+let draftBase = new Map();
+let draftAdds = [];
 
 async function loadProductsFromBundle(){
   const res = await fetch(BUNDLE_URL, { cache: "no-store" });
   if(!res.ok) throw new Error("bundle fetch failed");
   const json = await res.json();
-  return (json.products || []).filter(p => p.active !== false);
+  return (json.products || []);
 }
 
+/**
+ * patch schema:
+ * - updates: products_patch_updates/{productId}
+ * - adds:    products_patch_adds/{autoId}
+ */
 async function loadProductsWithPatch(){
   const base = await loadProductsFromBundle();
-  const map = new Map(base.map(p => [p.id, { ...p }]));
 
-  let patchCount = 0;
+  // base map
+  const map = new Map(base.map(p => [p.id, { ...p }]));
+  let patchUpdateCount = 0;
+  let patchAddCount = 0;
+
+  // updates
   try{
-    const snap = await getDocs(collection(db, "products_patch"));
+    const snap = await getDocs(collection(db, "products_patch_updates"));
     snap.forEach(d=>{
       const id = d.id;
       const patch = d.data() || {};
       const cur = map.get(id) || { id };
-      map.set(id, { ...cur, ...patch, id });
-      patchCount++;
+      const merged = { ...cur, ...patch, id };
+      map.set(id, merged);
+      patchUpdateCount++;
     });
   }catch(e){
-    console.warn("patch read failed", e);
+    console.warn("patch_updates read failed", e);
   }
 
+  // ordered by bundle first
   const ordered = [];
   for(const p of base){
-    const merged = map.get(p.id);
-    if(merged && merged.active !== false) ordered.push(merged);
+    const merged = map.get(p.id) || p;
+    if(merged.active !== false) ordered.push(merged);
     map.delete(p.id);
   }
+  // any extra (should be rare)
   for(const merged of map.values()){
     if(merged.active !== false) ordered.push(merged);
   }
 
-  return { products: ordered, patchCount };
+  // adds (append)
+  try{
+    const addSnap = await getDocs(collection(db, "products_patch_adds"));
+    addSnap.forEach(d=>{
+      const a = d.data() || {};
+      if(a.active === false) return;
+      ordered.push({
+        id: a.tempKey || d.id,     // 表示用id（決済では使わない/編集用）
+        name: a.name || "(no name)",
+        price: Number(a.price || 0),
+        active: a.active !== false,
+        _isPatchedAdd: true,
+        _addDocId: d.id,
+        tempKey: a.tempKey || d.id,
+      });
+      patchAddCount++;
+    });
+  }catch(e){
+    console.warn("patch_adds read failed", e);
+  }
+
+  return { products: ordered, patchUpdateCount, patchAddCount };
 }
 
 /* =====================================================
@@ -610,56 +817,241 @@ function renderSettingsUI(){
   $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
 }
 
+function setEditIcon(){
+  if(isEditMode){
+    $iconPencil.style.display = "none";
+    $iconX.style.display = "block";
+    document.body.classList.add("edit-mode");
+  }else{
+    $iconPencil.style.display = "block";
+    $iconX.style.display = "none";
+    document.body.classList.remove("edit-mode");
+  }
+}
+
+function enterEditMode(){
+  isEditMode = true;
+  baseSnapshot = products.map(p => ({...p})); // shallow copy
+
+  draftBase = new Map();
+  for(const p of products){
+    // patch_adds は“既存編集”対象外（管理者取り込み待ち扱い）
+    if(p._isPatchedAdd) continue;
+    draftBase.set(p.id, {
+      id: p.id,
+      name: p.name,
+      price: Number(p.price),
+      active: p.active !== false,
+    });
+  }
+  draftAdds = [];
+
+  setEditIcon();
+  renderProducts();
+}
+
+function exitEditModeWithoutSave(){
+  isEditMode = false;
+  baseSnapshot = [];
+  draftBase = new Map();
+  draftAdds = [];
+  setEditIcon();
+  renderProducts();
+}
+
+async function exitEditModeWithSave(){
+  try{
+    await savePatchesFromDraft();
+    showToast("保存しました");
+  }catch(e){
+    console.error(e);
+    alert("保存に失敗しました（rules/authを確認してね）");
+    return; // 失敗時は編集モード継続
+  }
+
+  isEditMode = false;
+  baseSnapshot = [];
+  draftBase = new Map();
+  draftAdds = [];
+  setEditIcon();
+
+  // patch反映後の表示へ更新
+  await reloadProducts();
+}
+
+/* =====================================================
+   Render products (sale or edit)
+===================================================== */
 function renderProducts(){
   $products.innerHTML = "";
 
-  products.forEach(p=>{
+  if(!isEditMode){
+    // sale mode
+    products
+      .filter(p => p.active !== false)
+      .forEach(p=>{
+        // patch_adds も売る可能性あるならここで表示OK（今回は“本番”なので表示する）
+        const row = document.createElement("div");
+        row.className = "product-row";
+
+        const left = document.createElement("div");
+        left.className = "product-left";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.dataset.id = p.id;
+        cb.disabled = false; // 追加品もそのまま販売OK
+
+        const name = document.createElement("div");
+        name.className = "product-name";
+        name.textContent = p.name;
+
+        const price = document.createElement("span");
+        price.className = "product-price";
+        price.textContent = `￥${Number(p.price)}`;
+
+        name.appendChild(price);
+
+        if(p._isPatchedAdd){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "NEW";
+          name.appendChild(document.createTextNode(" "));
+          name.appendChild(b);
+        }
+
+        left.appendChild(cb);
+        left.appendChild(name);
+
+        const qty = document.createElement("div");
+        qty.className = "qty";
+        const sel = document.createElement("select");
+        sel.disabled = true;
+        for(let i=1;i<=10;i++){
+          const o=document.createElement("option");
+          o.value=o.textContent=i;
+          sel.appendChild(o);
+        }
+
+        cb.addEventListener("change",()=>{
+          sel.disabled = !cb.checked;
+          updateTotal();
+        });
+        sel.addEventListener("change", updateTotal);
+
+        qty.appendChild(sel);
+        qty.append(" 個");
+
+        row.append(left, qty);
+        $products.appendChild(row);
+      });
+
+    updateTotal();
+    return;
+  }
+
+  // edit mode (edit-only screen)
+  // existing products
+  for(const [id, d] of draftBase.entries()){
     const row = document.createElement("div");
     row.className = "product-row";
 
     const left = document.createElement("div");
     left.className = "product-left";
+    left.style.gap = "8px";
 
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.dataset.id = p.id;
+    const fields = document.createElement("div");
+    fields.className = "editFields";
 
-    const name = document.createElement("div");
-    name.className = "product-name";
-    name.textContent = p.name;
-
-    const price = document.createElement("span");
-    price.className = "product-price";
-    price.textContent = `￥${p.price}`;
-
-    name.appendChild(price);
-    left.appendChild(cb);
-    left.appendChild(name);
-
-    const qty = document.createElement("div");
-    qty.className = "qty";
-    const sel = document.createElement("select");
-    sel.disabled = true;
-    for(let i=1;i<=10;i++){
-      const o=document.createElement("option");
-      o.value=o.textContent=i;
-      sel.appendChild(o);
-    }
-
-    cb.addEventListener("change",()=>{
-      sel.disabled = !cb.checked;
-      updateTotal();
+    const name = document.createElement("input");
+    name.type = "text";
+    name.value = d.name;
+    name.placeholder = "商品名";
+    name.addEventListener("input", ()=>{
+      d.name = name.value;
     });
-    sel.addEventListener("change", updateTotal);
 
-    qty.appendChild(sel);
-    qty.append(" 個");
+    const price = document.createElement("input");
+    price.type = "number";
+    price.inputMode = "numeric";
+    price.value = Number(d.price);
+    price.placeholder = "価格";
+    price.addEventListener("input", ()=>{
+      d.price = Number(price.value);
+    });
 
-    row.append(left, qty);
+    fields.appendChild(name);
+    fields.appendChild(price);
+
+    const right = document.createElement("div");
+    right.className = "qty";
+
+    const label = document.createElement("label");
+    label.className = "toggle";
+    const active = document.createElement("input");
+    active.type = "checkbox";
+    active.checked = d.active !== false;
+    active.addEventListener("change", ()=>{
+      d.active = active.checked;
+    });
+    label.appendChild(active);
+    label.appendChild(document.createTextNode(" 表示"));
+
+    right.appendChild(label);
+
+    left.appendChild(fields);
+    row.append(left, right);
     $products.appendChild(row);
-  });
+  }
 
-  updateTotal();
+  // adds
+  for(const a of draftAdds){
+    const row = document.createElement("div");
+    row.className = "product-row";
+
+    const left = document.createElement("div");
+    left.className = "product-left";
+    const b = document.createElement("span");
+    b.className = "badge";
+    b.textContent = "追加";
+    left.appendChild(b);
+
+    const fields = document.createElement("div");
+    fields.className = "editFields";
+
+    const name = document.createElement("input");
+    name.type = "text";
+    name.value = a.name;
+    name.placeholder = "商品名";
+    name.addEventListener("input", ()=> a.name = name.value);
+
+    const price = document.createElement("input");
+    price.type = "number";
+    price.inputMode = "numeric";
+    price.value = Number(a.price);
+    price.placeholder = "価格";
+    price.addEventListener("input", ()=> a.price = Number(price.value));
+
+    fields.appendChild(name);
+    fields.appendChild(price);
+
+    left.appendChild(fields);
+
+    const right = document.createElement("div");
+    right.className = "qty";
+    const del = document.createElement("button");
+    del.type = "button";
+    del.className = "miniBtn";
+    del.textContent = "削除";
+    del.addEventListener("click", ()=>{
+      draftAdds = draftAdds.filter(x=>x !== a);
+      renderProducts();
+    });
+    right.appendChild(del);
+
+    row.append(left, right);
+    $products.appendChild(row);
+  }
 }
 
 /* =====================================================
@@ -670,18 +1062,21 @@ function getSelected(){
   let total = 0;
 
   document.querySelectorAll(".product-row").forEach(row=>{
-    const cb = row.querySelector("input[type=checkbox]");
+    const cb = row.querySelector('input[type="checkbox"]');
     const sel = row.querySelector("select");
+    if(!cb || !sel) return;
     if(!cb.checked) return;
 
     const p = products.find(x=>x.id===cb.dataset.id);
+    if(!p) return;
+
     const qty = Number(sel.value);
-    const subtotal = p.price * qty;
+    const subtotal = Number(p.price) * qty;
 
     items.push({
       id: p.id,
       name: p.name,
-      unitPrice: p.price,
+      unitPrice: Number(p.price),
       qty,
       subtotal
     });
@@ -697,7 +1092,7 @@ function updateTotal(){
 }
 
 /* =====================================================
-   Firestore write
+   Firestore write (sales)
 ===================================================== */
 async function writeSale(){
   const { items, total } = getSelected();
@@ -715,10 +1110,88 @@ async function writeSale(){
 }
 
 /* =====================================================
+   Patch write (updates / adds) : schema-fixed
+===================================================== */
+function diffUpdate(before, after){
+  const diff = {};
+  if(before.name !== after.name) diff.name = after.name;
+  if(Number(before.price) !== Number(after.price)) diff.price = Number(after.price);
+  if((before.active !== false) !== (after.active !== false)) diff.active = after.active !== false;
+  return diff;
+}
+
+async function savePatchesFromDraft(){
+  const actor = getActor();
+  const batch = writeBatch(db);
+
+  // updates：差分があるものだけ書く
+  const beforeMap = new Map(baseSnapshot.filter(p=>!p._isPatchedAdd).map(p=>[p.id, p]));
+  for(const [id, d] of draftBase.entries()){
+    const before = beforeMap.get(id);
+    if(!before) continue;
+    const diff = diffUpdate(before, d);
+    const keys = Object.keys(diff);
+    if(keys.length === 0) continue;
+
+    const ref = doc(db, "products_patch_updates", id);
+    batch.set(ref, {
+      op: "update",
+      ...diff,
+      status: "pending",
+      createdBy: actor,
+      createdAt: serverTimestamp()
+    }, { merge: true });
+  }
+
+  // adds：必須2項目が揃ってるものだけ
+  for(const a of draftAdds){
+    const name = (a.name || "").trim();
+    const price = Number(a.price);
+    if(!name || !Number.isFinite(price) || price <= 0) continue;
+
+    const tempKey = (a.tempKey || `${name}_${Date.now()}`).replace(/\s+/g,"_");
+    const ref = doc(collection(db, "products_patch_adds"));
+    batch.set(ref, {
+      op: "add",
+      tempKey,
+      name,
+      price,
+      active: true,
+      status: "pending",
+      createdBy: actor,
+      createdAt: serverTimestamp()
+    });
+  }
+
+  await batch.commit();
+}
+
+/* =====================================================
+   Modal helpers
+===================================================== */
+function showToast(msg){
+  $toast.textContent = msg;
+  $toast.classList.add("show");
+  setTimeout(()=> $toast.classList.remove("show"),1200);
+}
+
+function openAddModal(){
+  $addName.value = "";
+  $addPrice.value = "";
+  $addModal.classList.add("show");
+  $addName.focus();
+}
+function closeAddModal(){
+  $addModal.classList.remove("show");
+}
+
+/* =====================================================
    Events
 ===================================================== */
 $checkoutBtn.onclick = ()=>{
   if(!firebaseOk) return;
+  if(isEditMode) return;
+
   const { items, total } = getSelected();
   if(!items.length) return alert("商品を選択してね");
 
@@ -732,9 +1205,6 @@ $checkoutBtn.onclick = ()=>{
   $receiptModal.classList.add("show");
 };
 
-// 環境切替（DEV ↔ PROD）
-// - 今が DEV なら ?env=prod を付けてリロード
-// - 今が PROD なら ?env を外してリロード
 $envToggleBtn.onclick = ()=>{
   const url = new URL(location.href);
   if(env === "prod"){
@@ -750,8 +1220,8 @@ $confirmBtn.onclick = async ()=>{
     await writeSale();
     $receiptModal.classList.remove("show");
     showToast("保存しました");
-    document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
-    document.querySelectorAll("select").forEach(s=>{s.disabled=true;s.value=1});
+    document.querySelectorAll(".product-row input[type=checkbox]").forEach(c=>c.checked=false);
+    document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true;s.value=1});
     updateTotal();
   }catch(e){
     alert("保存に失敗しました");
@@ -761,11 +1231,43 @@ $confirmBtn.onclick = async ()=>{
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
   ()=> $receiptModal.classList.remove("show");
 
-function showToast(msg){
-  $toast.textContent = msg;
-  $toast.classList.add("show");
-  setTimeout(()=> $toast.classList.remove("show"),1200);
-}
+/* edit toggle */
+$editToggleBtn.onclick = ()=>{
+  if(!firebaseOk) return;
+  if(!isEditMode){
+    enterEditMode();
+  }else{
+    exitEditModeWithoutSave();
+  }
+};
+
+$saveEditBtn.onclick = async ()=>{
+  if(!isEditMode) return;
+  await exitEditModeWithSave();
+};
+
+/* add product */
+$addProductBtn.onclick = ()=>{
+  if(!isEditMode) return;
+  openAddModal();
+};
+$closeAddBtn.onclick = $addCancelBtn.onclick = closeAddModal;
+$addOkBtn.onclick = ()=>{
+  const name = ($addName.value || "").trim();
+  const price = Number($addPrice.value);
+  if(!name){ alert("商品名を入れてね"); return; }
+  if(!Number.isFinite(price) || price <= 0){ alert("価格を正しく入れてね"); return; }
+
+  draftAdds.push({
+    tempKey: `${name}_${Date.now()}`.replace(/\s+/g,"_"),
+    name,
+    price,
+    active: true
+  });
+
+  closeAddModal();
+  renderProducts();
+};
 
 /* =====================================================
    INIT
@@ -773,15 +1275,16 @@ function showToast(msg){
 bootFirebase();
 renderSettingsUI();
 
-const loaded = await loadProductsWithPatch();
-products = loaded.products;
+async function reloadProducts(){
+  const loaded = await loadProductsWithPatch();
+  products = loaded.products;
 
-// 表示用（右上ピルがあれば）
-if($statusPill){
-  $masterPill.textContent = `商品マスタ：${products.length}件（patch ${loaded.patchCount}）`;
+  $masterPill.textContent = `商品マスタ：${products.filter(p=>p.active!==false).length}件（upd ${loaded.patchUpdateCount} / add ${loaded.patchAddCount}）`;
+  renderProducts();
 }
+await reloadProducts();
 
-renderProducts();
+setEditIcon();
 </script>
 </body>
 </html>
