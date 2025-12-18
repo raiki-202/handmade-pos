@@ -2079,12 +2079,7 @@ function shouldRedirectToPos(){
   await loadCalendarFromBundle();
   await loadCalendarPatchesAround(view);
 
-  // redirect check (できるだけ早く)
-  if(shouldRedirectToPos()){
-    location.replace("pos_prod_toggle.html");
-    return;
-  }
-
+  // redirect check: 無効化（自動でPOSへ飛ばさない）
   renderMonth("none");
 
   // orders list
