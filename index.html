@@ -938,7 +938,9 @@ body{
     </main>
   </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+import { getFirestore, collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 (()=> {
   try{
     /* ===== 画面切替 ===== */
@@ -968,10 +970,62 @@ body{
       });
     }
 
-    /* ===== グラフ用データ（※名前衝突しないように改名） ===== */
-    const months = ["9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月","8月"];
-    const ordersSeries = [3,6,9,7,8,12,10,14,9,6,11,15];
-    const assetsSeries = [80000,120000,150000,180000,210000,190000,240000,260000,300000,280000,320000,360000];
+    /* ===== Firebase（本番） ===== */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+      authDomain: "handmade-pos.firebaseapp.com",
+      projectId: "handmade-pos",
+      storageBucket: "handmade-pos.firebasestorage.app",
+      messagingSenderId: "174873514252",
+      appId: "1:174873514252:web:c26659bffca850d475f929",
+      measurementId: "G-3F8BYRBXDC"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    /* ===== グラフ用データ（Firestoreから生成） ===== */
+    let months = [];
+    let ordersSeries = [];
+    let assetsSeries = [];
+
+    const pad2 = (n)=> String(n).padStart(2,"0");
+    const ymKey = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+
+    function last12MonthKeys(){
+      const now = new Date();
+      const keys = [];
+      for(let i=11;i>=0;i--){
+        const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+        keys.push(ymKey(d));
+      }
+      return keys;
+    }
+
+    function monthLabelJP(ym){ // "2025-12" -> "12月"
+      const m = Number(ym.split("-")[1]);
+      return `${m}月`;
+    }
+
+    async function fetchMonthlyMetricsLast12(){
+      const keys = last12MonthKeys();
+
+      // doc id を YYYY-MM にしておく（例：2025-12）
+      const qy = query(
+        collection(db, "monthly_metrics"),
+        orderBy("__name__", "desc"),
+        limit(24)
+      );
+
+      const snap = await getDocs(qy);
+      const map = {};
+      snap.forEach(doc=>{
+        map[doc.id] = doc.data() || {};
+      });
+
+      months = keys.map(k=> monthLabelJP(k));
+      ordersSeries = keys.map(k=> Number(map[k]?.ordersCount ?? 0));
+      assetsSeries = keys.map(k=> Number(map[k]?.totalAssets ?? 0));
+    }
 
     const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1320,12 +1374,24 @@ body{
     }
 
     /* ===== 起動（グラフ） ===== */
-    initChart(A, "orders");
-    initChart(B, "assets");
-    attachSmoothScaleOnScroll(A, "orders");
-    attachSmoothScaleOnScroll(B, "assets");
-    attachTapToShowTooltip(A);
-    attachTapToShowTooltip(B);
+    (async ()=>{
+      try{
+        await fetchMonthlyMetricsLast12();
+      }catch(e){
+        console.warn("monthly_metrics fetch failed. fallback to 0s.", e);
+        const keys = last12MonthKeys();
+        months = keys.map(k=> monthLabelJP(k));
+        ordersSeries = keys.map(()=>0);
+        assetsSeries = keys.map(()=>0);
+      }
+
+      initChart(A, "orders");
+      initChart(B, "assets");
+      attachSmoothScaleOnScroll(A, "orders");
+      attachSmoothScaleOnScroll(B, "assets");
+      attachTapToShowTooltip(A);
+      attachTapToShowTooltip(B);
+    })();
 
     /* ===== flip ===== */
     const ANIM_MS = 650;
