@@ -142,7 +142,7 @@
       align-items:center;
     }
     .label{
-      font-size: 11px;
+      font-size: 10px;
       color: var(--text-sub);
       display:flex;
       gap:6px;
@@ -150,14 +150,14 @@
       background: rgba(255,255,255,.65);
       border: 1px solid rgba(0,0,0,.06);
       border-radius: 999px;
-      padding: 6px 10px;
+      padding: 4px 8px;
     }
     select, input{
-      border-radius: 12px;
+      border-radius: 10px;
       border: 1px solid rgba(0,0,0,.12);
       background: rgba(255,255,255,.85);
-      padding: 8px 10px;
-      font-size: 13px;
+      padding: 6px 8px;
+      font-size: 12px;
       outline:none;
     }
 
@@ -232,7 +232,7 @@
       display:inline-flex;
       align-items:center;
       gap:6px;
-      padding: 6px 10px;
+      padding: 4px 8px;
       border-radius: 999px;
       border: 1px solid rgba(0,0,0,.08);
       background: rgba(255,255,255,.85);
@@ -277,7 +277,7 @@
       border: 1px solid rgba(0,0,0,.10);
       background: rgba(255,255,255,.85);
       border-radius: 999px;
-      padding: 6px 10px;
+      padding: 4px 8px;
       cursor:pointer;
       font-size: 12px;
       font-weight: 800;
@@ -331,6 +331,82 @@
       body{ padding: 10px; }
       .brand-main{ font-size: 18px; }
     }
+      /* ===== POS title edit toggle ===== */
+    .titleRow{
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .titleIcon{
+      width: 28px;
+      height: 28px;
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.80);
+      cursor:pointer;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .titleIcon:active{ transform: translateY(1px); }
+
+    /* ===== settings edit modal ===== */
+    .editGrid{
+      display:grid;
+      grid-template-columns: 1fr;
+      gap:10px;
+      margin-top: 6px;
+    }
+    .field{
+      background: rgba(255,255,255,.70);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 16px;
+      padding: 10px;
+    }
+    .fieldTitle{
+      font-size: 12px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+    .chips{
+      display:flex;
+      flex-wrap:wrap;
+      gap:6px;
+    }
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.85);
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .chip button{
+      border:0;
+      background: transparent;
+      cursor:pointer;
+      font-weight: 900;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      color: var(--text-sub);
+    }
+    .adder{
+      display:flex;
+      gap:8px;
+      margin-top: 8px;
+    }
+    .adder input{
+      flex:1;
+    }
   </style>
 </head>
 
@@ -353,7 +429,7 @@
         <div class="section">
           <div class="sectionHead">
             <div>
-              <h3>POS</h3>
+              <div class="titleRow"><h3 style="margin:0;">POS</h3><button class="titleIcon" id="editToggleBtn" type="button" aria-label="編集">✎</button></div>
               <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
             </div>
             <span class="pill" id="masterPill">商品マスタ：読込中</span>
@@ -373,12 +449,7 @@
 
               <span class="label">
                 決済方法
-                <select id="paymentSelect">
-                  <option value="現金">現金</option>
-                  <option value="PayPay">PayPay</option>
-                  <option value="クレカ">クレカ</option>
-                  <option value="その他">その他</option>
-                </select>
+                <select id="paymentSelect"></select>
               </span>
             </div>
 
@@ -412,6 +483,54 @@
         <div class="muted" style="margin-top:10px;">
           ※ createdAt は serverTimestamp（サーバー時刻）で保存します。<br>
           ※ clientCreatedAt も一緒に保存します（端末時刻 / 保険）。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Edit Modal -->
+  <div class="modal" id="editModal" aria-hidden="true">
+    <div class="modalInner">
+      <div class="modalHead">
+        <h3>追加・修正</h3>
+        <button class="iconBtn" id="closeEditBtn" type="button">ⓧ</button>
+      </div>
+      <div class="modalBody">
+        <div class="muted">販売方法 / 開催場所 / 決済方法 の候補を編集できます（保存すると次回以降に反映）</div>
+
+        <div class="editGrid">
+          <div class="field">
+            <div class="fieldTitle">販売方法（channels）</div>
+            <div class="chips" id="chipsChannels"></div>
+            <div class="adder">
+              <input id="addChannelInput" placeholder="例：イベントA" />
+              <button class="btn" id="addChannelBtn" type="button">追加</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="fieldTitle">開催場所（venues）</div>
+            <div class="chips" id="chipsVenues"></div>
+            <div class="adder">
+              <input id="addVenueInput" placeholder="例：cafe1400" />
+              <button class="btn" id="addVenueBtn" type="button">追加</button>
+            </div>
+            <div class="muted" style="margin-top:6px;">※開催場所は「販売方法＝マルシェ」のときだけ使います</div>
+          </div>
+
+          <div class="field">
+            <div class="fieldTitle">決済方法（payment）</div>
+            <div class="chips" id="chipsPayments"></div>
+            <div class="adder">
+              <input id="addPaymentInput" placeholder="例：振込" />
+              <button class="btn" id="addPaymentBtn" type="button">追加</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn" id="discardEditBtn" type="button">破棄して閉じる</button>
+          <button class="btn primaryBtn" id="saveEditBtn" type="button">保存して閉じる</button>
         </div>
       </div>
     </div>
@@ -513,6 +632,7 @@ const defaultSettings = {
   currentChannel: "マルシェ",
   currentVenue: "cafe1400",
   paymentMethod: "現金",
+  paymentMethods: ["現金","PayPay","クレカ","その他"],
 };
 
 function loadSettings(){
@@ -591,6 +711,14 @@ function renderSettingsUI(){
     o.value = v; o.textContent = v;
     if(v === settings.currentVenue) o.selected = true;
     $venueSelect.appendChild(o);
+  });
+
+  $paymentSelect.innerHTML = "";
+  (settings.paymentMethods || ["現金","PayPay","クレカ","その他"]).forEach(v=>{
+    const o = document.createElement("option");
+    o.value = v; o.textContent = v;
+    if(v === settings.paymentMethod) o.selected = true;
+    $paymentSelect.appendChild(o);
   });
 
   $paymentSelect.value = settings.paymentMethod;
@@ -747,12 +875,202 @@ function showToast(msg){
 bootFirebase();
 renderSettingsUI();
 
+// settings change handlers
+$channelSelect.addEventListener("change", ()=>{
+  settings.currentChannel = $channelSelect.value;
+  $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
+  saveSettings();
+});
+$venueSelect.addEventListener("change", ()=>{
+  settings.currentVenue = $venueSelect.value;
+  saveSettings();
+});
+$paymentSelect.addEventListener("change", ()=>{
+  settings.paymentMethod = $paymentSelect.value;
+  saveSettings();
+});
+
+/* =====================================================
+   追加・修正（Settings Edit）
+===================================================== */
+const $editToggleBtn = $("editToggleBtn");
+const $editModal = $("editModal");
+const $closeEditBtn = $("closeEditBtn");
+const $saveEditBtn = $("saveEditBtn");
+const $discardEditBtn = $("discardEditBtn");
+
+const $chipsChannels = $("chipsChannels");
+const $chipsVenues = $("chipsVenues");
+const $chipsPayments = $("chipsPayments");
+
+const $addChannelInput = $("addChannelInput");
+const $addVenueInput = $("addVenueInput");
+const $addPaymentInput = $("addPaymentInput");
+const $addChannelBtn = $("addChannelBtn");
+const $addVenueBtn = $("addVenueBtn");
+const $addPaymentBtn = $("addPaymentBtn");
+
+let draft = null;
+let dirty = false;
+
+function cloneSettings(s){
+  return JSON.parse(JSON.stringify(s));
+}
+function markDirty(){
+  dirty = true;
+}
+function openEdit(){
+  draft = cloneSettings(settings);
+  dirty = false;
+  renderEdit();
+  $editModal.classList.add("show");
+  if($editToggleBtn) $editToggleBtn.textContent = "ⓧ";
+}
+function closeEdit(force){
+  if(!force && dirty){
+    const ok = confirm("変更があります。保存しますか？");
+    if(ok){
+      applyDraft(true);
+      return;
+    }else{
+      // 破棄
+      $editModal.classList.remove("show");
+      if($editToggleBtn) $editToggleBtn.textContent = "✎";
+      return;
+    }
+  }
+  $editModal.classList.remove("show");
+  if($editToggleBtn) $editToggleBtn.textContent = "✎";
+}
+
+function chip(label, onRemove){
+  const el = document.createElement("span");
+  el.className = "chip";
+  const t = document.createElement("span");
+  t.textContent = label;
+  const b = document.createElement("button");
+  b.type = "button";
+  b.textContent = "×";
+  b.addEventListener("click", onRemove);
+  el.append(t,b);
+  return el;
+}
+function renderEdit(){
+  // channels
+  $chipsChannels.innerHTML = "";
+  (draft.channels || []).forEach((v, idx)=>{
+    $chipsChannels.appendChild(chip(v, ()=>{
+      draft.channels.splice(idx,1);
+      if(draft.currentChannel === v) draft.currentChannel = draft.channels[0] || "";
+      markDirty(); renderEdit();
+    }));
+  });
+
+  // venues
+  $chipsVenues.innerHTML = "";
+  (draft.venues || []).forEach((v, idx)=>{
+    $chipsVenues.appendChild(chip(v, ()=>{
+      draft.venues.splice(idx,1);
+      if(draft.currentVenue === v) draft.currentVenue = draft.venues[0] || "";
+      markDirty(); renderEdit();
+    }));
+  });
+
+  // payments
+  $chipsPayments.innerHTML = "";
+  (draft.paymentMethods || []).forEach((v, idx)=>{
+    $chipsPayments.appendChild(chip(v, ()=>{
+      draft.paymentMethods.splice(idx,1);
+      if(draft.paymentMethod === v) draft.paymentMethod = draft.paymentMethods[0] || "";
+      markDirty(); renderEdit();
+    }));
+  });
+}
+
+function normalizeList(arr){
+  const out = [];
+  const seen = new Set();
+  for(const x of (arr||[])){
+    const s = String(x||"").trim();
+    if(!s) continue;
+    if(seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+}
+
+function applyDraft(closeAfter){
+  // normalize
+  draft.channels = normalizeList(draft.channels);
+  draft.venues = normalizeList(draft.venues);
+  draft.paymentMethods = normalizeList(draft.paymentMethods);
+
+  // fallbacks
+  if(!draft.channels.length) draft.channels = ["マルシェ","インスタグラム","onlinestore"];
+  if(!draft.venues.length) draft.venues = ["cafe1400"];
+  if(!draft.paymentMethods.length) draft.paymentMethods = ["現金","PayPay","クレカ","その他"];
+
+  if(!draft.channels.includes(draft.currentChannel)) draft.currentChannel = draft.channels[0];
+  if(!draft.venues.includes(draft.currentVenue)) draft.currentVenue = draft.venues[0];
+  if(!draft.paymentMethods.includes(draft.paymentMethod)) draft.paymentMethod = draft.paymentMethods[0];
+
+  settings = cloneSettings(draft);
+  saveSettings();
+  renderSettingsUI();
+  showToast("保存しました");
+  dirty = false;
+
+  if(closeAfter){
+    $editModal.classList.remove("show");
+    if($editToggleBtn) $editToggleBtn.textContent = "✎";
+  }
+}
+
+// add buttons
+$addChannelBtn.addEventListener("click", ()=>{
+  const v = ($addChannelInput.value||"").trim();
+  if(!v) return;
+  draft.channels = draft.channels || [];
+  draft.channels.push(v);
+  $addChannelInput.value = "";
+  markDirty(); renderEdit();
+});
+$addVenueBtn.addEventListener("click", ()=>{
+  const v = ($addVenueInput.value||"").trim();
+  if(!v) return;
+  draft.venues = draft.venues || [];
+  draft.venues.push(v);
+  $addVenueInput.value = "";
+  markDirty(); renderEdit();
+});
+$addPaymentBtn.addEventListener("click", ()=>{
+  const v = ($addPaymentInput.value||"").trim();
+  if(!v) return;
+  draft.paymentMethods = draft.paymentMethods || [];
+  draft.paymentMethods.push(v);
+  $addPaymentInput.value = "";
+  markDirty(); renderEdit();
+});
+
+$saveEditBtn.addEventListener("click", ()=> applyDraft(true));
+$discardEditBtn.addEventListener("click", ()=> { dirty=false; closeEdit(true); });
+
+$closeEditBtn.addEventListener("click", ()=> closeEdit(false));
+$editToggleBtn.addEventListener("click", ()=>{
+  if($editModal.classList.contains("show")) closeEdit(false);
+  else openEdit();
+});
+
+
+
 const loaded = await loadProductsWithPatch();
 products = loaded.products;
 
 // 表示用（右上ピルがあれば）
-if($statusPill){
-  $statusPill.textContent = `商品マスタ：${products.length}件（patch ${loaded.patchCount}）`;
+const $masterPill = document.getElementById('masterPill');
+if($masterPill){
+  $masterPill.textContent = `商品マスタ：${products.length}件（patch ${loaded.patchCount}）`;
 }
 
 renderProducts();
