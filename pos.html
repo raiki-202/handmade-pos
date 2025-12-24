@@ -407,7 +407,32 @@
     .adder input{
       flex:1;
     }
-  </style>
+  
+/* ===== iOS blue text override ===== */
+button, 
+button:visited,
+button:active,
+button:focus,
+.titleIcon,
+.iconBtn,
+.btn,
+a,
+a:visited,
+a:active {
+  color: #222 !important;
+  -webkit-text-fill-color: #222 !important;
+}
+
+button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+select {
+  color: #222;
+}
+
+</style>
 </head>
 
 <body>
@@ -514,10 +539,10 @@
                 <input id="pmId" disabled />
               </div>
               <div>
-                <div class="label">有効</div>
+                <div class="label">表示</div>
                 <select id="pmActive">
-                  <option value="true">true</option>
-                  <option value="false">false</option>
+                  <option value="true">表示</option>
+                  <option value="false">非表示</option>
                 </select>
               </div>
             </div>
@@ -959,10 +984,13 @@ function pmOpen(){
   pmOrigin = null;
   pmDraft = null;
   pmRenderSelect();
-  // default select first
-  if($pmSelect.options.length){
-    $pmSelect.selectedIndex = 0;
+  // default select first (placeholderを除いた先頭)
+  if($pmSelect.options.length > 1){
+    $pmSelect.selectedIndex = 1;
     pmLoadFromSelect();
+  }else{
+    $pmSelect.selectedIndex = 0;
+    pmSetForm(null);
   }
   $pmModal.classList.add("show");
   if($pmToggleBtn) $pmToggleBtn.textContent = "ⓧ";
@@ -983,6 +1011,12 @@ function pmClose(force){
 
 function pmRenderSelect(){
   $pmSelect.innerHTML = "";
+  // 「新規追加」時に対象商品を --- 表示にできるよう、先頭にプレースホルダを入れる
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = "---";
+  $pmSelect.appendChild(ph);
+
   const list = [...products].sort((a,b)=> (a.id||"").localeCompare(b.id||""));
   for(const p of list){
     const o = document.createElement("option");
@@ -1003,6 +1037,10 @@ function pmSetForm(p){
 
 function pmLoadFromSelect(){
   const id = $pmSelect.value;
+  if(!id){
+    pmSetForm(null);
+    return;
+  }
   const p = products.find(x => x.id === id);
   pmSetForm(p);
 }
@@ -1028,6 +1066,8 @@ $pmSelect.addEventListener("change", ()=>{
 $pmNewBtn.addEventListener("click", ()=>{
   const id = pmNextId();
   pmSetForm({ id, name:"", price:"", active:true });
+  // 新規追加は「編集対象商品」を選んだ状態にしない
+  $pmSelect.value = "";
   pmDirty = true;
 });
 
