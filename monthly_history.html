@@ -1,0 +1,951 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>e.nue 月別購入履歴</title>
+
+  <style>
+    :root{
+      --bg1:#e3ddd4;
+      --bg2:#d4ccc1;
+
+      --glass-bg: rgba(255,255,255,.86);
+      --glass-bg2: rgba(255,255,255,.78);
+      --glass-border: rgba(0,0,0,.06);
+      --line-soft: rgba(0,0,0,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+      --text-main:#222222;
+      --text-sub:#555555;
+      --muted: rgba(34,34,34,.58);
+
+      --accent:#e18a6a;
+      --accent2:#d06463;
+
+      --r: 20px;
+      --r2: 16px;
+      --pad: 16px;
+
+      --max: 980px;
+    }
+
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      color: var(--text-main);
+    }
+
+    a{ color: inherit; text-decoration: none; }
+
+    .wrap{
+      min-height: 100%;
+      padding: 18px 14px 28px;
+      display:flex;
+      justify-content:center;
+    }
+    .app{
+      width:100%;
+      max-width: var(--max);
+    }
+
+    /* header */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 6px 2px 14px;
+    }
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .brand .title{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .brand .sub{
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .navBtns{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .btn{
+      border:1px solid var(--glass-border);
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.76));
+      box-shadow: 0 10px 25px rgba(0,0,0,.08);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-weight: 800;
+      font-size: 12px;
+      color: rgba(34,34,34,.82);
+      cursor:pointer;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(225,138,106,.22), rgba(255,255,255,.78));
+      border-color: rgba(225,138,106,.25);
+    }
+
+    /* cards */
+    .card{
+      background: linear-gradient(180deg, var(--glass-bg), var(--glass-bg2));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+    }
+    .cardHead{
+      padding: 14px 14px 10px;
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      justify-content:space-between;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .cardHead .h{
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .cardHead .meta{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+    .cardBody{ padding: 12px 14px 14px; }
+
+    /* controls */
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .leftControls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .field{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.70);
+      box-shadow: 0 10px 18px rgba(0,0,0,.06);
+    }
+    .field label{
+      font-size: 12px;
+      font-weight: 900;
+      color: rgba(34,34,34,.72);
+      white-space:nowrap;
+    }
+    select, input[type="search"]{
+      border:0;
+      outline:none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+      color: rgba(34,34,34,.88);
+      min-width: 110px;
+    }
+    input[type="search"]{ min-width: 180px; }
+
+    .statRow{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      margin-top: 10px;
+      color: rgba(34,34,34,.80);
+    }
+    .pill{
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(0,0,0,.06);
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 10px 18px rgba(0,0,0,.05);
+    }
+
+    /* list */
+    .months{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      padding: 12px 0 0;
+    }
+
+    details.month{
+      border: 1px solid rgba(0,0,0,.07);
+      background: rgba(255,255,255,.62);
+      border-radius: 16px;
+      box-shadow: 0 12px 22px rgba(0,0,0,.06);
+      overflow:hidden;
+    }
+    summary{
+      list-style:none;
+      cursor:pointer;
+      padding: 12px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      user-select:none;
+    }
+    summary::-webkit-details-marker{ display:none; }
+
+    .mLeft{
+      display:flex; flex-direction:column; gap:3px;
+    }
+    .mTitle{
+      font-weight: 1000;
+      letter-spacing: .02em;
+      font-size: 14px;
+    }
+    .mSub{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .mRight{
+      text-align:right;
+      display:flex;
+      flex-direction:column;
+      gap:3px;
+    }
+    .mTotal{
+      font-size: 14px;
+      font-weight: 1000;
+    }
+    .mCount{
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--muted);
+    }
+
+    .sales{
+      padding: 0 10px 10px;
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+
+    details.sale{
+      border: 1px solid rgba(0,0,0,.07);
+      background: rgba(255,255,255,.68);
+      border-radius: 14px;
+      overflow:hidden;
+    }
+    .saleSum{
+      padding: 10px 10px;
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .saleLeft{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      min-width: 0;
+    }
+    .saleTop{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      min-width:0;
+    }
+    .saleDate{
+      font-weight: 1000;
+      font-size: 13px;
+      white-space:nowrap;
+    }
+    .badge{
+      font-size: 11px;
+      font-weight: 1000;
+      padding: 5px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.65);
+      color: rgba(34,34,34,.72);
+      white-space:nowrap;
+    }
+    .saleMeta{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space:nowrap;
+      max-width: 62vw;
+    }
+    .saleRight{
+      text-align:right;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+      white-space:nowrap;
+    }
+    .saleTotal{
+      font-weight: 1000;
+      font-size: 13px;
+    }
+    .saleId{
+      font-size: 11px;
+      color: rgba(34,34,34,.48);
+      font-weight: 800;
+    }
+
+    .items{
+      padding: 0 10px 10px;
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      overflow:hidden;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.08);
+    }
+    th,td{
+      padding: 8px 8px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      vertical-align: top;
+    }
+    th{
+      text-align:left;
+      font-weight: 1000;
+      background: rgba(255,255,255,.58);
+      color: rgba(34,34,34,.78);
+    }
+    td{
+      font-weight: 800;
+      color: rgba(34,34,34,.84);
+    }
+    tr:last-child td{ border-bottom:0; }
+
+    .right{ text-align:right; }
+    .muted{ color: var(--muted); font-weight: 800; }
+
+    .empty{
+      padding: 14px 0 2px;
+      color: rgba(34,34,34,.62);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(25,25,25,.88);
+      color:#fff;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 99;
+    }
+    .toast.on{ opacity:1; transform: translateX(-50%) translateY(-2px); }
+
+    .smallNote{
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(34,34,34,.58);
+      font-weight: 800;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="app">
+
+      <div class="topbar">
+        <div class="brand">
+          <div class="title">月別購入履歴</div>
+          <div class="sub">sales を月単位で集計して一覧表示</div>
+        </div>
+
+        <div class="navBtns">
+          <button class="btn" id="btnHome">🏠 HOME</button>
+          <button class="btn" id="btnOther">⬛ OTHER</button>
+          <button class="btn primary" id="btnReload">↻ 再読込</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardHead">
+          <div class="h">フィルタ</div>
+          <div class="meta" id="authState">確認中…</div>
+        </div>
+
+        <div class="cardBody">
+          <div class="controls">
+            <div class="leftControls">
+              <div class="field">
+                <label>年</label>
+                <select id="yearSel"></select>
+              </div>
+              <div class="field">
+                <label>月</label>
+                <select id="monthSel">
+                  <option value="all">すべて</option>
+                  <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option><option value="4">4月</option>
+                  <option value="5">5月</option><option value="6">6月</option><option value="7">7月</option><option value="8">8月</option>
+                  <option value="9">9月</option><option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>検索</label>
+                <input id="q" type="search" placeholder="購入者名 / チャンネル / メモなど" />
+              </div>
+            </div>
+
+            <div class="navBtns">
+              <button class="btn" id="btnCsv">📄 CSV</button>
+              <button class="btn" id="btnCollapse">▾ 全部たたむ</button>
+            </div>
+          </div>
+
+          <div class="statRow" id="stats"></div>
+
+          <div class="months" id="months"></div>
+
+          <div class="smallNote" id="note">
+            ・saleをクリックすると明細を開きます。<br>
+            ・データ量が多い場合は「年」「月」で絞り込むのが速いです。
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore, collection, query, orderBy, limit, getDocs
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  // ✅ 本番（既存ファイルと同じ）
+  const firebaseConfig = {
+    apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+    authDomain: "handmade-pos.firebaseapp.com",
+    projectId: "handmade-pos",
+    storageBucket: "handmade-pos.firebasestorage.app",
+    messagingSenderId: "174873514252",
+    appId: "1:174873514252:web:c26659bffca850d475f929"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ---- UI refs
+  const el = (id)=>document.getElementById(id);
+  const monthsEl = el("months");
+  const statsEl  = el("stats");
+  const authStateEl = el("authState");
+  const toastEl = el("toast");
+
+  const yearSel = el("yearSel");
+  const monthSel = el("monthSel");
+  const qEl = el("q");
+
+  const btnHome = el("btnHome");
+  const btnOther = el("btnOther");
+  const btnReload = el("btnReload");
+  const btnCollapse = el("btnCollapse");
+  const btnCsv = el("btnCsv");
+
+  // ---- helpers
+  const pad2 = (n)=> String(n).padStart(2,"0");
+  const fmtYMD = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtMoney = (n)=> {
+    const v = Number(n||0);
+    return "¥" + v.toLocaleString("ja-JP");
+  };
+  const ymKey = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("on");
+    setTimeout(()=>toastEl.classList.remove("on"), 1300);
+  }
+
+  function safeStr(v){
+    if(v===null || v===undefined) return "";
+    return String(v);
+  }
+
+  function normalizeText(s){
+    return safeStr(s).toLowerCase().replace(/\s+/g," ").trim();
+  }
+
+  function saleToSearchText(sale){
+    const parts = [];
+    parts.push(sale.id);
+    parts.push(sale.buyerName);
+    parts.push(sale.channel);
+    parts.push(sale.paymentMethod);
+    parts.push(sale.memo);
+    parts.push(sale.shippingOption);
+    parts.push(sale.kind);
+    if(Array.isArray(sale.items)){
+      for(const it of sale.items){
+        parts.push(it.name, it.productName, it.sku, it.code);
+      }
+    }
+    return normalizeText(parts.filter(Boolean).join(" "));
+  }
+
+  // ---- data cache
+  let rawSales = [];    // normalized
+  let grouped = null;   // Map monthKey -> {monthKey, total, count, sales[]}
+  let lastBuilt = null;
+
+  // ---- routing
+  btnHome.addEventListener("click", ()=> location.href = "index.html");
+  btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
+  btnReload.addEventListener("click", ()=> loadSales(true));
+  btnCollapse.addEventListener("click", ()=> collapseAll());
+  btnCsv.addEventListener("click", ()=> exportCsv());
+
+  yearSel.addEventListener("change", ()=> render());
+  monthSel.addEventListener("change", ()=> render());
+  qEl.addEventListener("input", ()=> render());
+
+  function collapseAll(){
+    monthsEl.querySelectorAll("details").forEach(d=> d.open=false);
+    toast("たたみました");
+  }
+
+  function fillYearOptions(sales){
+    const years = new Set(sales.map(s=> s.date.getFullYear()));
+    const arr = [...years].sort((a,b)=>b-a);
+
+    // fallback: 今年〜過去3年
+    const nowY = new Date().getFullYear();
+    if(arr.length===0){
+      for(let y=nowY; y>=nowY-3; y--) arr.push(y);
+    }else{
+      // もし最新が今年より小さい等でも、今年を追加しておく
+      if(!years.has(nowY)) arr.unshift(nowY);
+    }
+
+    yearSel.innerHTML = "";
+    for(const y of arr){
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = `${y}年`;
+      yearSel.appendChild(opt);
+    }
+  }
+
+  function normalizeSale(doc){
+    // 期待するフィールド例（存在しない場合は空扱い）
+    // createdAt: Timestamp / number / string
+    // total: number
+    // items: [{name, qty, price, subtotal}] etc
+    const data = doc.data ? doc.data() : doc;
+
+    let createdAt = data.createdAt;
+    let date = null;
+    try{
+      if(createdAt?.toDate) date = createdAt.toDate();
+      else if(typeof createdAt === "number") date = new Date(createdAt);
+      else if(typeof createdAt === "string") date = new Date(createdAt);
+    }catch(e){}
+    if(!date || isNaN(date.getTime())){
+      // createdAtが無い/壊れてる場合はdocumentIdや更新日が無いので、とりあえず今
+      date = new Date(0);
+    }
+
+    const items = Array.isArray(data.items) ? data.items.map(it=>({
+      name: it.name ?? it.productName ?? "",
+      qty: Number(it.qty ?? it.quantity ?? 0),
+      price: Number(it.price ?? it.unitPrice ?? 0),
+      subtotal: Number(it.subtotal ?? (Number(it.price ?? 0) * Number(it.qty ?? 0)) ?? 0),
+      raw: it
+    })) : [];
+
+    const total =
+      Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) ||
+      items.reduce((a,b)=> a + (Number(b.subtotal)||0), 0);
+
+    const sale = {
+      id: doc.id ?? data.id ?? "",
+      date,
+      total,
+      items,
+
+      // optional
+      buyerName: data.buyerName ?? data.customerName ?? data.purchaserName ?? "",
+      channel: data.channel ?? "",
+      paymentMethod: data.paymentMethod ?? data.payment ?? "",
+      memo: data.memo ?? data.note ?? "",
+      shippingOption: data.shippingOption ?? "",
+      kind: data.kind ?? ""
+    };
+    sale._search = saleToSearchText(sale);
+    sale._ym = ymKey(date);
+    return sale;
+  }
+
+  async function loadSales(force=false){
+    authStateEl.textContent = "読み込み中…";
+    monthsEl.innerHTML = "";
+    statsEl.innerHTML = "";
+
+    try{
+      // sales が増えていく前提：まずは最新2000件まで（必要なら増やしてOK）
+      // ※件数が多いなら年/月でフィルタして取得する作りにもできる（後でやるなら言って）
+      const q = query(
+        collection(db, "sales"),
+        orderBy("createdAt", "desc"),
+        limit(2000)
+      );
+      const snap = await getDocs(q);
+
+      const list = [];
+      snap.forEach(d=> list.push(normalizeSale(d)));
+
+      rawSales = list;
+      grouped = null;
+      lastBuilt = null;
+
+      fillYearOptions(rawSales);
+
+      // デフォルト：最新年を選択
+      const latest = rawSales.find(s=> s.date.getTime()>0);
+      if(latest){
+        yearSel.value = String(latest.date.getFullYear());
+      }
+
+      authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
+      render();
+    }catch(err){
+      console.error(err);
+      authStateEl.textContent = "読み込み失敗";
+      monthsEl.innerHTML = `<div class="empty">読み込みに失敗しました。<br><span class="muted">Firestore ルール / インデックス / createdAt の型を確認してね。</span></div>`;
+      toast("読み込み失敗");
+    }
+  }
+
+  function buildGroups(filtered){
+    const map = new Map();
+    for(const s of filtered){
+      const key = s._ym;
+      if(!map.has(key)){
+        map.set(key, { monthKey:key, total:0, count:0, sales:[] });
+      }
+      const g = map.get(key);
+      g.total += Number(s.total||0);
+      g.count += 1;
+      g.sales.push(s);
+    }
+    // sort sales inside month by date desc
+    for(const g of map.values()){
+      g.sales.sort((a,b)=> b.date - a.date);
+    }
+    // sort months desc
+    const arr = [...map.values()].sort((a,b)=> b.monthKey.localeCompare(a.monthKey));
+    return arr;
+  }
+
+  function applyFilters(){
+    const y = Number(yearSel.value);
+    const m = monthSel.value === "all" ? null : Number(monthSel.value);
+    const q = normalizeText(qEl.value);
+
+    let list = rawSales.filter(s=>{
+      if(s.date.getTime()<=0) return false;
+      if(s.date.getFullYear() !== y) return false;
+      if(m && (s.date.getMonth()+1)!==m) return false;
+      if(q && !s._search.includes(q)) return false;
+      return true;
+    });
+
+    return list;
+  }
+
+  function renderStats(list){
+    const total = list.reduce((a,b)=> a + Number(b.total||0), 0);
+    const cnt = list.length;
+
+    const byChannel = new Map();
+    for(const s of list){
+      const k = safeStr(s.channel || "未設定");
+      byChannel.set(k, (byChannel.get(k)||0) + Number(s.total||0));
+    }
+    const topChannel = [...byChannel.entries()].sort((a,b)=> b[1]-a[1])[0];
+
+    statsEl.innerHTML = "";
+    const p1 = document.createElement("div");
+    p1.className = "pill";
+    p1.textContent = `合計：${fmtMoney(total)}`;
+    statsEl.appendChild(p1);
+
+    const p2 = document.createElement("div");
+    p2.className = "pill";
+    p2.textContent = `件数：${cnt.toLocaleString("ja-JP")} 件`;
+    statsEl.appendChild(p2);
+
+    if(topChannel){
+      const p3 = document.createElement("div");
+      p3.className = "pill";
+      p3.textContent = `最大チャンネル：${topChannel[0]}（${fmtMoney(topChannel[1])}）`;
+      statsEl.appendChild(p3);
+    }
+  }
+
+  function render(){
+    if(!rawSales.length){
+      monthsEl.innerHTML = `<div class="empty">データがありません。</div>`;
+      return;
+    }
+
+    const list = applyFilters();
+    renderStats(list);
+
+    const groups = buildGroups(list);
+    lastBuilt = { list, groups };
+
+    monthsEl.innerHTML = "";
+    if(groups.length===0){
+      monthsEl.innerHTML = `<div class="empty">該当データがありません。</div>`;
+      return;
+    }
+
+    for(const g of groups){
+      const [yy,mm] = g.monthKey.split("-");
+      const monthLabel = `${yy}年${Number(mm)}月`;
+
+      const det = document.createElement("details");
+      det.className = "month";
+
+      const sum = document.createElement("summary");
+
+      const left = document.createElement("div");
+      left.className = "mLeft";
+      left.innerHTML = `<div class="mTitle">${monthLabel}</div><div class="mSub">タップで明細</div>`;
+
+      const right = document.createElement("div");
+      right.className = "mRight";
+      right.innerHTML = `<div class="mTotal">${fmtMoney(g.total)}</div><div class="mCount">${g.count} 件</div>`;
+
+      sum.appendChild(left);
+      sum.appendChild(right);
+      det.appendChild(sum);
+
+      const salesWrap = document.createElement("div");
+      salesWrap.className = "sales";
+
+      for(const s of g.sales){
+        const sDet = document.createElement("details");
+        sDet.className = "sale";
+
+        const sSum = document.createElement("summary");
+        sSum.className = "saleSum";
+
+        const sLeft = document.createElement("div");
+        sLeft.className = "saleLeft";
+
+        const top = document.createElement("div");
+        top.className = "saleTop";
+
+        const d = document.createElement("div");
+        d.className = "saleDate";
+        d.textContent = fmtYMD(s.date);
+
+        top.appendChild(d);
+
+        if(s.channel){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = s.channel;
+          top.appendChild(b);
+        }
+        if(s.paymentMethod){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = s.paymentMethod;
+          top.appendChild(b);
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "saleMeta";
+        meta.textContent = [s.buyerName, s.memo].filter(Boolean).join(" / ") || "—";
+
+        sLeft.appendChild(top);
+        sLeft.appendChild(meta);
+
+        const sRight = document.createElement("div");
+        sRight.className = "saleRight";
+        sRight.innerHTML = `<div class="saleTotal">${fmtMoney(s.total)}</div><div class="saleId">${s.id || ""}</div>`;
+
+        sSum.appendChild(sLeft);
+        sSum.appendChild(sRight);
+        sDet.appendChild(sSum);
+
+        const items = document.createElement("div");
+        items.className = "items";
+
+        const rows = (s.items?.length ? s.items : []);
+        if(rows.length===0){
+          items.innerHTML = `<div class="empty">明細（items）がありません。</div>`;
+        }else{
+          const table = document.createElement("table");
+          table.innerHTML = `
+            <thead>
+              <tr>
+                <th>商品</th>
+                <th class="right">数量</th>
+                <th class="right">単価</th>
+                <th class="right">小計</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          `;
+          const tb = table.querySelector("tbody");
+          for(const it of rows){
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${escapeHtml(it.name || "—")}</td>
+              <td class="right">${Number(it.qty||0).toLocaleString("ja-JP")}</td>
+              <td class="right">${fmtMoney(it.price||0)}</td>
+              <td class="right">${fmtMoney(it.subtotal||0)}</td>
+            `;
+            tb.appendChild(tr);
+          }
+          items.appendChild(table);
+        }
+
+        sDet.appendChild(items);
+        salesWrap.appendChild(sDet);
+      }
+
+      det.appendChild(salesWrap);
+      monthsEl.appendChild(det);
+    }
+  }
+
+  function escapeHtml(str){
+    return safeStr(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  function exportCsv(){
+    if(!lastBuilt || !lastBuilt.list){
+      toast("データなし");
+      return;
+    }
+
+    const list = lastBuilt.list.slice().sort((a,b)=> b.date - a.date);
+
+    const header = ["id","date","total","buyerName","channel","paymentMethod","memo","itemName","qty","price","subtotal"];
+    const lines = [header.join(",")];
+
+    for(const s of list){
+      const base = [
+        csvCell(s.id),
+        csvCell(fmtYMD(s.date)),
+        csvCell(s.total),
+        csvCell(s.buyerName),
+        csvCell(s.channel),
+        csvCell(s.paymentMethod),
+        csvCell(s.memo)
+      ];
+
+      if(s.items?.length){
+        for(const it of s.items){
+          const row = base.concat([
+            csvCell(it.name),
+            csvCell(it.qty),
+            csvCell(it.price),
+            csvCell(it.subtotal)
+          ]);
+          lines.push(row.join(","));
+        }
+      }else{
+        const row = base.concat([csvCell(""),csvCell(""),csvCell(""),csvCell("")]);
+        lines.push(row.join(","));
+      }
+    }
+
+    const blob = new Blob(["\ufeff" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    const y = yearSel.value || "year";
+    const m = monthSel.value === "all" ? "all" : pad2(monthSel.value);
+    a.download = `monthly_sales_${y}_${m}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast("CSV出しました");
+  }
+
+  function csvCell(v){
+    const s = safeStr(v);
+    if(/[",\n]/.test(s)){
+      return '"' + s.replaceAll('"','""') + '"';
+    }
+    return s;
+  }
+
+  // ---- auth gate (ログインしてなければ login.html へ)
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      authStateEl.textContent = "未ログイン → login.html へ";
+      setTimeout(()=> location.href = "login.html", 250);
+      return;
+    }
+    authStateEl.textContent = `ログイン中：${user.email || "user"}`;
+    loadSales();
+  });
+</script>
+
+</body>
+</html>
