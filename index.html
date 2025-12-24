@@ -445,6 +445,12 @@ body{
 .secOrders .ordersTable th{ text-align:left; background:#f3f3f3; position:sticky; top:0; z-index:1; }
 .secOrders .ordersTable tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
 
+/* ===== iPhoneでも「横並び」を維持（見切れは横スクロール） ===== */
+.secOrders .ordersTable th,
+.secOrders .ordersTable td{
+  white-space: nowrap;
+}
+
 .secOrders .tap{
   display:inline-flex; align-items:center; gap:8px;
   padding:8px 10px;
@@ -506,10 +512,7 @@ body{
 .secOrders .chip.muted{ opacity:.55; font-weight:700; }
 .emptyOrders{ padding:18px 14px; color:rgba(0,0,0,.55); font-weight:800; }
 
-/* mobile card rows */
-@media (max-width: 620px){
-  .secOrders .tableWrap{ overflow:visible; }
-  .secOrders .ordersTable{ min-width:0; }
+.secOrders .ordersTable{ min-width:0; }
   .secOrders .ordersTable thead{ display:none; }
   .secOrders .ordersTable tr{ display:block; padding:10px 12px; border-top:1px solid rgba(0,0,0,.07); }
   .secOrders .ordersTable tr:first-child{ border-top:none; }
