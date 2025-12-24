@@ -721,6 +721,40 @@ body{
   :root{ --tile-size: 180px; }
 }
 
+
+/* ===============================
+   FORCE TABLE LAYOUT (iPhone含む)
+   画面縦横に関係なく横並び固定
+================================ */
+.secOrders table,
+.secOrders thead,
+.secOrders tbody {
+  display: table !important;
+}
+
+.secOrders tr {
+  display: table-row !important;
+}
+
+.secOrders th,
+.secOrders td {
+  display: table-cell !important;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
+/* スマホカード化用の疑似ラベルを完全無効 */
+.secOrders td::before {
+  content: none !important;
+}
+
+/* 横スクロール許可 */
+.secOrders .tableWrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 </style>
 </head>
 
