@@ -138,18 +138,22 @@
     const $msg = document.getElementById("msg");
 
     // すでにログイン済みなら index.html へ
+    const params = new URLSearchParams(location.search);
+    const redirect = params.get("redirect") || "index.html";
+
+    // すでにログイン済みなら redirect へ
     onAuthStateChanged(auth, (user) => {
-      if (user) location.href = "index.html";
+      if (user) location.href = redirect;
     });
 
-    async function doLogin(){
+async function doLogin(){
       $msg.textContent = "";
       $login.disabled = true;
       $login.textContent = "ログイン中...";
 
       try{
         await signInWithEmailAndPassword(auth, $email.value.trim(), $password.value);
-        location.href = "index.html";
+        location.href = redirect;
       }catch(e){
         // セキュリティのため詳細は出さず、短く
         $msg.textContent = "ログイン失敗（メールアドレス／パスワードを確認してください）";
