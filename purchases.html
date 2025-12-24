@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>e.nue 購入履歴</title>
+<style>
+:root{
+  --bg1:#e3ddd4;
+  --bg2:#d4ccc1;
+
+  --glass-bg: rgba(255,255,255,.86);
+  --glass-bg2: rgba(255,255,255,.78);
+  --glass-border: rgba(0,0,0,.06);
+  --line-soft: rgba(0,0,0,.10);
+  --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+  --text-main:#222222;
+  --text-sub:#555555;
+  --muted: rgba(34,34,34,.55);
+
+  --accent:#e18a6a;
+  --accent2:#d06463;
+
+  --r:18px;
+  --maxw:980px;
+}
+
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
+
+body{
+  margin:0;
+  font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
+  color:var(--text-main);
+  background:
+    radial-gradient(1200px 800px at 18% 8%, rgba(225,138,106,.18), transparent 55%),
+    radial-gradient(1200px 800px at 88% 0%, rgba(208,100,99,.14), transparent 52%),
+    linear-gradient(135deg,var(--bg1),var(--bg2));
+}
+
+.safe{
+  padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+  max-width:var(--maxw);
+  margin:0 auto;
+}
+
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:6px 0 14px;
+}
+
+.brand{ font-weight:900; letter-spacing:.02em; display:flex; align-items:center; gap:10px; }
+
+.backBtn{
+  appearance:none;
+  border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.75);
+  border-radius:999px;
+  padding:9px 12px;
+  font-weight:900;
+  font-size:12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  cursor:pointer;
+}
+.backBtn:active{ transform:translateY(1px); }
+
+.card{
+  background:linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
+  border:1px solid var(--glass-border);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.cardHead{
+  display:flex; justify-content:space-between;
+  gap:10px;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+.title .h{ font-weight:900; font-size:14px; letter-spacing:.06em; }
+.title .s{ font-size:12px; color:rgba(34,34,34,.6); }
+
+.badgeBig{ text-align:right; min-width: 88px; flex: 0 0 auto; }
+.badgeBig .k{ font-size:11px; font-weight:800; color:rgba(34,34,34,.55); white-space:nowrap; display:inline-block; }
+.badgeBig .v{ font-size:18px; font-weight:900; }
+
+.tableWrap{
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+
+.table{
+  width:100%;
+  border-collapse:collapse;
+  min-width: 820px;
+}
+.table th,.table td{
+  padding:10px;
+  font-size:13px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.table th{
+  text-align:left;
+  background:#f3f3f3;
+  position:sticky;
+  top:0;
+  z-index:1;
+}
+.table tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+
+.pill{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:2px solid rgba(0,0,0,.12);
+  font-weight:900;
+  background:rgba(255,255,255,.85);
+}
+.dot{
+  width:8px; height:8px; border-radius:50%;
+  background:rgba(0,0,0,.35);
+  box-shadow:0 0 0 3px rgba(0,0,0,.06);
+  flex:0 0 auto;
+}
+.s-michakushu{ border-color: rgba(139,139,139,.55); }
+.s-michakushu .dot{ background:rgba(62,62,62,1); box-shadow:0 0 0 3px rgba(139,139,139,.18); }
+.s-nyuukin{ border-color: rgba(240,163,58,.70); }
+.s-nyuukin .dot{ background:rgba(185,98,0,1); box-shadow:0 0 0 3px rgba(240,163,58,.22); }
+.s-shinkochu{ border-color: rgba(47,191,122,.70); }
+.s-shinkochu .dot{ background:rgba(15,122,69,1); box-shadow:0 0 0 3px rgba(47,191,122,.20); }
+.s-done{ border-color: rgba(109,120,216,.70); }
+.s-done .dot{ background:rgba(66,76,175,1); box-shadow:0 0 0 3px rgba(109,120,216,.20); }
+
+.rowBtn{
+  border:none; background:transparent; padding:0; margin:0;
+  cursor:pointer; font:inherit; color:inherit;
+  text-align:left;
+  display:inline-flex; align-items:center; gap:8px;
+}
+.rowBtn .chev{ opacity:.55; font-weight:900; }
+
+.empty{ padding:18px 14px; color:rgba(0,0,0,.55); font-weight:800; }
+
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.35);
+  display:none;
+  align-items:flex-end;
+  z-index:999;
+  padding:10px;
+}
+.overlay.show{ display:flex; }
+
+.sheet{
+  width:min(680px,100%);
+  margin:0 auto;
+  background:#fff;
+  border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.sheetHead{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-weight:900;
+}
+.sheetBody{ padding:12px 14px; }
+.closeBtn{
+  appearance:none;
+  border:none;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  cursor:pointer;
+  background:rgba(0,0,0,.06);
+}
+.kv{
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap:8px 12px;
+  font-size:13px;
+}
+.kv .k{ color:rgba(0,0,0,.55); font-weight:900; }
+.kv .v{ font-weight:900; }
+.kv .v.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:800; }
+.items{
+  margin-top:12px;
+  border-top:1px solid rgba(0,0,0,.08);
+  padding-top:12px;
+}
+.itemLine{
+  display:flex; justify-content:space-between; gap:10px;
+  padding:8px 0;
+  border-bottom:1px solid rgba(0,0,0,.06);
+  font-size:13px;
+}
+.itemLine:last-child{ border-bottom:none; }
+.itemLine .n{ font-weight:900; }
+.itemLine .q{ color:rgba(0,0,0,.55); font-weight:800; }
+.itemLine .p{ font-weight:900; }
+</style>
+</head>
+<body>
+  <div class="safe">
+    <div class="topbar">
+      <div class="brand">
+        <button class="backBtn" type="button" id="backBtn">← 戻る</button>
+        <span>e.nue</span>
+      </div>
+      <div style="font-weight:1000;">購入履歴</div>
+    </div>
+
+    <section class="card">
+      <div class="cardHead">
+        <div class="title">
+          <div class="h">購入履歴</div>
+          <div class="s">全チャンネル（マルシェ含む）／新しい順</div>
+        </div>
+        <div class="badgeBig">
+          <div class="k">件数</div>
+          <div class="v" id="count">—</div>
+        </div>
+      </div>
+
+      <div class="tableWrap">
+        <table class="table" aria-label="purchases">
+          <thead>
+            <tr>
+              <th style="width:16%;">日付</th>
+              <th style="width:24%;">購入者/名前</th>
+              <th style="width:14%;">channel</th>
+              <th style="width:12%;">kind</th>
+              <th style="width:16%;">合計</th>
+              <th style="width:18%;">進捗</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div id="empty" class="empty" style="display:none;">表示できるデータがありません</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- details sheet -->
+  <div class="overlay" id="overlay" role="dialog" aria-modal="true">
+    <div class="sheet" onclick="event.stopPropagation()">
+      <div class="sheetHead">
+        <div id="sheetTitle">詳細</div>
+        <button class="closeBtn" type="button" id="closeBtn">閉じる</button>
+      </div>
+      <div class="sheetBody" id="sheetBody"></div>
+    </div>
+  </div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import {
+  getFirestore,
+  collection,
+  getDocs,
+  query,
+  orderBy,
+  limit
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+  authDomain: "handmade-pos.firebaseapp.com",
+  projectId: "handmade-pos",
+  storageBucket: "handmade-pos.firebasestorage.app",
+  messagingSenderId: "174873514252",
+  appId: "1:174873514252:web:c26659bffca850d475f929"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+const tbody = document.getElementById("tbody");
+const empty = document.getElementById("empty");
+const count = document.getElementById("count");
+
+const overlay = document.getElementById("overlay");
+const closeBtn = document.getElementById("closeBtn");
+const sheetTitle = document.getElementById("sheetTitle");
+const sheetBody = document.getElementById("sheetBody");
+
+document.getElementById("backBtn")?.addEventListener("click", ()=>{
+  // 直前がなければindexへ
+  if(history.length > 1) history.back();
+  else location.href = "index.html";
+});
+
+function toDate(v){
+  try{
+    if(!v) return null;
+    if(typeof v.toDate === "function") return v.toDate();
+    if(v instanceof Date) return v;
+    if(typeof v === "number") return new Date(v);
+    if(typeof v === "string"){ const d=new Date(v); return isNaN(d.getTime())?null:d; }
+    return null;
+  }catch{ return null; }
+}
+
+function fmtDate(d){
+  if(!d) return "-";
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${y}/${m}/${dd}`;
+}
+
+function safe(v){
+  if(v===null || v===undefined) return "-";
+  const s = String(v).trim();
+  return s ? s : "-";
+}
+
+function formatJPY(n){
+  const num = Number(n);
+  if(!Number.isFinite(num)) return "-";
+  return "¥" + Math.round(num).toLocaleString("ja-JP");
+}
+
+function statusClass(p){
+  const s = (p ?? "未着手").toString().trim();
+  if(s==="未着手") return "s-michakushu";
+  if(s==="入金待ち") return "s-nyuukin";
+  if(s==="進行中") return "s-shinkochu";
+  if(s==="完了") return "s-done";
+  // order側の「作成中」などは進行中に寄せる
+  if(s==="作成中") return "s-shinkochu";
+  return "s-michakushu";
+}
+
+function openSheet(row){
+  if(!overlay || !sheetTitle || !sheetBody) return;
+  sheetTitle.textContent = "購入詳細";
+  const d = toDate(row.createdAt);
+  const items = Array.isArray(row.items) ? row.items : [];
+
+  sheetBody.innerHTML = `
+    <div class="kv">
+      <div class="k">日付</div><div class="v">${safe(fmtDate(d))}</div>
+      <div class="k">購入者</div><div class="v">${safe(row.buyerName || row.customerName || row.name)}</div>
+      <div class="k">channel</div><div class="v">${safe(row.channel || row.method || row.salesMethod)}</div>
+      <div class="k">kind</div><div class="v">${safe(row.kind)}</div>
+      <div class="k">進捗</div><div class="v">${safe(row.progress || row.status)}</div>
+      <div class="k">合計</div><div class="v">${safe(formatJPY(row.totalAmount ?? row.total ?? row.sum))}</div>
+      <div class="k">docId</div><div class="v mono">${safe(row.id)}</div>
+    </div>
+    <div class="items">
+      <div style="font-weight:1000; margin-bottom:8px;">items</div>
+      ${
+        items.length
+          ? items.map(it=>{
+              const name = safe(it.name || it.title || it.productName);
+              const qty  = safe(it.qty ?? it.quantity ?? 1);
+              const price= formatJPY(it.price ?? it.unitPrice ?? it.amount);
+              return `<div class="itemLine"><div class="n">${name}</div><div class="q">×${qty}</div><div class="p">${price}</div></div>`;
+            }).join("")
+          : `<div style="color:rgba(0,0,0,.55); font-weight:800;">（itemsなし）</div>`
+      }
+    </div>
+  `;
+
+  overlay.classList.add("show");
+}
+
+function closeSheet(){
+  overlay?.classList.remove("show");
+  if(sheetBody) sheetBody.innerHTML = "";
+}
+
+closeBtn?.addEventListener("click", closeSheet);
+overlay?.addEventListener("click", closeSheet);
+window.addEventListener("keydown", (e)=>{ if(e.key==="Escape") closeSheet(); });
+
+async function load(){
+  if(!tbody) return;
+  tbody.innerHTML = "";
+  empty.style.display = "none";
+  count.textContent = "—";
+
+  try{
+    const qy = query(collection(db, "sales"), orderBy("createdAt","desc"), limit(300));
+    const snap = await getDocs(qy);
+    const rows = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+
+    count.textContent = String(rows.length);
+
+    if(rows.length === 0){
+      empty.style.display = "";
+      return;
+    }
+
+    for(const r of rows){
+      const tr = document.createElement("tr");
+
+      const created = fmtDate(toDate(r.createdAt));
+      const who = safe(r.buyerName || r.customerName || r.name);
+      const ch  = safe(r.channel || r.method || r.salesMethod);
+      const kind= safe(r.kind);
+      const total = formatJPY(r.totalAmount ?? r.total ?? r.sum);
+      const prog = safe(r.progress || r.status || "未着手");
+
+      const td0 = document.createElement("td");
+      td0.textContent = created;
+
+      const td1 = document.createElement("td");
+      const b = document.createElement("button");
+      b.className = "rowBtn";
+      b.type = "button";
+      b.innerHTML = `<span>${who}</span><span class="chev">›</span>`;
+      b.onclick = ()=> openSheet(r);
+      td1.appendChild(b);
+
+      const td2 = document.createElement("td"); td2.textContent = ch;
+      const td3 = document.createElement("td"); td3.textContent = kind;
+      const td4 = document.createElement("td"); td4.textContent = total;
+
+      const td5 = document.createElement("td");
+      const pill = document.createElement("span");
+      pill.className = "pill " + statusClass(prog);
+      pill.innerHTML = `<span class="dot"></span><span>${prog}</span>`;
+      td5.appendChild(pill);
+
+      tr.appendChild(td0);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tr.appendChild(td3);
+      tr.appendChild(td4);
+      tr.appendChild(td5);
+
+      tbody.appendChild(tr);
+    }
+  }catch(e){
+    console.error(e);
+    empty.style.display = "";
+    empty.textContent = "読み込みに失敗しました（権限 or createdAtの有無を確認）";
+  }
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if(!user){
+    const redirect = encodeURIComponent("purchases.html");
+    location.href = `login.html?redirect=${redirect}`;
+    return;
+  }
+  await load();
+});
+</script>
+</body>
+</html>
