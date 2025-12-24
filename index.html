@@ -948,7 +948,9 @@ import {
   query,
   where,
   orderBy,
-  limit
+  limit,
+  doc,
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1019,10 +1021,66 @@ function hideEmpty(emptyId){
   if(el) el.style.display = "none";
 }
 
-function renderRows(tbodyId, rows){
+function progressOptions(kind){
+  return (kind === "stock")
+    ? ["未着手","進行中","完了"]
+    : ["未着手","作成中","完了"];
+}
+
+function openProgressSheet(kind, row){
+  const overlay = document.getElementById("overlayOrders");
+  const sheetTitle = document.getElementById("sheetTitle");
+  const sheetBody  = document.getElementById("sheetBody");
+  const sheetFoot  = document.getElementById("sheetFoot");
+  const closeBtn   = document.getElementById("closeBtn");
+  if(!overlay || !sheetTitle || !sheetBody) return;
+
+  sheetTitle.textContent = "進捗を選択";
+  sheetBody.innerHTML = "";
+  if(sheetFoot) sheetFoot.style.display = "none";
+
+  const opts = progressOptions(kind);
+  const list = document.createElement("div");
+  list.className = "enueOptList";
+
+  opts.forEach(s=>{
+    const opt = document.createElement("div");
+    opt.className = "enueOpt";
+    const current = (row.progress ?? "未着手").toString().trim() || "未着手";
+    opt.innerHTML = `
+      <div class="left"><span style="font-weight:900;">${safeText(s)}</span></div>
+      <div class="right">${current === s ? "選択中" : ""}</div>
+    `;
+    opt.onclick = async ()=>{
+      try{
+        await updateDoc(doc(db, "sales", row.id), { progress: s });
+        overlay.classList.remove("show");
+        await Promise.all([
+          loadSalesByKind("stock", "tbodyStock", "emptyStock"),
+          loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
+        ]);
+      }catch(e){
+        console.error(e);
+        alert("進捗の保存に失敗しました（Firestoreのupdate権限を確認）");
+      }
+    };
+    list.appendChild(opt);
+  });
+
+  sheetBody.appendChild(list);
+
+  overlay.classList.add("show");
+
+  // close handlers
+  if(closeBtn) closeBtn.onclick = ()=> overlay.classList.remove("show");
+  overlay.onclick = (e)=>{ if(e.target === overlay) overlay.classList.remove("show"); };
+}
+
+function renderRows(tbodyId, rows, kind){
   const tb = document.getElementById(tbodyId);
   if(!tb) return;
   tb.innerHTML = "";
+
   for(const r of rows){
     const tr = document.createElement("tr");
 
@@ -1034,7 +1092,14 @@ function renderRows(tbodyId, rows){
     tdDue.textContent = fmtDate(due);
 
     const tdProg = document.createElement("td");
-    tdProg.textContent = safeText(r.progress);
+    const tap = document.createElement("div");
+    tap.className = "tap";
+    tap.role = "button";
+    tap.tabIndex = 0;
+    tap.textContent = safeText((r.progress ?? "未着手"));
+    tap.onclick = ()=> openProgressSheet(kind, r);
+    tap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openProgressSheet(kind, r); } };
+    tdProg.appendChild(tap);
 
     const tdAss = document.createElement("td");
     tdAss.style.textAlign = "right";
@@ -1082,7 +1147,7 @@ async function loadSalesByKind(kind, tbodyId, emptyId){
       return;
     }
 
-    renderRows(tbodyId, rows);
+    renderRows(tbodyId, rows, kind);
   }catch(e){
     console.error(e);
     showEmpty(emptyId, "読み込みに失敗しました（権限 or クエリ条件を確認）");
