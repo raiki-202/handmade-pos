@@ -939,8 +939,10 @@ body{
   </div>
 
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+import {
+  initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAuth,
+  onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   getFirestore,
   collection,
@@ -1021,18 +1023,34 @@ function hideEmpty(emptyId){
   if(el) el.style.display = "none";
 }
 
+const ASSIGNEE_OPTIONS = ["藤原","川原"];
+
 function progressOptions(kind){
   return (kind === "stock")
     ? ["未着手","進行中","完了"]
     : ["未着手","作成中","完了"];
 }
 
-function openProgressSheet(kind, row){
+function ensureOrdersOverlayBase(){
   const overlay = document.getElementById("overlayOrders");
   const sheetTitle = document.getElementById("sheetTitle");
   const sheetBody  = document.getElementById("sheetBody");
   const sheetFoot  = document.getElementById("sheetFoot");
   const closeBtn   = document.getElementById("closeBtn");
+  const cancelBtn  = document.getElementById("cancelBtn");
+  const saveBtn    = document.getElementById("saveBtn");
+  return { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn };
+}
+
+async function refreshOrdersTables(){
+  await Promise.all([
+    loadSalesByKind("stock", "tbodyStock", "emptyStock"),
+    loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
+  ]);
+}
+
+function openProgressSheet(kind, row){
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn } = ensureOrdersOverlayBase();
   if(!overlay || !sheetTitle || !sheetBody) return;
 
   sheetTitle.textContent = "進捗を選択";
@@ -1043,22 +1061,20 @@ function openProgressSheet(kind, row){
   const list = document.createElement("div");
   list.className = "enueOptList";
 
+  const current = (row.progress || "未着手").toString().trim() || "未着手";
+
   opts.forEach(s=>{
     const opt = document.createElement("div");
     opt.className = "enueOpt";
-    const current = (row.progress ?? "未着手").toString().trim() || "未着手";
     opt.innerHTML = `
-      <div class="left"><span style="font-weight:900;">${safeText(s)}</span></div>
+      <div class="left"><span style="font-weight:900;">${s}</span></div>
       <div class="right">${current === s ? "選択中" : ""}</div>
     `;
     opt.onclick = async ()=>{
       try{
         await updateDoc(doc(db, "sales", row.id), { progress: s });
         overlay.classList.remove("show");
-        await Promise.all([
-          loadSalesByKind("stock", "tbodyStock", "emptyStock"),
-          loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
-        ]);
+        await refreshOrdersTables();
       }catch(e){
         console.error(e);
         alert("進捗の保存に失敗しました（Firestoreのupdate権限を確認）");
@@ -1069,11 +1085,85 @@ function openProgressSheet(kind, row){
 
   sheetBody.appendChild(list);
 
+  // open/close
   overlay.classList.add("show");
-
-  // close handlers
   if(closeBtn) closeBtn.onclick = ()=> overlay.classList.remove("show");
   overlay.onclick = (e)=>{ if(e.target === overlay) overlay.classList.remove("show"); };
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") overlay.classList.remove("show"); }, { once:true });
+}
+
+function openAssigneeSheet(row){
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody || !sheetFoot || !cancelBtn || !saveBtn) return;
+
+  const current = Array.isArray(row.assignees) ? row.assignees : [];
+  const draft = new Set(current);
+
+  sheetTitle.textContent = "担当を選択（複数可）";
+  sheetBody.innerHTML = "";
+  sheetFoot.style.display = "flex";
+
+  const list = document.createElement("div");
+  list.className = "enueOptList";
+
+  function renderList(){
+    list.innerHTML = "";
+    ASSIGNEE_OPTIONS.forEach(a=>{
+      const on = draft.has(a);
+
+      const opt = document.createElement("div");
+      opt.className = "enueOpt";
+
+      const left = document.createElement("div");
+      left.className = "left";
+
+      const chk = document.createElement("span");
+      chk.className = "enueCheck" + (on ? " on" : "");
+      chk.textContent = on ? "✓" : "";
+
+      const name = document.createElement("span");
+      name.style.fontWeight = "900";
+      name.textContent = a;
+
+      left.appendChild(chk);
+      left.appendChild(name);
+
+      const right = document.createElement("div");
+      right.className = "right";
+      right.textContent = on ? "選択中" : "";
+
+      opt.appendChild(left);
+      opt.appendChild(right);
+
+      opt.onclick = ()=>{
+        if(draft.has(a)) draft.delete(a);
+        else draft.add(a);
+        renderList();
+      };
+
+      list.appendChild(opt);
+    });
+  }
+
+  renderList();
+  sheetBody.appendChild(list);
+
+  cancelBtn.onclick = ()=> overlay.classList.remove("show");
+  saveBtn.onclick = async ()=>{
+    try{
+      await updateDoc(doc(db, "sales", row.id), { assignees: Array.from(draft) });
+      overlay.classList.remove("show");
+      await refreshOrdersTables();
+    }catch(e){
+      console.error(e);
+      alert("担当の保存に失敗しました（Firestoreのupdate権限を確認）");
+    }
+  };
+
+  overlay.classList.add("show");
+  if(closeBtn) closeBtn.onclick = ()=> overlay.classList.remove("show");
+  overlay.onclick = (e)=>{ if(e.target === overlay) overlay.classList.remove("show"); };
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") overlay.classList.remove("show"); }, { once:true });
 }
 
 function renderRows(tbodyId, rows, kind){
@@ -1092,18 +1182,31 @@ function renderRows(tbodyId, rows, kind){
     tdDue.textContent = fmtDate(due);
 
     const tdProg = document.createElement("td");
-    const tap = document.createElement("div");
-    tap.className = "tap";
-    tap.role = "button";
-    tap.tabIndex = 0;
-    tap.textContent = safeText((r.progress ?? "未着手"));
-    tap.onclick = ()=> openProgressSheet(kind, r);
-    tap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openProgressSheet(kind, r); } };
-    tdProg.appendChild(tap);
+    const progTap = document.createElement("div");
+    progTap.className = "tap";
+    progTap.role = "button";
+    progTap.tabIndex = 0;
+    progTap.textContent = safeText((r.progress || "未着手"));
+    progTap.onclick = ()=> openProgressSheet(kind, r);
+    progTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openProgressSheet(kind, r); } };
+    tdProg.appendChild(progTap);
 
     const tdAss = document.createElement("td");
     tdAss.style.textAlign = "right";
-    tdAss.textContent = safeText(r.owner || r.assignee || r.tanto || r.staff);
+    const assTap = document.createElement("div");
+    assTap.className = "tap";
+    assTap.role = "button";
+    assTap.tabIndex = 0;
+
+    const showAss = Array.isArray(r.assignees) && r.assignees.length
+      ? r.assignees.join(" / ")
+      : "-";
+
+    assTap.textContent = showAss;
+    assTap.onclick = ()=> openAssigneeSheet(r);
+    assTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openAssigneeSheet(r); } };
+
+    tdAss.appendChild(assTap);
 
     tr.appendChild(tdName);
     tr.appendChild(tdDue);
@@ -1112,6 +1215,7 @@ function renderRows(tbodyId, rows, kind){
     tb.appendChild(tr);
   }
 }
+
 
 async function loadSalesByKind(kind, tbodyId, emptyId){
   clearTable(tbodyId);
