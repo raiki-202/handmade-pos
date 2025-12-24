@@ -1,12 +1,11 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>e.nue Dashboard</title>
-
-<style>
-:root{
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<title>e.nue Dashboard</title>
+<style>:root{
   --bg1:#e3ddd4;
   --bg2:#d4ccc1;
 
@@ -439,114 +438,62 @@ body{
 }
 
 /* ===== section3/4 (orders tables) ===== */
-.secOrders .tableWrap{ overflow:auto; -webkit-overflow-scrolling:touch; }
-.secOrders .ordersTable{ width:100%; border-collapse:collapse; min-width:720px; }
-.secOrders .ordersTable th,.secOrders .ordersTable td{ padding:10px; font-size:13px; vertical-align:middle; }
-.secOrders .ordersTable th{ text-align:left; background:#f3f3f3; position:sticky; top:0; z-index:1; }
-.secOrders .ordersTable tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+
+
+
+
+
 
 /* ===== iPhoneでも「表の横並び」を維持（見切れは横スクロール） ===== */
-.secOrders .ordersTable th,
-.secOrders .ordersTable td{
-  white-space: nowrap;
-}
+
 
 /* 念のため：狭い幅でもカード化せず、表のまま表示 */
 @media (max-width: 620px){
-  .secOrders .tableWrap{
-    overflow-x: auto;
-    overflow-y: hidden;
-    -webkit-overflow-scrolling: touch;
-  }
-  .secOrders .ordersTable{
-    min-width: 720px;
-  }
-  .secOrders .ordersTable thead{ display: table-header-group; }
-  .secOrders .ordersTable tr{ display: table-row; padding: 0; border-top: none; }
-  .secOrders .ordersTable td{
-    display: table-cell;
-    padding: 10px;
-  }
-  .secOrders .ordersTable td::before{ content: none !important; }
+  
+  
+  
+  
+  
+  
 }
 
-.secOrders .tap{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:8px 10px;
-  border-radius:12px;
-  border:1px solid rgba(0,0,0,.10);
-  background:rgba(255,255,255,.7);
-  cursor:pointer;
-  user-select:none;
-  max-width:100%;
-}
-.secOrders .tap:active{ transform: translateY(1px); }
 
-.secOrders .nameBtn{
-  border:none; background:transparent; padding:0; margin:0;
-  cursor:pointer; text-align:left; font:inherit; color:inherit;
-  display:inline-flex; align-items:center; gap:8px;
-}
-.secOrders .nameBtn .chev{ opacity:.55; font-weight:900; }
-.secOrders .duePill{ white-space:nowrap; }
 
-.secOrders .statusPill{
-  display:inline-flex; align-items:center; gap:8px;
-  padding:6px 10px;
-  border-radius:999px;
-  border:2px solid rgba(0,0,0,.12);
-  font-weight:900;
-  background:rgba(255,255,255,.85);
-  white-space:nowrap;
-}
-.secOrders .dot{
-  width:8px; height:8px; border-radius:50%;
-  background:rgba(0,0,0,.35);
-  box-shadow:0 0 0 3px rgba(0,0,0,.06);
-  flex:0 0 auto;
-}
-.secOrders .s-michakushu{ border-color: rgba(139,139,139,.55); }
-.secOrders .s-michakushu .dot{ background:rgba(62,62,62,1); box-shadow:0 0 0 3px rgba(139,139,139,.18); }
 
-.secOrders .s-nyuukin{ border-color: rgba(240,163,58,.70); }
-.secOrders .s-nyuukin .dot{ background:rgba(185,98,0,1); box-shadow:0 0 0 3px rgba(240,163,58,.22); }
 
-.secOrders .s-shinkochu{ border-color: rgba(47,191,122,.70); }
-.secOrders .s-shinkochu .dot{ background:rgba(15,122,69,1); box-shadow:0 0 0 3px rgba(47,191,122,.20); }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* 完了（保険。表示はしないフィルタだけど） */
-.secOrders .s-done{ border-color: rgba(109,120,216,.70); }
-.secOrders .s-done .dot{ background:rgba(66,76,175,1); box-shadow:0 0 0 3px rgba(109,120,216,.20); }
 
-.secOrders .chips{ display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
-.secOrders .chip{
-  display:inline-flex; align-items:center;
-  padding:5px 8px;
-  border-radius:999px;
-  border:1px solid rgba(0,0,0,.14);
-  background:rgba(0,0,0,.03);
-  font-weight:800;
-  white-space:nowrap;
-}
-.secOrders .chip.muted{ opacity:.55; font-weight:700; }
-.emptyOrders{ padding:18px 14px; color:rgba(0,0,0,.55); font-weight:800; }
+
+
+
+
+
+
 
 /* mobile card rows */
 @media (max-width: 620px){
-  .secOrders .tableWrap{ overflow:visible; }
-  .secOrders .ordersTable{ min-width:0; }
-  .secOrders .ordersTable thead{ display:none; }
-  .secOrders .ordersTable tr{ display:block; padding:10px 12px; border-top:1px solid rgba(0,0,0,.07); }
-  .secOrders .ordersTable tr:first-child{ border-top:none; }
-  .secOrders .ordersTable tr+tr td{ border-top:none; }
-  .secOrders .ordersTable td{ display:flex; justify-content:space-between; align-items:center; padding:8px 0; font-size:13px; }
-  .secOrders .ordersTable td::before{
-    content: attr(data-label);
-    color:rgba(0,0,0,.55);
-    font-weight:800;
-    margin-right:10px;
-    flex:0 0 auto;
-  }
+  
+  
+  
+  
+  
+  
+  
+  
 }
 
 /* bottom sheet (shared) */
@@ -726,277 +673,372 @@ body{
    FORCE TABLE LAYOUT (iPhone含む)
    画面縦横に関係なく横並び固定
 ================================ */
-.secOrders table,
-.secOrders thead,
-.secOrders tbody {
-  display: table !important;
-}
 
-.secOrders tr {
-  display: table-row !important;
-}
 
-.secOrders th,
-.secOrders td {
-  display: table-cell !important;
-  white-space: nowrap;
-  vertical-align: middle;
-}
+
+
+
 
 /* スマホカード化用の疑似ラベルを完全無効 */
-.secOrders td::before {
-  content: none !important;
-}
+
 
 /* 横スクロール許可 */
-.secOrders .tableWrap {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
+
+/* =========================
+   Orders (stock/order) — purchases look & behavior
+   CSS is intentionally single-source (no duplicates)
+   ========================= */
+.secOrders{ width:100% !important; }
+.secOrders .tableWrap{
+  display:block !important;
+  width:100% !important;
+  box-sizing:border-box;
+  padding:0 22px 16px !important;          /* ← “白い枠の中で気持ちいい余白” */
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.secOrders .table{
+  width:100% !important;
+  border-collapse:collapse;
+  table-layout:fixed;
+  min-width:620px !important;              /* iPhoneで横スクロール */
+}
+.secOrders .table th,
+.secOrders .table td{
+  padding:10px;
+  font-size:13px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.secOrders .table th{
+  text-align:left;
+  background:#f3f3f3;
+  position:sticky;
+  top:0;
+  z-index:1;
+}
+.secOrders .table tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+
+/* chips (担当/進捗) — purchasesのピル感 */
+.secOrders .chip,
+.secOrders .assChip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background:rgba(255,255,255,.88);
+  font-weight:900;
+  cursor:pointer;
+  user-select:none;
+}
+.secOrders .chip:active,
+.secOrders .assChip:active{ transform: translateY(1px); }
+
+.secOrders .chipsAssignees{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-start;
+  align-items:center;
 }
 
+/* empty */
+.secOrders .emptyOrders,
+.secOrders .empty{
+  padding:18px 10px;
+  color:rgba(0,0,0,.55);
+  font-weight:800;
+}
+
+.secOrders .tap{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background:rgba(255,255,255,.88);
+  font-weight:900;
+  cursor:pointer;
+  user-select:none;
+}
+.secOrders .tap:active{ transform: translateY(1px); }
+
+/* ===== purchases sheet styles (copied) ===== */
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.35);
+  display:none;
+  align-items:flex-end;
+  z-index:999;
+  padding:10px;
+}
+.overlay.show{ display:flex; }
+
+.sheet{
+  width:min(680px,100%);
+  margin:0 auto;
+  background:#fff;
+  border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.sheetHead{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-weight:900;
+}
+.sheetBody{ padding:12px 14px; }
+.closeBtn{
+  appearance:none;
+  border:none;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  cursor:pointer;
+  background:rgba(0,0,0,.06);
+}
+.kv{
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap:8px 12px;
+  font-size:13px;
+}
+.kv .k{ color:rgba(0,0,0,.55); font-weight:900; }
+.kv .v{ font-weight:900; }
+.kv .v.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:800; }
+.items{
+  margin-top:12px;
+  border-top:1px solid rgba(0,0,0,.08);
+  padding-top:12px;
+}
+.itemLine{
+  display:flex; justify-content:space-between; gap:10px;
+  padding:8px 0;
+  border-bottom:1px solid rgba(0,0,0,.06);
+  font-size:13px;
+}
+.itemLine:last-child{ border-bottom:none; }
+.itemLine .n{ font-weight:900; }
+.itemLine .q{ color:rgba(0,0,0,.55); font-weight:800; }
+.itemLine .p{ font-weight:900; }
 </style>
 </head>
-
 <body>
-  <div class="safe">
-    <div class="topbar">
-      <div class="brand">e.nue</div>
-      <div class="tabs" role="tablist" aria-label="page switch">
-        <button class="tab active" data-view="home" type="button">HOME</button>
-        <button class="tab" data-view="other" type="button">OTHER</button>
-      </div>
-    </div>
-
-    <!-- HOME -->
-    <main id="view-home" class="grid">
-
-      <!-- 1) グラフ（切替） -->
-      <section class="card cardFlip" id="card-chart">
-        <div class="cardFlipInner">
-
-          <!-- FRONT：受注件数 -->
-          <div class="cardFace front">
-            <div class="cardHead">
-              <div class="title">
-                <div class="h" id="chartTitleA">受注件数の推移</div>
-                <div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
-              </div>
-              <div class="badgeBig">
-                <div class="k" id="metricLabelA">受注件数</div>
-                <div class="v" id="metricValueA">—</div>
-              </div>
-            </div>
-
-            <div class="chartWrap">
-              <div class="chartFrame">
-                <div class="yAxisFixed" id="yAxisFixedA"></div>
-                <div class="chartScroller" id="chartScrollerA">
-                  <div class="chartInner">
-                    <div class="chartMount" id="chartMountA"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="hint">
-                <span class="tapHint" id="flipHintA">👆 タップで「総資産の推移」に切替</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- BACK：総資産 -->
-          <div class="cardFace back">
-            <div class="cardHead">
-              <div class="title">
-                <div class="h" id="chartTitleB">総資産の推移</div>
-                <div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
-              </div>
-              <div class="badgeBig">
-                <div class="k" id="metricLabelB">総資産</div>
-                <div class="v" id="metricValueB">—</div>
-              </div>
-            </div>
-
-            <div class="chartWrap">
-              <div class="chartFrame">
-                <div class="yAxisFixed" id="yAxisFixedB"></div>
-                <div class="chartScroller" id="chartScrollerB">
-                  <div class="chartInner">
-                    <div class="chartMount" id="chartMountB"></div>
-                  </div>
-                </div>
-              </div>
-              <div class="hint">
-                <span class="tapHint" id="flipHintB">👆 タップで「受注件数の推移」に切替</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </section>
-
-      <!-- 2) カレンダー -->
-      <section class="card">
-        <div class="cardHead">
-          <div class="title">
-            <div class="h">カレンダー</div>
-            <div class="s">予定日の吹き出しに✏️を付けて日付変更（ローカル保存）</div>
-          </div>
-          <div class="badgeBig">
-            <div class="k">表示月</div>
-            <div class="v" id="monthLabelMini">—</div>
-          </div>
-        </div>
-
-        <div class="secCal">
-          <div class="calendar">
-            <div class="calBox" id="calBox">
-              <div class="calTop">
-                <div class="calTopLeft">
-                  <button class="todayBtn" id="todayBtn" type="button">today</button>
-                  <button class="navBtn" id="prevBtn" type="button">≪</button>
-                  <button class="navBtn" id="nextBtn" type="button">≫</button>
-                </div>
-
-                <div class="monthLabel" id="monthLabel">----</div>
-
-                <div class="calTopRight">
-                  <button class="modeBtn" id="modeBtn" type="button">Sun–Sat</button>
-                </div>
-              </div>
-
-              <div class="calViewport" id="calViewport"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3) 受注残：stock -->
-      <section class="card">
-        <div class="listTitle">受注残：stock</div>
-        <div class="list secOrders" id="secStock">
-          <div class="tableWrap">
-            <table class="ordersTable" aria-label="stock orders">
-              <thead class="thead">
-                <tr>
-                  <th style="width:46%;">名前</th>
-                  <th style="width:22%;">期日</th>
-                  <th style="width:20%;">進捗</th>
-                  <th style="width:12%; text-align:right;">担当</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyStock"></tbody>
-            </table>
-            <div id="emptyStock" class="emptyOrders" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 4) 受注残：order -->
-      <section class="card">
-        <div class="listTitle">受注残：order</div>
-        <div class="list secOrders" id="secOrder">
-          <div class="tableWrap">
-            <table class="ordersTable" aria-label="made-to-order">
-              <thead class="thead">
-                <tr>
-                  <th style="width:46%;">名前</th>
-                  <th style="width:22%;">期日</th>
-                  <th style="width:20%;">進捗</th>
-                  <th style="width:12%; text-align:right;">担当</th>
-                </tr>
-              </thead>
-              <tbody id="tbodyOrder"></tbody>
-            </table>
-            <div id="emptyOrder" class="emptyOrders" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Stock/Order 共通：Bottom sheet -->
-      <div class="enueOverlay" id="overlayOrders" role="dialog" aria-modal="true">
-        <div class="enueSheet" onclick="event.stopPropagation()">
-          <div class="enueSheetHead">
-            <div id="sheetTitle">編集</div>
-            <button class="enueBtn enueBtnGhost" style="flex:0 0 auto; padding:10px 12px;" id="closeBtn">閉じる</button>
-          </div>
-          <div class="enueSheetBody" id="sheetBody"></div>
-          <div class="enueSheetFoot" id="sheetFoot" style="display:none;">
-            <button class="enueBtn enueBtnGhost" id="cancelBtn">キャンセル</button>
-            <button class="enueBtn enueBtnPrimary" id="saveBtn">保存</button>
-          </div>
-        </div>
-      </div>
-
-      <input class="enueHiddenDate" id="datePicker" type="date" />
-    </main>
-
-    <!-- OTHER -->
-    <main id="view-other" class="grid" style="display:none;">
-      <section class="card otherCard">
-        <div class="tileGrid" id="tileGrid">
-
-          <!-- POS（レジアイコン付き） -->
-          <button class="tile" type="button" data-href="pos.html" aria-label="POSへ">
-            <div class="tileIcon" aria-hidden="true">
-              <!-- レジ（黒線）SVG -->
-              <svg viewBox="0 0 24 24">
-                <path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-8z"/>
-                <path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"/>
-                <path d="M8 14h2M12 14h2M16 14h2"/>
-                <path d="M8 17h2M12 17h2M16 17h2"/>
-                <path d="M5 12h14"/>
-                <path d="M16 5h2v3"/>
-              </svg>
-            </div>
-            <div class="tileTitle">POS</div>
-            <div class="tileSub">pos.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="purchases.html">
-            <div class="tileTitle">購入履歴</div>
-            <div class="tileSub">purchases.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="stock.html">
-            <div class="tileTitle">在庫</div>
-            <div class="tileSub">stock.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="customers.html">
-            <div class="tileTitle">顧客管理</div>
-            <div class="tileSub">customers.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="order.html">
-            <div class="tileTitle">オーダー</div>
-            <div class="tileSub">order.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="shipping.html">
-            <div class="tileTitle">発送</div>
-            <div class="tileSub">shipping.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="sales.html">
-            <div class="tileTitle">売上</div>
-            <div class="tileSub">sales.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="income.html">
-            <div class="tileTitle">入金</div>
-            <div class="tileSub">income.html</div>
-          </button>
-
-          <button class="tile" type="button" data-href="analytics.html">
-            <div class="tileTitle">分析</div>
-            <div class="tileSub">analytics.html</div>
-          </button>
-
-        </div>
-      </section>
-    </main>
-  </div>
-
+<div class="safe">
+<div class="topbar">
+<div class="brand">e.nue</div>
+<div aria-label="page switch" class="tabs" role="tablist">
+<button class="tab active" data-view="home" type="button">HOME</button>
+<button class="tab" data-view="other" type="button">OTHER</button>
+</div>
+</div>
+<!-- HOME -->
+<main class="grid" id="view-home">
+<!-- 1) グラフ（切替） -->
+<section class="card cardFlip" id="card-chart">
+<div class="cardFlipInner">
+<!-- FRONT：受注件数 -->
+<div class="cardFace front">
+<div class="cardHead">
+<div class="title">
+<div class="h" id="chartTitleA">受注件数の推移</div>
+<div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+</div>
+<div class="badgeBig">
+<div class="k" id="metricLabelA">受注件数</div>
+<div class="v" id="metricValueA">—</div>
+</div>
+</div>
+<div class="chartWrap">
+<div class="chartFrame">
+<div class="yAxisFixed" id="yAxisFixedA"></div>
+<div class="chartScroller" id="chartScrollerA">
+<div class="chartInner">
+<div class="chartMount" id="chartMountA"></div>
+</div>
+</div>
+</div>
+<div class="hint">
+<span class="tapHint" id="flipHintA">👆 タップで「総資産の推移」に切替</span>
+</div>
+</div>
+</div>
+<!-- BACK：総資産 -->
+<div class="cardFace back">
+<div class="cardHead">
+<div class="title">
+<div class="h" id="chartTitleB">総資産の推移</div>
+<div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+</div>
+<div class="badgeBig">
+<div class="k" id="metricLabelB">総資産</div>
+<div class="v" id="metricValueB">—</div>
+</div>
+</div>
+<div class="chartWrap">
+<div class="chartFrame">
+<div class="yAxisFixed" id="yAxisFixedB"></div>
+<div class="chartScroller" id="chartScrollerB">
+<div class="chartInner">
+<div class="chartMount" id="chartMountB"></div>
+</div>
+</div>
+</div>
+<div class="hint">
+<span class="tapHint" id="flipHintB">👆 タップで「受注件数の推移」に切替</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2) カレンダー -->
+<section class="card">
+<div class="cardHead">
+<div class="title">
+<div class="h">カレンダー</div>
+<div class="s">予定日の吹き出しに✏️を付けて日付変更（ローカル保存）</div>
+</div>
+<div class="badgeBig">
+<div class="k">表示月</div>
+<div class="v" id="monthLabelMini">—</div>
+</div>
+</div>
+<div class="secCal">
+<div class="calendar">
+<div class="calBox" id="calBox">
+<div class="calTop">
+<div class="calTopLeft">
+<button class="todayBtn" id="todayBtn" type="button">today</button>
+<button class="navBtn" id="prevBtn" type="button">≪</button>
+<button class="navBtn" id="nextBtn" type="button">≫</button>
+</div>
+<div class="monthLabel" id="monthLabel">----</div>
+<div class="calTopRight">
+<button class="modeBtn" id="modeBtn" type="button">Sun–Sat</button>
+</div>
+</div>
+<div class="calViewport" id="calViewport"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- 3) 受注残：stock -->
+<section class="card">
+<div class="listTitle">受注残：stock</div>
+<div class="list secOrders" id="secStock">
+<div class="tableWrap">
+<table aria-label="stock orders" class="table ordersTable"><colgroup><col style="width:34%;"/><col style="width:18%;"/><col style="width:18%;"/><col style="width:30%;"/></colgroup>
+<thead class="thead">
+<tr>
+<th style="width:46%;">名前</th>
+<th style="width:22%;">期日</th>
+<th style="width:20%;">進捗</th>
+<th style="width:12%; text-align:right;">担当</th>
+</tr>
+</thead>
+<tbody id="tbodyStock"></tbody>
+</table>
+<div class="emptyOrders" id="emptyStock" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+</div>
+</div>
+</section>
+<!-- 4) 受注残：order -->
+<section class="card">
+<div class="listTitle">受注残：order</div>
+<div class="list secOrders" id="secOrder">
+<div class="tableWrap">
+<table aria-label="made-to-order" class="table ordersTable"><colgroup><col style="width:34%;"/><col style="width:18%;"/><col style="width:18%;"/><col style="width:30%;"/></colgroup>
+<thead class="thead">
+<tr>
+<th style="width:46%;">名前</th>
+<th style="width:22%;">期日</th>
+<th style="width:20%;">進捗</th>
+<th style="width:12%; text-align:right;">担当</th>
+</tr>
+</thead>
+<tbody id="tbodyOrder"></tbody>
+</table>
+<div class="emptyOrders" id="emptyOrder" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+</div>
+</div>
+</section>
+<!-- Stock/Order 共通：Bottom sheet -->
+<div aria-modal="true" class="enueOverlay" id="overlayOrders" role="dialog">
+<div class="enueSheet" onclick="event.stopPropagation()">
+<div class="enueSheetHead">
+<div id="sheetTitle">編集</div>
+<button class="enueBtn enueBtnGhost" id="closeBtn" style="flex:0 0 auto; padding:10px 12px;">閉じる</button>
+</div>
+<div class="enueSheetBody" id="sheetBody"></div>
+<div class="enueSheetFoot" id="sheetFoot" style="display:none;">
+<button class="enueBtn enueBtnGhost" id="cancelBtn">キャンセル</button>
+<button class="enueBtn enueBtnPrimary" id="saveBtn">保存</button>
+</div>
+</div>
+</div>
+<input class="enueHiddenDate" id="datePicker" type="date"/>
+</main>
+<!-- OTHER -->
+<main class="grid" id="view-other" style="display:none;">
+<section class="card otherCard">
+<div class="tileGrid" id="tileGrid">
+<!-- POS（レジアイコン付き） -->
+<button aria-label="POSへ" class="tile" data-href="pos.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- レジ（黒線）SVG -->
+<svg viewbox="0 0 24 24">
+<path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-8z"></path>
+<path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"></path>
+<path d="M8 14h2M12 14h2M16 14h2"></path>
+<path d="M8 17h2M12 17h2M16 17h2"></path>
+<path d="M5 12h14"></path>
+<path d="M16 5h2v3"></path>
+</svg>
+</div>
+<div class="tileTitle">POS</div>
+<div class="tileSub">pos.html</div>
+</button>
+<button class="tile" data-href="purchases.html" type="button">
+<div class="tileTitle">購入履歴</div>
+<div class="tileSub">purchases.html</div>
+</button>
+<button class="tile" data-href="stock.html" type="button">
+<div class="tileTitle">在庫</div>
+<div class="tileSub">stock.html</div>
+</button>
+<button class="tile" data-href="customers.html" type="button">
+<div class="tileTitle">顧客管理</div>
+<div class="tileSub">customers.html</div>
+</button>
+<button class="tile" data-href="order.html" type="button">
+<div class="tileTitle">オーダー</div>
+<div class="tileSub">order.html</div>
+</button>
+<button class="tile" data-href="shipping.html" type="button">
+<div class="tileTitle">発送</div>
+<div class="tileSub">shipping.html</div>
+</button>
+<button class="tile" data-href="sales.html" type="button">
+<div class="tileTitle">売上</div>
+<div class="tileSub">sales.html</div>
+</button>
+<button class="tile" data-href="income.html" type="button">
+<div class="tileTitle">入金</div>
+<div class="tileSub">income.html</div>
+</button>
+<button class="tile" data-href="analytics.html" type="button">
+<div class="tileTitle">分析</div>
+<div class="tileSub">analytics.html</div>
+</button>
+</div>
+</section>
+</main>
+</div>
 <script type="module">
 import {
   initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
@@ -1332,7 +1374,6 @@ onAuthStateChanged(auth, async (user) => {
   ]);
 });
 </script>
-
 <script>
 (()=> {
   try{
@@ -2513,6 +2554,5 @@ onAuthStateChanged(auth, async (user) => {
   }
 })();
 </script>
-
 </body>
 </html>
