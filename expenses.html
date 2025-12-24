@@ -344,6 +344,7 @@
       <div class="topActions">
         <button class="pillBtn" id="backBtn" type="button">← 戻る</button>
         <button class="pillBtn" id="catBtn" type="button">⚙ カテゴリー</button>
+        <button class="pillBtn" id="payBtn" type="button">💴 支払方法</button>
         <button class="pillBtn pillBtnPrimary" id="addBtn" type="button">＋ 支出追加</button>
       </div>
     </div>
@@ -463,6 +464,7 @@
     const backBtn = document.getElementById("backBtn");
     const addBtn = document.getElementById("addBtn");
     const catBtn = document.getElementById("catBtn");
+    const payBtn = document.getElementById("payBtn");
     const refreshBtn = document.getElementById("refreshBtn");
 
     const monthInput = document.getElementById("monthInput");
@@ -540,6 +542,7 @@
 
     /* ===== state ===== */
     let categories = []; // {id, name, order, active}
+    let paymentMethods = []; // {id, name, order, active}
     let expenses = [];   // {id, date, amount, categoryId, categoryName, memo, paymentMethod, createdAt}
     let currentUser = null;
 
@@ -586,7 +589,36 @@
       await loadCategories();
     }
 
-    /* ===== Expenses ===== */
+    
+    /* ===== Payment Method ===== */
+    async function loadPaymentMethods(){
+      const qy = query(collection(db, "expense_payment_methods"), orderBy("order","asc"), orderBy("name","asc"), limit(200));
+      const snap = await getDocs(qy);
+      paymentMethods = snap.docs.map(d=>({ id:d.id, ...d.data() }))
+        .map(p=>({
+          id:p.id,
+          name: (p.name ?? "").toString().trim() || "(未設定)",
+          order: Number.isFinite(Number(p.order)) ? Number(p.order) : 9999,
+          active: (p.active === false) ? false : true
+        }));
+    }
+
+    async function ensureDefaultPaymentMethods(){
+      // 初回用：0件なら「現金」「PayPay」だけ作る（邪魔なら消してOK）
+      if(paymentMethods.length) return;
+      const seeds = ["現金","PayPay"];
+      for(let i=0;i<seeds.length;i++){
+        await addDoc(collection(db, "expense_payment_methods"), {
+          name: seeds[i],
+          order: i+1,
+          active: true,
+          createdAt: serverTimestamp()
+        });
+      }
+      await loadPaymentMethods();
+    }
+
+/* ===== Expenses ===== */
     async function loadExpensesForMonth(ymStr){
       const { start, end } = monthRange(ymStr);
 
@@ -609,7 +641,9 @@
         categoryId: x.categoryId || "",
         categoryName: (x.categoryName ?? "").toString().trim() || "(未設定)",
         memo: (x.memo ?? "").toString(),
-        paymentMethod: (x.paymentMethod ?? "").toString(),
+        paymentMethodId: x.paymentMethodId || "",
+        paymentMethodName: (x.paymentMethodName ?? "").toString().trim() || (x.paymentMethod ?? "").toString().trim(),
+        paymentMethod: (x.paymentMethod ?? "").toString(), // legacy
         createdAt: x.createdAt
       }));
     }
@@ -626,7 +660,7 @@
       if(q){
         list = list.filter(x=>{
           const a = (x.memo || "").toLowerCase();
-          const b = (x.paymentMethod || "").toLowerCase();
+          const b = (x.paymentMethodName || x.paymentMethod || "").toLowerCase();
           const c = (x.categoryName || "").toLowerCase();
           return a.includes(q) || b.includes(q) || c.includes(q);
         });
@@ -665,7 +699,7 @@
         tdMemo.textContent = safeText(x.memo);
 
         const tdPay = document.createElement("td");
-        tdPay.textContent = safeText(x.paymentMethod);
+        tdPay.textContent = safeText(x.paymentMethodName || x.paymentMethod);
 
         const tdEdit = document.createElement("td");
         tdEdit.style.textAlign = "right";
@@ -694,6 +728,9 @@
       const activeCats = categories.filter(c=>c.active);
       const catOptions = activeCats.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
 
+      const activePays = paymentMethods.filter(p=>p.active);
+      const payOptions = activePays.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("");
+
       const initial = row || {
         id: null,
         date: defaultDate,
@@ -701,7 +738,9 @@
         categoryId: activeCats[0]?.id || "",
         categoryName: activeCats[0]?.name || "(未設定)",
         memo: "",
-        paymentMethod: ""
+        paymentMethodId: activePays[0]?.id || "",
+        paymentMethodName: activePays[0]?.name || "",
+        paymentMethod: "" // legacy
       };
 
       sheetTitle.textContent = isNew ? "支出を追加" : "支出を編集";
@@ -725,7 +764,15 @@
           </div>
 
           <div class="k">支払方法</div>
-          <div><input id="fPay" type="text" value="${escapeHtml(initial.paymentMethod)}" placeholder="例：現金 / PayPay / 口座"></div>
+          <div>
+            <select id="fPay">
+              ${payOptions || `<option value="">(未設定)</option>`}
+            </select>
+            <div class="helpRow" style="margin-top:8px;">
+              <div class="hint">※支払方法は右上「💴 支払方法」で追加・修正できます</div>
+              <button class="pillBtn" id="miniPayBtn" type="button" style="padding:9px 10px;">💴 管理</button>
+            </div>
+          </div>
 
           <div class="k">内容</div>
           <div><textarea id="fMemo" placeholder="メモ（任意）">${escapeHtml(initial.memo)}</textarea></div>
@@ -746,9 +793,29 @@
         if(!sel.value && activeCats[0]?.id) sel.value = activeCats[0].id;
       }
 
+      const paySel = sheetBody.querySelector("#fPay");
+      if(paySel){
+        // 既存がIDならそれ優先。無ければ名前マッチを試す
+        const id = initial.paymentMethodId || "";
+        const name = (initial.paymentMethodName || initial.paymentMethod || "").trim();
+        if(id){
+          paySel.value = id;
+        }else if(name){
+          const hit = activePays.find(p=>p.name===name);
+          paySel.value = hit ? hit.id : (activePays[0]?.id || "");
+        }else{
+          paySel.value = activePays[0]?.id || "";
+        }
+      }
+
       const miniCatBtn = sheetBody.querySelector("#miniCatBtn");
       if(miniCatBtn){
         miniCatBtn.onclick = (e)=>{ e.stopPropagation(); closeOverlay(); openCategoryManager(); };
+      }
+
+      const miniPayBtn = sheetBody.querySelector("#miniPayBtn");
+      if(miniPayBtn){
+        miniPayBtn.onclick = (e)=>{ e.stopPropagation(); closeOverlay(); openPaymentManager(); };
       }
 
       const delBtn = sheetBody.querySelector("#delBtn");
@@ -774,7 +841,9 @@
             const amount = Number(sheetBody.querySelector("#fAmount").value || 0);
             const categoryId = sheetBody.querySelector("#fCategory").value || "";
             const categoryName = (categories.find(c=>c.id===categoryId)?.name) || "(未設定)";
-            const paymentMethod = sheetBody.querySelector("#fPay").value || "";
+            const paymentMethodId = sheetBody.querySelector("#fPay").value || "";
+            const paymentMethodName = (paymentMethods.find(p=>p.id===paymentMethodId)?.name) || "";
+            const paymentMethod = paymentMethodName || ""; // legacy
             const memo = sheetBody.querySelector("#fMemo").value || "";
 
             const payload = {
@@ -782,6 +851,8 @@
               amount,
               categoryId,
               categoryName, // 冗長保持（将来バンドル用）
+              paymentMethodId,
+              paymentMethodName,
               paymentMethod,
               memo,
               updatedAt: serverTimestamp()
@@ -924,12 +995,130 @@
       openOverlay();
     }
 
+
+    /* ===== Payment Method Sheets ===== */
+    function openPaymentManager(){
+      sheetTitle.textContent = "支払方法 管理";
+      sheetBody.innerHTML = `
+        <div class="hint">追加 / 名称変更 / 表示ONOFF / 並び順（小さいほど上）</div>
+        <div class="rowLine" style="border-top:none; padding-top:0; margin-top:10px;">
+          <input id="newPayName" type="text" placeholder="新規 支払方法名" style="flex:1; border:1px solid rgba(0,0,0,.14); border-radius:12px; padding:12px 10px; font-weight:900;">
+          <button class="pillBtn pillBtnPrimary" id="addPayDo" type="button" style="padding:12px 12px;">追加</button>
+        </div>
+        <div class="optList" id="payList" style="margin-top:12px;"></div>
+      `;
+
+      const payList = sheetBody.querySelector("#payList");
+
+      function renderPays(){
+        payList.innerHTML = "";
+        const list = [...paymentMethods].sort((a,b)=> (a.order-b.order) || a.name.localeCompare(b.name,"ja"));
+        for(const p of list){
+          const row = document.createElement("div");
+          row.className = "opt";
+          row.innerHTML = `
+            <div class="left">
+              <span class="toggle ${p.active ? "on" : ""}">${p.active ? "✓" : ""}</span>
+              <span>${escapeHtml(p.name)}</span>
+            </div>
+            <div class="right">
+              <span class="muted">order</span>
+              <span class="mono">${escapeHtml(String(p.order))}</span>
+            </div>
+          `;
+          row.onclick = ()=> openPaymentEditor(p);
+          payList.appendChild(row);
+        }
+      }
+
+      async function addPay(){
+        const nameEl = sheetBody.querySelector("#newPayName");
+        const name = (nameEl.value || "").trim();
+        if(!name){ alert("支払方法名を入力してください"); return; }
+
+        const maxOrder = paymentMethods.reduce((m,p)=> Math.max(m, Number(p.order)||0), 0);
+        try{
+          await addDoc(collection(db, "expense_payment_methods"), {
+            name,
+            order: maxOrder + 1,
+            active: true,
+            createdAt: serverTimestamp()
+          });
+          nameEl.value = "";
+          await loadPaymentMethods();
+          renderPays();
+        }catch(e){
+          console.error(e);
+          alert("追加に失敗しました（権限/ネットワーク確認）");
+        }
+      }
+
+      sheetBody.querySelector("#addPayDo").onclick = addPay;
+
+      sheetFoot.style.display = "none";
+      openOverlay();
+      renderPays();
+    }
+
+    function openPaymentEditor(pay){
+      sheetTitle.textContent = "支払方法を編集";
+      sheetBody.innerHTML = `
+        <div class="form">
+          <div class="k">名称</div>
+          <div><input id="pName" type="text" value="${escapeHtml(pay.name)}"></div>
+
+          <div class="k">order</div>
+          <div><input id="pOrder" type="number" inputmode="numeric" value="${escapeHtml(String(pay.order))}"></div>
+
+          <div class="k">表示</div>
+          <div>
+            <select id="pActive">
+              <option value="true">表示</option>
+              <option value="false">非表示</option>
+            </select>
+            <div class="hint" style="margin-top:6px;">※非表示にしても過去支出の paymentMethodName は残ります</div>
+          </div>
+        </div>
+      `;
+
+      const sel = sheetBody.querySelector("#pActive");
+      sel.value = pay.active ? "true" : "false";
+
+      showFooter(
+        ()=>{ closeOverlay(); openPaymentManager(); },
+        async ()=>{
+          try{
+            const name = (sheetBody.querySelector("#pName").value || "").trim() || "(未設定)";
+            const order = Number(sheetBody.querySelector("#pOrder").value || 9999);
+            const active = (sheetBody.querySelector("#pActive").value === "true");
+
+            await updateDoc(doc(db, "expense_payment_methods", pay.id), {
+              name, order, active, updatedAt: serverTimestamp()
+            });
+
+            closeOverlay();
+            await loadPaymentMethods();
+            await refreshAll();
+          }catch(e){
+            console.error(e);
+            alert("保存に失敗しました（権限/ネットワーク確認）");
+          }
+        }
+      );
+
+      openOverlay();
+    }
+
     /* ===== refresh ===== */
     async function refreshAll(){
       const ymStr = monthInput.value || ym(new Date());
       await loadCategories();
       await ensureDefaultCategories();
       buildCatFilter();
+
+      await loadPaymentMethods();
+      await ensureDefaultPaymentMethods();
+
       await loadExpensesForMonth(ymStr);
       render();
     }
@@ -938,6 +1127,7 @@
     backBtn.onclick = ()=> location.href = "index.html";
     addBtn.onclick = ()=> openExpenseEditor(null);
     catBtn.onclick = ()=> openCategoryManager();
+    payBtn.onclick = ()=> openPaymentManager();
     refreshBtn.onclick = ()=> refreshAll();
 
     qInput.addEventListener("input", ()=> render());
