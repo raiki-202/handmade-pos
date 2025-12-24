@@ -433,6 +433,7 @@
               <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
             </div>
             <span class="pill" id="masterPill">商品マスタ：読込中</span>
+            <button class="titleIcon" id="pmToggleBtn" type="button" aria-label="商品マスタ編集" title="商品マスタ編集">✎</button>
           </div>
 
           <div class="posBody">
@@ -536,6 +537,65 @@
     </div>
   </div>
 
+  <!-- Product Master Edit Modal -->
+  <div class="modal" id="pmModal" aria-hidden="true">
+    <div class="modalInner">
+      <div class="modalHead">
+        <h3>商品マスタ（追加・修正）</h3>
+        <button class="iconBtn" id="pmCloseBtn" type="button">ⓧ</button>
+      </div>
+      <div class="modalBody">
+        <div class="muted">編集内容は <b>Firestore products_patch</b> に差分として保存されます（bundleは管理者が後で更新）。</div>
+
+        <div class="editGrid">
+          <div class="field">
+            <div class="fieldTitle">対象商品</div>
+            <select id="pmSelect"></select>
+            <div class="muted" style="margin-top:6px;">※商品を選ぶと下のフォームに反映されます</div>
+          </div>
+
+          <div class="field">
+            <div class="fieldTitle">編集</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+              <div>
+                <div class="label">ID</div>
+                <input id="pmId" disabled />
+              </div>
+              <div>
+                <div class="label">有効</div>
+                <select id="pmActive">
+                  <option value="true">true</option>
+                  <option value="false">false</option>
+                </select>
+              </div>
+            </div>
+            <div style="margin-top:10px;">
+              <div class="label">商品名</div>
+              <input id="pmName" placeholder="例：バブーシュカ" />
+            </div>
+            <div style="margin-top:10px;">
+              <div class="label">価格</div>
+              <input id="pmPrice" inputmode="numeric" placeholder="例：1400" />
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="fieldTitle">新規追加</div>
+            <div class="muted">「新規追加」を押すと次のIDを自動採番してフォームに入れます。</div>
+            <div class="btnRow" style="margin-top:10px;">
+              <button class="btn" id="pmNewBtn" type="button">新規追加</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="btnRow">
+          <button class="btn" id="pmDiscardBtn" type="button">破棄して閉じる</button>
+          <button class="btn primaryBtn" id="pmSaveBtn" type="button">保存して閉じる</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast">保存しました</div>
 
 <script type="module">
@@ -548,7 +608,9 @@ import {
   collection,
   addDoc,
   getDocs,
-  serverTimestamp
+  serverTimestamp,
+  doc,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
 
@@ -607,7 +669,9 @@ function bootFirebase(){
 
     const auth = getAuth(app);
     // ログインしてなければログイン画面へ（ログイン後はこのPOSへ戻す）
+    let currentUser = null;
     onAuthStateChanged(auth, (user) => {
+      currentUser = user;
       if (!user) {
         location.href = 'login.html?redirect=' + encodeURIComponent('pos.html');
       }
@@ -1063,6 +1127,160 @@ $editToggleBtn.addEventListener("click", ()=>{
 });
 
 
+
+/* =====================================================
+   商品マスタ編集（products_patchへ差分保存）
+===================================================== */
+const $pmToggleBtn = $("pmToggleBtn");
+const $pmModal = $("pmModal");
+const $pmCloseBtn = $("pmCloseBtn");
+const $pmSaveBtn = $("pmSaveBtn");
+const $pmDiscardBtn = $("pmDiscardBtn");
+const $pmNewBtn = $("pmNewBtn");
+const $pmSelect = $("pmSelect");
+const $pmId = $("pmId");
+const $pmName = $("pmName");
+const $pmPrice = $("pmPrice");
+const $pmActive = $("pmActive");
+
+let pmDirty = false;
+let pmDraft = null; // {id,name,price,active}
+let pmOrigin = null;
+
+function pmMarkDirty(){ pmDirty = true; }
+
+function pmOpen(){
+  pmDirty = false;
+  pmOrigin = null;
+  pmDraft = null;
+  pmRenderSelect();
+  // default select first
+  if($pmSelect.options.length){
+    $pmSelect.selectedIndex = 0;
+    pmLoadFromSelect();
+  }
+  $pmModal.classList.add("show");
+  if($pmToggleBtn) $pmToggleBtn.textContent = "ⓧ";
+}
+
+function pmClose(force){
+  if(!force && pmDirty){
+    const ok = confirm("変更があります。保存しますか？");
+    if(ok){
+      pmSave(true);
+      return;
+    }
+    // 破棄して閉じる
+  }
+  $pmModal.classList.remove("show");
+  if($pmToggleBtn) $pmToggleBtn.textContent = "✎";
+}
+
+function pmRenderSelect(){
+  $pmSelect.innerHTML = "";
+  const list = [...products].sort((a,b)=> (a.id||"").localeCompare(b.id||""));
+  for(const p of list){
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = `${p.id}｜${p.name}（¥${p.price}）`;
+    $pmSelect.appendChild(o);
+  }
+}
+
+function pmSetForm(p){
+  pmOrigin = p ? { ...p } : null;
+  pmDraft = p ? { id: p.id, name: p.name ?? "", price: p.price ?? "", active: (p.active !== false) } : null;
+  $pmId.value = pmDraft?.id || "";
+  $pmName.value = pmDraft?.name || "";
+  $pmPrice.value = (pmDraft?.price ?? "") + "";
+  $pmActive.value = (pmDraft?.active ? "true" : "false");
+}
+
+function pmLoadFromSelect(){
+  const id = $pmSelect.value;
+  const p = products.find(x => x.id === id);
+  pmSetForm(p);
+}
+
+function pmNextId(){
+  let max = 0;
+  for(const p of products){
+    const m = String(p.id||"").match(/^p(\d{3})$/);
+    if(m) max = Math.max(max, parseInt(m[1],10));
+  }
+  return "p" + String(max+1).padStart(3,"0");
+}
+
+$pmSelect.addEventListener("change", ()=>{
+  pmLoadFromSelect();
+});
+
+[$pmName,$pmPrice,$pmActive].forEach(el=>{
+  el.addEventListener("input", pmMarkDirty);
+  el.addEventListener("change", pmMarkDirty);
+});
+
+$pmNewBtn.addEventListener("click", ()=>{
+  const id = pmNextId();
+  pmSetForm({ id, name:"", price:"", active:true });
+  pmDirty = true;
+});
+
+async function pmSave(closeAfter){
+  if(!pmDraft) return;
+
+  const id = $pmId.value.trim();
+  const name = $pmName.value.trim();
+  const price = parseInt(($pmPrice.value||"").toString().replace(/[^0-9]/g,""), 10);
+  const active = ($pmActive.value === "true");
+
+  if(!id){
+    alert("IDが不正です");
+    return;
+  }
+  if(!name){
+    alert("商品名を入力してください");
+    return;
+  }
+  if(!Number.isFinite(price)){
+    alert("価格を数値で入力してください");
+    return;
+  }
+
+  try{
+    // 差分として保存（bundleは後で管理者が更新）
+    await setDoc(doc(db, "products_patch", id), {
+      name,
+      price,
+      active,
+      updatedAt: serverTimestamp(),
+      updatedBy: currentUser?.email || ""
+    }, { merge: true });
+
+    showToast("保存しました");
+
+    // ローカル表示も更新（次回ロードでpatchが反映されるが、体感のため即反映）
+    const idx = products.findIndex(p => p.id === id);
+    const merged = { id, name, price, active };
+    if(idx >= 0) products[idx] = { ...products[idx], ...merged };
+    else products.push(merged);
+
+    renderProducts();
+    pmDirty = false;
+    if(closeAfter) pmClose(true);
+  }catch(e){
+    console.error(e);
+    alert("保存に失敗しました（権限 or 通信を確認）");
+  }
+}
+
+$pmSaveBtn.addEventListener("click", ()=> pmSave(true));
+$pmDiscardBtn.addEventListener("click", ()=> { pmDirty = false; pmClose(true); });
+$pmCloseBtn.addEventListener("click", ()=> pmClose(false));
+$pmToggleBtn.addEventListener("click", ()=>{
+  if($pmModal.classList.contains("show")) pmClose(false);
+  else pmOpen();
+});
 
 const loaded = await loadProductsWithPatch();
 products = loaded.products;
