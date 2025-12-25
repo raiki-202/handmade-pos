@@ -498,6 +498,12 @@ select {
       </div>
       <div class="modalBody">
         <div class="muted" id="receiptMeta"></div>
+        <div style="margin-top:10px;">
+          <span class="label" style="display:inline-flex;">
+            受注日
+            <input id="orderDateInput" type="date" />
+          </span>
+        </div>
         <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -622,6 +628,7 @@ const $receiptModal = $("receiptModal");
 const $receiptMeta  = $("receiptMeta");
 const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
+const $orderDateInput = $("orderDateInput");
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
@@ -879,6 +886,14 @@ function updateTotal(){
   $totalText.textContent = `合計：￥${total}`;
 }
 
+function todayYMD(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+
 /* =====================================================
    Firestore write
 ===================================================== */
@@ -886,9 +901,16 @@ async function writeSale(){
   const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
 
+  const orderDate = ($orderDateInput?.value || "").trim();
+  // orderDate: YYYY-MM-DD（ユーザーが指定した受注日）
+  // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
+  const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
+
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
+    orderDate: orderDate || todayYMD(),
+    orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
     channel: settings.currentChannel,
     venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
     paymentMethod: $paymentSelect.value,
@@ -905,8 +927,11 @@ $checkoutBtn.onclick = ()=>{
   const { items, total } = getSelected();
   if(!items.length) return alert("商品を選択してね");
 
-  $receiptMeta.textContent =
-    `販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
+  if($orderDateInput){
+    // 初期値は本日（タップで変更OK）
+    $orderDateInput.value = todayYMD();
+  }
+  setReceiptMetaText();
   $receiptList.innerHTML = items.map(
     i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
   ).join("<br>");
@@ -931,10 +956,19 @@ $confirmBtn.onclick = async ()=>{
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
   ()=> $receiptModal.classList.remove("show");
 
+if($orderDateInput){
+  $orderDateInput.addEventListener("change", setReceiptMetaText);
+}
+
 function showToast(msg){
   $toast.textContent = msg;
   $toast.classList.add("show");
   setTimeout(()=> $toast.classList.remove("show"),1200);
+}
+
+function setReceiptMetaText(){
+  const d = ($orderDateInput?.value || todayYMD());
+  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
 }
 
 /* =====================================================
