@@ -299,10 +299,12 @@
       font-size: 12px;
       color: var(--muted);
       font-weight: 800;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space:nowrap;
-      max-width: 62vw;
+      /* iPhoneで名前が省略されるのを防ぐ */
+      overflow: visible;
+      text-overflow: clip;
+      white-space: normal;
+      max-width: none;
+      word-break: break-word;
     }
     .saleRight{
       text-align:right;
@@ -1168,6 +1170,24 @@ byEmail: data.byEmail || ""
           top.appendChild(b);
         }
 
+        // inline actions (iPhoneで変な位置に行かないように日付横へ)
+        if(s._adj?.has){
+          const bAdj = document.createElement("span");
+          bAdj.className = "badge adjBadge";
+          bAdj.textContent = "修正あり";
+          top.appendChild(bAdj);
+        }
+
+        const btnAdj = document.createElement("button");
+        btnAdj.className = "btn small";
+        btnAdj.textContent = "✎ 返金/修正";
+        btnAdj.addEventListener("click", (e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          openAdjModal(s);
+        });
+        top.appendChild(btnAdj);
+
         const meta = document.createElement("div");
         meta.className = "saleMeta";
         meta.textContent = (s._adj?.buyerName ?? s.buyerName) || "—";
@@ -1186,32 +1206,6 @@ byEmail: data.byEmail || ""
         }
 
         sSum.appendChild(sLeft);
-
-        // actions
-        const act = document.createElement("div");
-        act.style.display = "flex";
-        act.style.gap = "8px";
-        act.style.alignItems = "center";
-        act.style.marginLeft = "8px";
-
-        if(s._adj?.has){
-          const b = document.createElement("span");
-          b.className = "badge adjBadge";
-          b.textContent = "修正あり";
-          act.appendChild(b);
-        }
-
-        const btnAdj = document.createElement("button");
-        btnAdj.className = "btn small";
-        btnAdj.textContent = "✎ 返金/修正";
-        btnAdj.addEventListener("click", (e)=>{
-          e.preventDefault();
-          e.stopPropagation();
-          openAdjModal(s);
-        });
-        act.appendChild(btnAdj);
-
-        sSum.appendChild(act);
         sSum.appendChild(sRight);
         sDet.appendChild(sSum);
 
