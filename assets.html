@@ -1,0 +1,829 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>e.nue 資産管理</title>
+
+  <style>
+    :root{
+      --bg1:#e3ddd4;
+      --bg2:#d4ccc1;
+
+      --glass-bg: rgba(255,255,255,.86);
+      --glass-bg2: rgba(255,255,255,.78);
+      --glass-border: rgba(0,0,0,.06);
+      --line-soft: rgba(0,0,0,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+      --text-main:#222222;
+      --muted: rgba(34,34,34,.58);
+
+      --accent:#e18a6a;
+      --accent2:#d06463;
+
+      --r: 20px;
+      --max: 980px;
+    }
+
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background:
+        radial-gradient(1200px 800px at 18% 8%, rgba(225,138,106,.18), transparent 55%),
+        radial-gradient(1200px 800px at 88% 0%, rgba(208,100,99,.14), transparent 52%),
+        linear-gradient(135deg, var(--bg1), var(--bg2));
+      color: var(--text-main);
+    }
+    a{ color: inherit; text-decoration: none; }
+
+    .wrap{
+      min-height: 100%;
+      padding: 18px 14px 28px;
+      display:flex;
+      justify-content:center;
+    }
+    .app{
+      width:100%;
+      max-width: var(--max);
+    }
+
+    /* header */
+    .topbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      padding: 6px 2px 14px;
+    }
+    .brand{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .brand .title{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .02em;
+    }
+    .brand .sub{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .navBtns{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    .btn{
+      border:1px solid var(--glass-border);
+      background: linear-gradient(180deg, rgba(255,255,255,.9), rgba(255,255,255,.76));
+      box-shadow: 0 10px 25px rgba(0,0,0,.08);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-weight: 900;
+      font-size: 12px;
+      color: rgba(34,34,34,.82);
+      cursor:pointer;
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active{ transform: translateY(1px); }
+    .btn.primary{
+      background: linear-gradient(180deg, rgba(225,138,106,.22), rgba(255,255,255,.78));
+      border-color: rgba(225,138,106,.25);
+    }
+
+    /* cards */
+    .card{
+      background: linear-gradient(180deg, var(--glass-bg), var(--glass-bg2));
+      border: 1px solid var(--glass-border);
+      border-radius: var(--r);
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    .cardHead{
+      padding: 14px 14px 10px;
+      display:flex;
+      gap:10px;
+      align-items:flex-end;
+      justify-content:space-between;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+    .cardHead .h{
+      font-size: 14px;
+      font-weight: 1000;
+      letter-spacing: .02em;
+    }
+    .cardHead .meta{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+    .cardBody{ padding: 12px 14px 14px; }
+
+    .seg{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .seg button{
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.70);
+      border-radius: 999px;
+      padding: 10px 12px;
+      font-weight: 1000;
+      font-size: 12px;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.06);
+    }
+    .seg button.on{
+      background: rgba(17,17,17,.92);
+      color:#fff;
+      border-color: rgba(17,17,17,.92);
+    }
+
+    .controls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:space-between;
+      margin-top: 10px;
+    }
+    .leftControls{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .field{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.70);
+      box-shadow: 0 10px 18px rgba(0,0,0,.06);
+    }
+    .field label{
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(34,34,34,.72);
+      white-space:nowrap;
+    }
+    select, input[type="month"]{
+      border:0;
+      outline:none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 900;
+      color: rgba(34,34,34,.88);
+      min-width: 130px;
+    }
+
+    .stats{
+      display:grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap:10px;
+      margin-top: 12px;
+    }
+    @media (max-width: 560px){
+      .stats{ grid-template-columns: 1fr; }
+    }
+    .stat{
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 16px;
+      padding: 12px 12px;
+      box-shadow: 0 12px 22px rgba(0,0,0,.05);
+    }
+    .stat .k{
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(34,34,34,.62);
+    }
+    .stat .v{
+      margin-top: 4px;
+      font-size: 20px;
+      font-weight: 1100;
+      letter-spacing: .01em;
+    }
+    .stat .s{
+      margin-top: 2px;
+      font-size: 12px;
+      font-weight: 900;
+      color: rgba(34,34,34,.55);
+    }
+
+    .tableWrap{
+      margin-top: 12px;
+      overflow-x:auto;
+      -webkit-overflow-scrolling:touch;
+      border-radius: 16px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.58);
+    }
+    table{
+      width:100%;
+      border-collapse: collapse;
+      min-width: 680px; /* iPhone 横スクロール */
+      font-size: 12px;
+    }
+    th,td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      white-space:nowrap;
+      font-weight: 900;
+    }
+    th{
+      text-align:left;
+      color: rgba(34,34,34,.74);
+      background: rgba(255,255,255,.60);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    td{ color: rgba(34,34,34,.86); }
+    tr:last-child td{ border-bottom: 0; }
+    .right{ text-align:right; }
+    .neg{ color: rgba(208,100,99,.95); }
+    .pos{ color: rgba(30,140,86,.95); }
+
+    .smallNote{
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(34,34,34,.58);
+      font-weight: 800;
+      line-height: 1.55;
+    }
+
+    .empty{
+      padding: 14px 0 2px;
+      color: rgba(34,34,34,.62);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .toast{
+      position:fixed;
+      left:50%;
+      transform: translateX(-50%);
+      bottom: 18px;
+      background: rgba(25,25,25,.88);
+      color:#fff;
+      padding: 10px 12px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 900;
+      opacity:0;
+      pointer-events:none;
+      transition: opacity .18s ease, transform .18s ease;
+      z-index: 99;
+    }
+    .toast.on{ opacity:1; transform: translateX(-50%) translateY(-2px); }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="app">
+
+      <div class="topbar">
+        <div class="brand">
+          <div class="title">資産管理</div>
+          <div class="sub">売上（sales）− 支出（expenses）で「現状総資産」を表示</div>
+        </div>
+
+        <div class="navBtns">
+          <button class="btn" id="btnHome">🏠 HOME</button>
+          <button class="btn" id="btnOther">⬛ OTHER</button>
+          <button class="btn primary" id="btnReload">↻ 再読込</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="cardHead">
+          <div class="h">集計</div>
+          <div class="meta" id="authState">確認中…</div>
+        </div>
+
+        <div class="cardBody">
+          <div class="seg">
+            <button id="modeYear" class="on" type="button">年別</button>
+            <button id="modeMonth" type="button">月別</button>
+          </div>
+
+          <div class="controls">
+            <div class="leftControls" id="yearControls">
+              <div class="field">
+                <label>年</label>
+                <select id="yearSel"></select>
+              </div>
+            </div>
+
+            <div class="leftControls" id="monthControls" style="display:none;">
+              <div class="field">
+                <label>月</label>
+                <input id="monthInput" type="month" />
+              </div>
+            </div>
+
+            <div class="leftControls">
+              <div class="field">
+                <label>表示</label>
+                <select id="detailSel">
+                  <option value="net">総資産のみ</option>
+                  <option value="full">売上/支出も表示</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="stats" id="stats"></div>
+
+          <div id="detailArea"></div>
+
+          <div class="smallNote">
+            ・売上は <b>sales.total</b> の合計（返金はマイナス sales のため自動で控除）<br>
+            ・支出は <b>expenses.amount</b> の合計（正の値想定）<br>
+            ・現状総資産＝（売上合計 − 支出合計）として表示（初期資金などが必要なら後で足し込み可能）
+          </div>
+        </div>
+      </div>
+
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore, collection, query, where, orderBy, getDocs, limit
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  // ✅ 本番（既存ページと同じ）
+  const firebaseConfig = {
+    apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+    authDomain: "handmade-pos.firebaseapp.com",
+    projectId: "handmade-pos",
+    storageBucket: "handmade-pos.firebasestorage.app",
+    messagingSenderId: "174873514252",
+    appId: "1:174873514252:web:c26659bffca850d475f929"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // DOM
+  const $ = (id)=>document.getElementById(id);
+  const authState = $("authState");
+  const toastEl = $("toast");
+
+  const btnHome = $("btnHome");
+  const btnOther = $("btnOther");
+  const btnReload = $("btnReload");
+
+  const modeYearBtn = $("modeYear");
+  const modeMonthBtn = $("modeMonth");
+
+  const yearControls = $("yearControls");
+  const monthControls = $("monthControls");
+  const yearSel = $("yearSel");
+  const monthInput = $("monthInput");
+  const detailSel = $("detailSel");
+
+  const statsEl = $("stats");
+  const detailArea = $("detailArea");
+
+  // routing
+  btnHome.addEventListener("click", ()=> location.href = "index.html");
+  btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
+  btnReload.addEventListener("click", ()=> refresh(true));
+
+  // helpers
+  const pad2 = (n)=> String(n).padStart(2,"0");
+  const ymKey = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+
+  const fmtJPY = (n)=>{
+    const v = Number(n||0);
+    return "¥" + Math.round(v).toLocaleString("ja-JP");
+  };
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("on");
+    setTimeout(()=>toastEl.classList.remove("on"), 1400);
+  }
+
+  function cls(el, on, c){
+    if(on) el.classList.add(c);
+    else el.classList.remove(c);
+  }
+
+  function toDate(v){
+    try{
+      if(!v) return null;
+      if(typeof v.toDate === "function") return v.toDate();
+      if(v instanceof Date) return v;
+      if(typeof v === "number") return new Date(v);
+      if(typeof v === "string"){ const d=new Date(v); return isNaN(d.getTime())?null:d; }
+      return null;
+    }catch{ return null; }
+  }
+
+  function monthRange(ymStr){
+    const [Y,M] = ymStr.split("-").map(Number);
+    const start = new Date(Y, M-1, 1, 0,0,0,0);
+    const end = new Date(Y, M, 1, 0,0,0,0);
+    return { start, end };
+  }
+
+  function fillYearOptions(nowY, years){
+    const arr = (years?.length ? years : []);
+    const set = new Set(arr);
+    if(!set.has(nowY)) arr.unshift(nowY);
+    const unique = [...new Set(arr)].sort((a,b)=>b-a);
+
+    yearSel.innerHTML = "";
+    for(const y of unique){
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = `${y}年`;
+      yearSel.appendChild(opt);
+    }
+    yearSel.value = String(nowY);
+  }
+
+  // state
+  let currentUser = null;
+  let mode = "year"; // "year" | "month"
+  let cacheYear = new Map(); // year -> { sales, expenses, byMonth }
+  let cacheMonth = new Map(); // "YYYY-MM" -> { sales, expenses, net, breakdowns }
+
+  // ---- Firestore loaders
+  async function loadSalesByRange(start, end){
+    // createdAt: Timestamp を想定
+    // Firestore: 範囲 + orderBy(createdAt) はOK（必要ならインデックス作成）
+    const qy = query(
+      collection(db, "sales"),
+      where("createdAt", ">=", start),
+      where("createdAt", "<", end),
+      orderBy("createdAt","asc"),
+      limit(5000)
+    );
+    const snap = await getDocs(qy);
+
+    let total = 0;
+    const rows = [];
+    snap.forEach(docSnap=>{
+      const d = docSnap.data();
+      const createdAt = toDate(d.createdAt) || new Date(0);
+      const t = Number(d.total ?? d.totalAmount ?? d.grandTotal ?? d.amount ?? 0);
+      total += (Number.isFinite(t) ? t : 0);
+      rows.push({
+        id: docSnap.id,
+        date: createdAt,
+        total: Number.isFinite(t) ? t : 0,
+        channel: (d.channel ?? "").toString(),
+        paymentMethod: (d.paymentMethod ?? "").toString(),
+      });
+    });
+
+    return { total, rows };
+  }
+
+  async function loadExpensesByDateKeyRange(startKey, endKey){
+    // expenses.date: "YYYY-MM-DD" 文字列
+    const qy = query(
+      collection(db, "expenses"),
+      where("date", ">=", startKey),
+      where("date", "<=", endKey),
+      orderBy("date","asc"),
+      limit(6000)
+    );
+    const snap = await getDocs(qy);
+
+    let total = 0;
+    const rows = [];
+    snap.forEach(docSnap=>{
+      const d = docSnap.data();
+      const amt = Number(d.amount || 0);
+      total += (Number.isFinite(amt) ? amt : 0);
+      rows.push({
+        id: docSnap.id,
+        date: (d.date ?? "").toString(),
+        amount: Number.isFinite(amt) ? amt : 0,
+        categoryName: (d.categoryName ?? "").toString() || "(未設定)",
+        paymentMethodName: (d.paymentMethodName ?? d.paymentMethod ?? "").toString()
+      });
+    });
+
+    return { total, rows };
+  }
+
+  // ---- Aggregations
+  function sumByKey(rows, keyFn, valFn){
+    const m = new Map();
+    for(const r of rows){
+      const k = keyFn(r);
+      const v = Number(valFn(r)||0);
+      m.set(k, (m.get(k)||0) + (Number.isFinite(v)?v:0));
+    }
+    return m;
+  }
+
+  function topN(map, n=5){
+    return [...map.entries()]
+      .sort((a,b)=> Math.abs(b[1]) - Math.abs(a[1]))
+      .slice(0,n);
+  }
+
+  // ---- Renderers
+  function renderStats({ salesTotal, expensesTotal }){
+    const net = Number(salesTotal||0) - Number(expensesTotal||0);
+
+    const detailMode = detailSel.value;
+    statsEl.innerHTML = "";
+
+    const mk = (k, v, s, clsName)=>{
+      const d = document.createElement("div");
+      d.className = "stat";
+      d.innerHTML = `<div class="k">${k}</div><div class="v">${v}</div><div class="s">${s||""}</div>`;
+      if(clsName) d.querySelector(".v").classList.add(clsName);
+      statsEl.appendChild(d);
+    };
+
+    mk("現状 総資産", fmtJPY(net), (mode==="year" ? "年合計" : "月合計"), net<0 ? "neg" : "pos");
+
+    if(detailMode==="full"){
+      mk("売上 合計", fmtJPY(salesTotal), "sales.total 合算（返金含む）");
+      mk("支出 合計", fmtJPY(expensesTotal), "expenses.amount 合算");
+    }
+  }
+
+  function renderYearDetail(year, byMonthSales, byMonthExpenses, salesRows, expRows){
+    const detailMode = detailSel.value;
+
+    // 月次表
+    const rows = [];
+    for(let m=1;m<=12;m++){
+      const key = `${year}-${pad2(m)}`;
+      const s = byMonthSales.get(key) || 0;
+      const e = byMonthExpenses.get(key) || 0;
+      const net = s - e;
+      rows.push({ key, s, e, net });
+    }
+
+    const wrap = document.createElement("div");
+    wrap.className = "tableWrap";
+    const tbl = document.createElement("table");
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th>月</th>
+          ${detailMode==="full" ? `<th class="right">売上</th><th class="right">支出</th>` : ``}
+          <th class="right">総資産</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tb = tbl.querySelector("tbody");
+
+    for(const r of rows){
+      const tr = document.createElement("tr");
+      const mm = Number(r.key.split("-")[1]);
+      const netCls = r.net < 0 ? "neg" : "pos";
+
+      tr.innerHTML = `
+        <td>${mm}月</td>
+        ${detailMode==="full" ? `<td class="right">${fmtJPY(r.s)}</td><td class="right">${fmtJPY(r.e)}</td>` : ``}
+        <td class="right ${netCls}">${fmtJPY(r.net)}</td>
+      `;
+      tb.appendChild(tr);
+    }
+
+    wrap.appendChild(tbl);
+
+    // breakdown (Top5) - ざっくり
+    const salesByChannel = sumByKey(salesRows, r=> (r.channel||"(未設定)"), r=> r.total);
+    const expByCat = sumByKey(expRows, r=> (r.categoryName||"(未設定)"), r=> r.amount);
+
+    const extra = document.createElement("div");
+    extra.style.marginTop = "12px";
+
+    const mkList = (title, items, isMoney=true)=>{
+      const box = document.createElement("div");
+      box.className = "card";
+      box.style.marginTop = "12px";
+      box.innerHTML = `
+        <div class="cardHead"><div class="h">${title}</div><div class="meta">上位5</div></div>
+        <div class="cardBody"><div id="list"></div></div>
+      `;
+      const list = box.querySelector("#list");
+      if(!items.length){
+        list.innerHTML = `<div class="empty">データなし</div>`;
+        return box;
+      }
+      const t = document.createElement("table");
+      t.style.minWidth = "0";
+      t.innerHTML = `<thead><tr><th>項目</th><th class="right">金額</th></tr></thead><tbody></tbody>`;
+      const b = t.querySelector("tbody");
+      for(const [k,v] of items){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${k}</td><td class="right">${fmtJPY(v)}</td>`;
+        b.appendChild(tr);
+      }
+      list.appendChild(t);
+      return box;
+    };
+
+    extra.appendChild(mkList("売上：チャンネル別", topN(salesByChannel,5)));
+    extra.appendChild(mkList("支出：カテゴリ別", topN(expByCat,5)));
+
+    detailArea.innerHTML = "";
+    detailArea.appendChild(wrap);
+    detailArea.appendChild(extra);
+  }
+
+  function renderMonthDetail(ymStr, salesRows, expRows){
+    const detailMode = detailSel.value;
+
+    // breakdown
+    const salesByChannel = sumByKey(salesRows, r=> (r.channel||"(未設定)"), r=> r.total);
+    const expByCat = sumByKey(expRows, r=> (r.categoryName||"(未設定)"), r=> r.amount);
+
+    const mkBox = (title, items)=>{
+      const box = document.createElement("div");
+      box.className = "card";
+      box.style.marginTop = "12px";
+      box.innerHTML = `
+        <div class="cardHead"><div class="h">${title}</div><div class="meta">上位5</div></div>
+        <div class="cardBody"><div id="list"></div></div>
+      `;
+      const list = box.querySelector("#list");
+      if(!items.length){
+        list.innerHTML = `<div class="empty">データなし</div>`;
+        return box;
+      }
+      const t = document.createElement("table");
+      t.style.minWidth = "0";
+      t.innerHTML = `<thead><tr><th>項目</th><th class="right">金額</th></tr></thead><tbody></tbody>`;
+      const b = t.querySelector("tbody");
+      for(const [k,v] of items){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td>${k}</td><td class="right">${fmtJPY(v)}</td>`;
+        b.appendChild(tr);
+      }
+      list.appendChild(t);
+      return box;
+    };
+
+    detailArea.innerHTML = "";
+    detailArea.appendChild(mkBox(`${ymStr} 売上：チャンネル別`, topN(salesByChannel,5)));
+    detailArea.appendChild(mkBox(`${ymStr} 支出：カテゴリ別`, topN(expByCat,5)));
+  }
+
+  // ---- Main refresh
+  async function refresh(force=false){
+    try{
+      authState.textContent = "読み込み中…";
+      detailArea.innerHTML = "";
+      statsEl.innerHTML = "";
+
+      // mode switch
+      cls(modeYearBtn, mode==="year", "on");
+      cls(modeMonthBtn, mode==="month", "on");
+      yearControls.style.display = (mode==="year") ? "" : "none";
+      monthControls.style.display = (mode==="month") ? "" : "none";
+
+      const now = new Date();
+      const nowY = now.getFullYear();
+
+      // 年候補：直近のsales/expensesからざっくり拾う（軽く）
+      // force=falseなら毎回やり直さずOK
+      if(!yearSel.options.length || force){
+        const years = [nowY, nowY-1, nowY-2, nowY-3];
+        fillYearOptions(nowY, years);
+      }
+
+      if(!monthInput.value){
+        monthInput.value = `${nowY}-${pad2(now.getMonth()+1)}`;
+      }
+
+      if(mode==="year"){
+        const y = Number(yearSel.value || nowY);
+        if(!force && cacheYear.has(y)){
+          const c = cacheYear.get(y);
+          renderStats({ salesTotal: c.salesTotal, expensesTotal: c.expensesTotal });
+          renderYearDetail(y, c.byMonthSales, c.byMonthExpenses, c.salesRows, c.expRows);
+          authState.textContent = `OK（${y}年）`;
+          return;
+        }
+
+        const start = new Date(y,0,1,0,0,0,0);
+        const end   = new Date(y+1,0,1,0,0,0,0);
+
+        const sales = await loadSalesByRange(start, end);
+
+        const startKey = `${y}-01-01`;
+        const endKey   = `${y}-12-31`;
+        const exps = await loadExpensesByDateKeyRange(startKey, endKey);
+
+        const byMonthSales = sumByKey(sales.rows, r=> ymKey(r.date), r=> r.total);
+        const byMonthExpenses = sumByKey(exps.rows, r=> (r.date||"").slice(0,7), r=> r.amount);
+
+        const obj = {
+          salesTotal: sales.total,
+          expensesTotal: exps.total,
+          byMonthSales,
+          byMonthExpenses,
+          salesRows: sales.rows,
+          expRows: exps.rows
+        };
+        cacheYear.set(y, obj);
+
+        renderStats({ salesTotal: obj.salesTotal, expensesTotal: obj.expensesTotal });
+        renderYearDetail(y, obj.byMonthSales, obj.byMonthExpenses, obj.salesRows, obj.expRows);
+        authState.textContent = `OK（${y}年）`;
+
+      }else{
+        const ymStr = monthInput.value; // "YYYY-MM"
+        if(!ymStr){
+          toast("月を選んでね");
+          return;
+        }
+
+        if(!force && cacheMonth.has(ymStr)){
+          const c = cacheMonth.get(ymStr);
+          renderStats({ salesTotal: c.salesTotal, expensesTotal: c.expensesTotal });
+          renderMonthDetail(ymStr, c.salesRows, c.expRows);
+          authState.textContent = `OK（${ymStr}）`;
+          return;
+        }
+
+        const { start, end } = monthRange(ymStr);
+        const sales = await loadSalesByRange(start, end);
+
+        const startKey = `${ymStr}-01`;
+        // 月末：次月1日 - 1日
+        const endDate = new Date(end.getFullYear(), end.getMonth(), 0); // 月末
+        const endKey = `${endDate.getFullYear()}-${pad2(endDate.getMonth()+1)}-${pad2(endDate.getDate())}`;
+        const exps = await loadExpensesByDateKeyRange(startKey, endKey);
+
+        const obj = {
+          salesTotal: sales.total,
+          expensesTotal: exps.total,
+          salesRows: sales.rows,
+          expRows: exps.rows
+        };
+        cacheMonth.set(ymStr, obj);
+
+        renderStats({ salesTotal: obj.salesTotal, expensesTotal: obj.expensesTotal });
+        renderMonthDetail(ymStr, obj.salesRows, obj.expRows);
+        authState.textContent = `OK（${ymStr}）`;
+      }
+    }catch(err){
+      console.error(err);
+      authState.textContent = "読み込み失敗";
+      detailArea.innerHTML = `<div class="empty">読み込みに失敗しました。<br><span style="color:rgba(34,34,34,.55);font-weight:900;">Firestore ルール / インデックス / createdAt の型を確認してね。</span></div>`;
+      toast("読み込み失敗");
+    }
+  }
+
+  // events
+  modeYearBtn.onclick = ()=>{ mode="year"; refresh(false); };
+  modeMonthBtn.onclick = ()=>{ mode="month"; refresh(false); };
+  yearSel.onchange = ()=> refresh(false);
+  monthInput.onchange = ()=> refresh(false);
+  detailSel.onchange = ()=> refresh(false);
+
+  // auth gate
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      const redirect = encodeURIComponent("assets.html");
+      location.href = `login.html?redirect=${redirect}`;
+      return;
+    }
+    currentUser = user;
+    authState.textContent = `ログイン中：${user.email || "user"}`;
+    refresh(false);
+  });
+</script>
+
+</body>
+</html>
