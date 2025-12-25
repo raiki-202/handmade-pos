@@ -272,6 +272,7 @@
       flex-direction:column;
       gap:2px;
       min-width: 0;
+      flex: 1;
     }
     .saleTop{
       display:flex;
@@ -299,12 +300,10 @@
       font-size: 12px;
       color: var(--muted);
       font-weight: 800;
-      /* iPhoneで名前が省略されるのを防ぐ */
-      overflow: visible;
-      text-overflow: clip;
-      white-space: normal;
-      max-width: none;
-      word-break: break-word;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space:nowrap;
+      max-width: 62vw;
     }
     .saleRight{
       text-align:right;
@@ -312,6 +311,7 @@
       flex-direction:column;
       gap:2px;
       white-space:nowrap;
+      align-items:flex-end;
     }
     .saleTotal{
       font-weight: 1000;
@@ -322,6 +322,19 @@
       color: rgba(34,34,34,.48);
       font-weight: 800;
     }
+
+    .editBtn{
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.72);
+      border-radius: 999px;
+      padding: 7px 10px;
+      font-size: 12px;
+      font-weight: 1000;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.06);
+      flex: 0 0 auto;
+    }
+    .editBtn:active{ transform: translateY(1px); }
 
     .items{
       padding: 0 10px 10px;
@@ -386,175 +399,210 @@
       font-weight: 800;
       line-height: 1.5;
     }
-  
-    /* --- adjustments (refund / correction) --- */
-    .btn.small{
-      padding: 7px 10px;
-      font-size: 11px;
-      font-weight: 1000;
-      gap:6px;
-    }
-    .btn.danger{
-      background: linear-gradient(180deg, rgba(208,100,99,.22), rgba(255,255,255,.78));
-      border-color: rgba(208,100,99,.28);
-    }
-    .amountStrike{
-      text-decoration: line-through;
-      opacity: .55;
-      margin-right: 6px;
-      font-weight: 900;
-      font-size: 12px;
-    }
-    .adjBadge{
-      background: rgba(208,100,99,.12);
-      border-color: rgba(208,100,99,.25);
-      color: rgba(34,34,34,.78);
-    }
-    .adjBox{
-      margin-top: 8px;
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 12px;
-      background: rgba(255,255,255,.62);
-      padding: 10px;
-      box-shadow: 0 10px 18px rgba(0,0,0,.04);
-    }
-    .adjHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      margin-bottom: 8px;
-    }
-    .adjTitle{
-      font-weight: 1000;
-      font-size: 12px;
-      color: rgba(34,34,34,.78);
-    }
-    .adjList{
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-    .adjRow{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      padding: 8px 8px;
-      border-radius: 10px;
-      border: 1px solid rgba(0,0,0,.06);
-      background: rgba(255,255,255,.60);
-    }
-    .adjL{
-      min-width:0;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .adjType{
-      font-weight: 1000;
-      font-size: 12px;
-    }
-    .adjMeta{
-      font-size: 11px;
-      color: var(--muted);
-      font-weight: 800;
-      overflow:hidden;
-      text-overflow: ellipsis;
-      white-space:nowrap;
-      max-width: 62vw;
-    }
-    .adjR{
-      text-align:right;
-      white-space:nowrap;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .adjAmt{
-      font-weight: 1000;
-      font-size: 12px;
-    }
-    .adjWho{
-      font-size: 11px;
-      color: rgba(34,34,34,.48);
-      font-weight: 800;
-    }
 
-    .modalBack{
-      position:fixed;
-      inset:0;
+    /* modal */
+    .modal{
+      position: fixed;
+      inset: 0;
       background: rgba(0,0,0,.35);
-      display:none;
-      align-items:center;
+      display:flex;
+      align-items:flex-end;
       justify-content:center;
       padding: 18px 14px;
-      z-index: 120;
+      z-index: 200;
     }
-    .modalBack.on{ display:flex; }
-    .modal{
-      width: min(520px, 100%);
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.25);
+    .modalCard{
+      width: 100%;
+      max-width: 560px;
       background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.80));
-      box-shadow: 0 22px 60px rgba(0,0,0,.22);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 18px;
+      box-shadow: 0 22px 55px rgba(0,0,0,.18);
+      padding: 14px;
       overflow:hidden;
     }
-    .modalHead{
-      padding: 12px 14px;
-      border-bottom: 1px solid rgba(0,0,0,.08);
+    .modalTitle{
+      font-size: 14px;
+      font-weight: 1000;
+      letter-spacing: .02em;
+      margin-bottom: 10px;
+    }
+    .modalSub{
+      font-size: 12px;
+      color: rgba(34,34,34,.62);
+      font-weight: 900;
+      margin-top: -6px;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    .modalBtns{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .modalBtn{
+      width: 100%;
+      border: 1px solid rgba(0,0,0,.10);
+      border-radius: 14px;
+      padding: 12px 12px;
+      background: rgba(255,255,255,.72);
+      font-weight: 1000;
+      font-size: 13px;
+      cursor:pointer;
+      text-align:left;
       display:flex;
       align-items:center;
       justify-content:space-between;
       gap:10px;
     }
-    .modalHead .t{
-      font-weight: 1000;
-      font-size: 14px;
-      letter-spacing: .02em;
+    .modalBtn.primary{
+      border-color: rgba(225,138,106,.30);
+      background: linear-gradient(180deg, rgba(225,138,106,.20), rgba(255,255,255,.78));
     }
-    .modalBody{
-      padding: 12px 14px 14px;
+    .modalBtn.danger{
+      border-color: rgba(208,100,99,.35);
+      background: linear-gradient(180deg, rgba(208,100,99,.16), rgba(255,255,255,.78));
+    }
+    .modalBtn:active{ transform: translateY(1px); }
+    .modalBtn .hint{
+      font-size: 12px;
+      font-weight: 900;
+      color: rgba(34,34,34,.55);
+      white-space:nowrap;
+    }
+
+    .form{
       display:flex;
       flex-direction:column;
       gap:10px;
+      margin-top: 10px;
     }
     .row{
       display:flex;
       gap:10px;
       flex-wrap:wrap;
-      align-items:center;
+      align-items:flex-start;
     }
-    .row .field{
-      flex: 1 1 180px;
-      min-width: 180px;
+    .input{
+      flex: 1 1 160px;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.70);
+      box-shadow: 0 10px 18px rgba(0,0,0,.05);
     }
-    textarea{
+    .input .lab{
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(34,34,34,.72);
+    }
+    .input input, .input textarea, .input select{
       width:100%;
       border:0;
       outline:none;
       background: transparent;
       font-size: 13px;
-      font-weight: 800;
+      font-weight: 900;
       color: rgba(34,34,34,.88);
-      resize: vertical;
+    }
+    .input textarea{
       min-height: 70px;
-      padding: 2px 0;
-    }
-    .help{
-      font-size: 12px;
-      color: rgba(34,34,34,.58);
+      resize: vertical;
+      line-height: 1.45;
       font-weight: 800;
-      line-height: 1.5;
-    }
-    .modalFoot{
-      padding: 12px 14px 14px;
-      display:flex;
-      gap:10px;
-      justify-content:flex-end;
-      border-top: 1px solid rgba(0,0,0,.08);
-      background: rgba(255,255,255,.55);
     }
 
+    .miniTable{
+      width:100%;
+      border-collapse: collapse;
+      border-radius: 14px;
+      overflow:hidden;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.62);
+    }
+    .miniTable th,.miniTable td{ padding: 8px; border-bottom: 1px solid rgba(0,0,0,.06); }
+    .miniTable th{ font-size: 12px; font-weight: 1000; color: rgba(34,34,34,.72); background: rgba(255,255,255,.58); }
+    .miniTable td input{
+      width:100%;
+      border:0;
+      outline:none;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 900;
+      color: rgba(34,34,34,.88);
+    }
+    .miniActions{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      margin-top: 8px;
+    }
+    .miniActions .sbtn{
+      border:1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.72);
+      border-radius: 999px;
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 1000;
+      cursor:pointer;
+      box-shadow: 0 10px 18px rgba(0,0,0,.05);
+    }
+    .miniActions .sbtn:active{ transform: translateY(1px); }
+    .miniActions .sbtn.primary{
+      border-color: rgba(225,138,106,.30);
+      background: linear-gradient(180deg, rgba(225,138,106,.18), rgba(255,255,255,.78));
+    }
+    .miniActions .sbtn.danger{
+      border-color: rgba(208,100,99,.35);
+      background: linear-gradient(180deg, rgba(208,100,99,.14), rgba(255,255,255,.78));
+    }
+
+    /* claim card */
+    .claimCard{
+      margin-top: 8px;
+      border: 1px dashed rgba(0,0,0,.16);
+      background: rgba(255,255,255,.60);
+      border-radius: 14px;
+      padding: 10px;
+    }
+    .claimHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 6px;
+    }
+    .claimTitle{
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(34,34,34,.78);
+    }
+    .claimAmt{
+      font-size: 12px;
+      font-weight: 1000;
+      color: rgba(208,100,99,.92);
+      white-space:nowrap;
+    }
+    .claimReason{
+      font-size: 12px;
+      font-weight: 800;
+      color: rgba(34,34,34,.74);
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+    .claimMeta{
+      font-size: 11px;
+      font-weight: 900;
+      color: rgba(34,34,34,.50);
+      margin-top: 6px;
+    }
+
+    @media (min-width: 720px){
+      .modal{ align-items:center; }
+    }
   </style>
 </head>
 
@@ -603,67 +651,16 @@
                 <input id="q" type="search" placeholder="購入者名 / チャンネル / メモなど" />
               </div>
             </div>
-</div>
+          </div>
 
           <div class="statRow" id="stats"></div>
 
           <div class="months" id="months"></div>
 
           <div class="smallNote" id="note">
-            ・saleをクリックすると明細を開きます。<br>
-            ・データ量が多い場合は「年」「月」で絞り込むのが速いです。
-          </div>
-        </div>
-      </div>
-
-      
-      <!-- refund / correction modal -->
-      <div class="modalBack" id="adjModalBack" aria-hidden="true">
-        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adjModalTitle">
-          <div class="modalHead">
-            <div class="t" id="adjModalTitle">返金・修正</div>
-            <button class="btn small" id="btnAdjClose">✕ 閉じる</button>
-          </div>
-
-          <div class="modalBody">
-            <div class="help" id="adjTargetInfo">対象：—</div>
-
-            <div class="row">
-              <div class="field">
-                <label>種別</label>
-                <select id="adjType">
-                  <option value="refund">クレーム返金</option>
-                  <option value="typo">打ち間違い修正</option>
-                </select>
-              </div>
-
-              <div class="field">
-                <label>金額（差分）</label>
-                <input id="adjAmount" inputmode="numeric" placeholder="-500 など（返金はマイナス）" />
-              </div>
-            </div>
-
-            <div class="field">
-              <label>理由 / メモ</label>
-              <textarea id="adjReason" placeholder="例：クレーム対応のため一部返金 / 単価打ち間違いを修正 など"></textarea>
-            </div>
-
-            <div class="row">
-              <div class="field">
-                <label>購入者名（上書き 任意）</label>
-                <input id="adjBuyerName" placeholder="空なら変更なし" />
-              </div>
-</div>
-
-            <div class="help">
-              ・売上（sales）自体は触らず、<b>差分（adjustment）</b>として記録します。<br>
-              ・返金は金額がマイナスになります（プラスで入れたら自動でマイナスに補正します）。
-            </div>
-          </div>
-
-          <div class="modalFoot">
-            <button class="btn" id="btnAdjCancel">キャンセル</button>
-            <button class="btn primary" id="btnAdjSave">保存</button>
+            ・saleをクリックすると明細を開きます。右端の「✎」で編集できます。<br>
+            ・「クレーム返金」は「マイナスの sales」を新規作成します（元の sales は保持）。「打ち間違い修正」は sales を上書きします。<br>
+            ・バンドル由来データは上書き編集できません（管理者へ修正内容を伝えてください）。
           </div>
         </div>
       </div>
@@ -676,7 +673,8 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   import {
-    getFirestore, collection, query, orderBy, limit, getDocs, addDoc
+    getFirestore,
+    collection, doc, query, where, orderBy, limit, getDocs, addDoc, updateDoc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   // ✅ 本番（既存ファイルと同じ）
@@ -709,91 +707,6 @@
   const btnReload = el("btnReload");
   const btnCsv = el("btnCsv");
 
-  // ---- adjustment modal refs
-  const adjModalBack = el("adjModalBack");
-  const btnAdjClose = el("btnAdjClose");
-  const btnAdjCancel = el("btnAdjCancel");
-  const btnAdjSave = el("btnAdjSave");
-  const adjTargetInfo = el("adjTargetInfo");
-  const adjTypeEl = el("adjType");
-  const adjAmountEl = el("adjAmount");
-  const adjReasonEl = el("adjReason");
-  const adjBuyerNameEl = el("adjBuyerName");
-  let currentAdjSale = null;
-
-  function openAdjModal(sale){
-    currentAdjSale = sale;
-    adjTargetInfo.textContent = `対象：${fmtYMD(sale.date)} / ${sale.id || ""}`;
-    adjTypeEl.value = "refund";
-    adjAmountEl.value = "";
-    adjReasonEl.value = "";
-    adjBuyerNameEl.value = "";
-adjModalBack.classList.add("on");
-    adjModalBack.setAttribute("aria-hidden","false");
-    setTimeout(()=> adjAmountEl.focus(), 0);
-  }
-  function closeAdjModal(){
-    adjModalBack.classList.remove("on");
-    adjModalBack.setAttribute("aria-hidden","true");
-    currentAdjSale = null;
-  }
-
-  btnAdjClose?.addEventListener("click", closeAdjModal);
-  btnAdjCancel?.addEventListener("click", closeAdjModal);
-  adjModalBack?.addEventListener("click", (e)=>{
-    if(e.target === adjModalBack) closeAdjModal();
-  });
-
-  function parseAmountInput(v){
-    const s = safeStr(v).replace(/[¥,\s]/g,"").trim();
-    if(!s) return null;
-    const n = Number(s);
-    if(Number.isFinite(n)) return n;
-    return null;
-  }
-
-  btnAdjSave?.addEventListener("click", async ()=>{
-    if(!currentAdjSale){
-      closeAdjModal();
-      return;
-    }
-    const type = adjTypeEl.value;
-    let amt = parseAmountInput(adjAmountEl.value);
-    if(amt===null){
-      toast("金額が空です");
-      return;
-    }
-    if(type==="refund" && amt>0) amt = -Math.abs(amt);
-
-    const payload = {
-      saleId: currentAdjSale.id,
-      createdAt: Date.now(),
-      type,
-      amount: amt,
-      reason: safeStr(adjReasonEl.value).trim(),
-      buyerNameNew: safeStr(adjBuyerNameEl.value).trim(),
-byEmail: (auth.currentUser?.email || "")
-    };
-
-    try{
-      await addDoc(collection(db, "sales_adjustments"), payload);
-      toast("保存しました");
-      closeAdjModal();
-      await loadAdjustments();
-      // apply again
-      rawSales.forEach(applyAdjustmentsToSale);
-      render();
-    }catch(err){
-      console.error(err);
-      toast("保存失敗（ルール確認）");
-      try{
-        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
-        toast("内容をコピーしました");
-      }catch(e){}
-    }
-  });
-
-
   // ---- helpers
   const pad2 = (n)=> String(n).padStart(2,"0");
   const fmtYMD = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
@@ -806,7 +719,7 @@ byEmail: (auth.currentUser?.email || "")
   function toast(msg){
     toastEl.textContent = msg;
     toastEl.classList.add("on");
-    setTimeout(()=>toastEl.classList.remove("on"), 1300);
+    setTimeout(()=>toastEl.classList.remove("on"), 1400);
   }
 
   function safeStr(v){
@@ -815,7 +728,7 @@ byEmail: (auth.currentUser?.email || "")
   }
 
   function normalizeText(s){
-    return safeStr(s).toLowerCase().replace(/\s+/g," ").trim();
+    return safeStr(s).toLowerCase().replace(/\\s+/g," ").trim();
   }
 
   function saleToSearchText(sale){
@@ -827,6 +740,8 @@ byEmail: (auth.currentUser?.email || "")
     parts.push(sale.memo);
     parts.push(sale.shippingOption);
     parts.push(sale.kind);
+    parts.push(sale.parentSaleId);
+    parts.push(sale.isRefund ? "refund" : "");
     if(Array.isArray(sale.items)){
       for(const it of sale.items){
         parts.push(it.name, it.productName, it.sku, it.code);
@@ -835,21 +750,48 @@ byEmail: (auth.currentUser?.email || "")
     return normalizeText(parts.filter(Boolean).join(" "));
   }
 
+  function escapeHtml(str){
+    return safeStr(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
   // ---- data cache
+  let rawSales = [];                 // normalized
+  let lastBuilt = null;              // { list, groups }
+  let currentUser = null;
 
-  // ---- adjustments cache (refund / correction)
-  // model: { saleId, createdAt(ms), type, amount, reason, buyerNameNew?, byEmail? }
-  let adjustments = [];                // raw
-  let adjBySaleId = new Map();         // saleId -> adjustments[]
+  // ---- option lists (自動収集)
+  let optPaymentMethods = [];
+  let optChannels = [];
 
-  let rawSales = [];    // normalized
-  let grouped = null;   // Map monthKey -> {monthKey, total, count, sales[]}
-  let lastBuilt = null;
+  function uniqSorted(arr){
+    const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
+    return [...set].sort((a,b)=>a.localeCompare(b,'ja'));
+  }
+  function buildOptionsHTML(list, current){
+    const cur = safeStr(current).trim();
+    const opts = [];
+    // current が候補に無い場合も先頭に出す
+    if(cur && !list.includes(cur)){
+      opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)}</option>`);
+    }
+    for(const v of list){
+      const sel = (v===cur) ? " selected" : "";
+      opts.push(`<option value="${escapeHtml(v)}"${sel}>${escapeHtml(v)}</option>`);
+    }
+    // 自由入力
+    opts.push(`<option value="__custom__">（自由入力）</option>`);
+    return opts.join("");
+  }
 
   // ---- routing
   btnHome.addEventListener("click", ()=> location.href = "index.html");
   btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
-  btnReload.addEventListener("click", ()=> loadSales(true));
+  btnReload.addEventListener("click", ()=> loadAll(true));
   btnCsv.addEventListener("click", ()=> exportCsv());
 
   yearSel.addEventListener("change", ()=> render());
@@ -865,7 +807,6 @@ byEmail: (auth.currentUser?.email || "")
     if(arr.length===0){
       for(let y=nowY; y>=nowY-3; y--) arr.push(y);
     }else{
-      // もし最新が今年より小さい等でも、今年を追加しておく
       if(!years.has(nowY)) arr.unshift(nowY);
     }
 
@@ -878,12 +819,8 @@ byEmail: (auth.currentUser?.email || "")
     }
   }
 
-  function normalizeSale(doc){
-    // 期待するフィールド例（存在しない場合は空扱い）
-    // createdAt: Timestamp / number / string
-    // total: number
-    // items: [{name, qty, price, subtotal}] etc
-    const data = doc.data ? doc.data() : doc;
+  function normalizeSale(docSnap){
+    const data = docSnap.data ? docSnap.data() : docSnap;
 
     let createdAt = data.createdAt;
     let date = null;
@@ -893,7 +830,6 @@ byEmail: (auth.currentUser?.email || "")
       else if(typeof createdAt === "string") date = new Date(createdAt);
     }catch(e){}
     if(!date || isNaN(date.getTime())){
-      // createdAtが無い/壊れてる場合はdocumentIdや更新日が無いので、とりあえず今
       date = new Date(0);
     }
 
@@ -909,115 +845,68 @@ byEmail: (auth.currentUser?.email || "")
       Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) ||
       items.reduce((a,b)=> a + (Number(b.subtotal)||0), 0);
 
+    // バンドル由来判定（存在するなら尊重、無い場合は kind/source でも判定）
+    const isBundled = Boolean(
+      data.isBundled ?? data.bundled ?? (safeStr(data.source).toLowerCase()==="bundle") ?? false
+    ) || (safeStr(data.kind).toLowerCase()==="bundle");
+    const parentSaleId = data.parentSaleId ?? data.parentId ?? "";
+
+    const isRefund = Boolean(data.isRefund ?? false) || (safeStr(data.channel).toLowerCase()==="refund") || (Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) < 0 && parentSaleId);
+
     const sale = {
-      id: doc.id ?? data.id ?? "",
+      id: docSnap.id ?? data.id ?? "",
       date,
       total,
       items,
 
-      // optional
       buyerName: data.buyerName ?? data.customerName ?? data.purchaserName ?? "",
       channel: data.channel ?? "",
       paymentMethod: data.paymentMethod ?? data.payment ?? "",
       memo: data.memo ?? data.note ?? "",
       shippingOption: data.shippingOption ?? "",
-      kind: data.kind ?? ""
+      kind: data.kind ?? "",
+
+      parentSaleId,
+      isRefund,
+
+      isBundled
     };
     sale._search = saleToSearchText(sale);
     sale._ym = ymKey(date);
     return sale;
   }
 
+  async function loadSales(){
+    // sales が増えていく前提：最新2000件まで（必要なら増やしてOK）
+    const q = query(
+      collection(db, "sales"),
+      orderBy("createdAt", "desc"),
+      limit(2000)
+    );
+    const snap = await getDocs(q);
 
-  async function loadAdjustments(){
-    try{
-      const qAdj = query(
-        collection(db, "sales_adjustments"),
-        orderBy("createdAt", "desc"),
-        limit(5000)
-      );
-      const snap = await getDocs(qAdj);
-      const list = [];
-      snap.forEach(d=>{
-        const data = d.data();
-        list.push({
-          id: d.id,
-          saleId: data.saleId || "",
-          createdAt: Number(data.createdAt || 0),
-          type: data.type || "",
-          amount: Number(data.amount || 0),
-          reason: data.reason || "",
-          buyerNameNew: data.buyerNameNew || "",
-byEmail: data.byEmail || ""
-        });
-      });
-      adjustments = list;
+    const list = [];
+    snap.forEach(d=> list.push(normalizeSale(d)));
+    rawSales = list;
 
-      const map = new Map();
-      for(const a of adjustments){
-        if(!a.saleId) continue;
-        if(!map.has(a.saleId)) map.set(a.saleId, []);
-        map.get(a.saleId).push(a);
-      }
-      for(const arr of map.values()){
-        arr.sort((x,y)=> (y.createdAt||0) - (x.createdAt||0));
-      }
-      adjBySaleId = map;
-    }catch(err){
-      console.warn("adjustments load skipped:", err?.message || err);
-      adjustments = [];
-      adjBySaleId = new Map();
+    // option lists を sales から自動収集
+    optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
+    optChannels       = uniqSorted(rawSales.map(x=>x.channel));
+
+    fillYearOptions(rawSales);
+    const latest = rawSales.find(s=> s.date.getTime()>0);
+    if(latest){
+      yearSel.value = String(latest.date.getFullYear());
     }
   }
 
-  function applyAdjustmentsToSale(sale){
-    const arr = adjBySaleId.get(sale.id) || [];
-    const delta = arr.reduce((a,b)=> a + Number(b.amount||0), 0);
-
-    // overrides: newest wins（購入者名のみ）
-    let buyerName = sale.buyerName;
-    for(const a of arr){
-      if(a.buyerNameNew) buyerName = a.buyerNameNew;
-    }
-
-    sale._adj = { list: arr, delta, has: arr.length>0, buyerName };
-    sale._adjTotal = Number(sale.total||0) + delta;
-
-    // 検索用テキストは元の memo を使う（上書きはしない）
-    sale._search = saleToSearchText({ ...sale, buyerName });
-    return sale;
-  }
-
-  async function loadSales(force=false){
-
+  async function loadAll(force=false){
     authStateEl.textContent = "読み込み中…";
     monthsEl.innerHTML = "";
     statsEl.innerHTML = "";
 
     try{
-      // sales が増えていく前提：まずは最新2000件まで（必要なら増やしてOK）
-      // ※件数が多いなら年/月でフィルタして取得する作りにもできる（後でやるなら言って）
-      const q = query(
-        collection(db, "sales"),
-        orderBy("createdAt", "desc"),
-        limit(2000)
-      );
-      const snap = await getDocs(q);
-
-      const list = [];
-      snap.forEach(d=> list.push(normalizeSale(d)));
-
-      rawSales = list;
-      grouped = null;
-      lastBuilt = null;
-
-      fillYearOptions(rawSales);
-
-      // デフォルト：最新年を選択
-      const latest = rawSales.find(s=> s.date.getTime()>0);
-      if(latest){
-        yearSel.value = String(latest.date.getFullYear());
-      }
+      await loadSales();
 
       authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
       render();
@@ -1041,11 +930,9 @@ byEmail: data.byEmail || ""
       g.count += 1;
       g.sales.push(s);
     }
-    // sort sales inside month by date desc
     for(const g of map.values()){
       g.sales.sort((a,b)=> b.date - a.date);
     }
-    // sort months desc
     const arr = [...map.values()].sort((a,b)=> b.monthKey.localeCompare(a.monthKey));
     return arr;
   }
@@ -1055,45 +942,29 @@ byEmail: data.byEmail || ""
     const m = monthSel.value === "all" ? null : Number(monthSel.value);
     const q = normalizeText(qEl.value);
 
-    let list = rawSales.filter(s=>{
+    return rawSales.filter(s=>{
       if(s.date.getTime()<=0) return false;
       if(s.date.getFullYear() !== y) return false;
       if(m && (s.date.getMonth()+1)!==m) return false;
       if(q && !s._search.includes(q)) return false;
       return true;
     });
-
-    return list;
   }
 
   function renderStats(list){
-    const totalRaw = list.reduce((a,b)=> a + Number(b.total||0), 0);
-    const totalAdj = list.reduce((a,b)=> a + Number((b._adjTotal ?? b.total) ||0), 0);
-    const totalDelta = totalAdj - totalRaw;
+    const total = list.reduce((a,b)=> a + Number(b.total||0), 0);
     const cnt = list.length;
 
     statsEl.innerHTML = "";
     const p1 = document.createElement("div");
     p1.className = "pill";
-    p1.textContent = `合計：${fmtMoney(totalAdj)}`;
+    p1.textContent = `合計：${fmtMoney(total)}`;
     statsEl.appendChild(p1);
 
     const p2 = document.createElement("div");
     p2.className = "pill";
     p2.textContent = `件数：${cnt.toLocaleString("ja-JP")} 件`;
     statsEl.appendChild(p2);
-
-    if(Math.abs(totalDelta) > 0.0001){
-      const p3 = document.createElement("div");
-      p3.className = "pill";
-      p3.textContent = `修正差分：${fmtMoney(totalDelta)}`;
-      statsEl.appendChild(p3);
-
-      const p4 = document.createElement("div");
-      p4.className = "pill";
-      p4.textContent = `元合計：${fmtMoney(totalRaw)}`;
-      statsEl.appendChild(p4);
-    }
   }
 
   function render(){
@@ -1170,43 +1041,49 @@ byEmail: data.byEmail || ""
           top.appendChild(b);
         }
 
-        // inline actions (iPhoneで変な位置に行かないように日付横へ)
-        if(s._adj?.has){
-          const bAdj = document.createElement("span");
-          bAdj.className = "badge adjBadge";
-          bAdj.textContent = "修正あり";
-          top.appendChild(bAdj);
+        if(s.isRefund){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "REFUND";
+          top.appendChild(b);
         }
-
-        const btnAdj = document.createElement("button");
-        btnAdj.className = "btn small";
-        btnAdj.textContent = "✎ 返金/修正";
-        btnAdj.addEventListener("click", (e)=>{
-          e.preventDefault();
-          e.stopPropagation();
-          openAdjModal(s);
-        });
-        top.appendChild(btnAdj);
+        if(s.parentSaleId){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "↩ " + s.parentSaleId;
+          top.appendChild(b);
+        }
+        if(s.isBundled){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "BUNDLE";
+          top.appendChild(b);
+        }
 
         const meta = document.createElement("div");
         meta.className = "saleMeta";
-        meta.textContent = (s._adj?.buyerName ?? s.buyerName) || "—";
+        meta.textContent = [s.buyerName, s.memo].filter(Boolean).join(" / ") || "—";
 
         sLeft.appendChild(top);
         sLeft.appendChild(meta);
 
         const sRight = document.createElement("div");
         sRight.className = "saleRight";
-        {
-          const raw = Number(s.total||0);
-          const adj = Number((s._adjTotal ?? raw) || 0);
-          const hasAdj = (s._adj?.has);
-          const rawHtml = hasAdj ? `<span class="amountStrike">${fmtMoney(raw)}</span>` : "";
-          sRight.innerHTML = `<div class="saleTotal">${rawHtml}${fmtMoney(adj)}</div><div class="saleId">${s.id || ""}</div>`;
-        }
+        sRight.innerHTML = `<div class="saleTotal">${fmtMoney(s.total)}</div><div class="saleId">${escapeHtml(s.id || "")}</div>`;
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "editBtn";
+        editBtn.textContent = "✎";
+        editBtn.title = "編集";
+        editBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          e.stopPropagation(); // detailsの開閉を防ぐ
+          openEditChoiceModal(s);
+        });
 
         sSum.appendChild(sLeft);
         sSum.appendChild(sRight);
+        sSum.appendChild(editBtn);
         sDet.appendChild(sSum);
 
         const items = document.createElement("div");
@@ -1242,95 +1119,14 @@ byEmail: data.byEmail || ""
           items.appendChild(table);
         }
 
+        // 返金は sales（マイナス）として保存されるため、追加の claims 表示は不要
         sDet.appendChild(items);
-
-        // adjustments display
-        const adjArr = s._adj?.list || [];
-        if(adjArr.length){
-          const box = document.createElement("div");
-          box.className = "adjBox";
-
-          const head = document.createElement("div");
-          head.className = "adjHead";
-
-          const title = document.createElement("div");
-          title.className = "adjTitle";
-          title.textContent = "返金・修正履歴";
-
-          const headBtn = document.createElement("button");
-          headBtn.className = "btn small";
-          headBtn.textContent = "＋ 追加";
-          headBtn.addEventListener("click", (e)=>{
-            e.preventDefault();
-            e.stopPropagation();
-            openAdjModal(s);
-          });
-
-          head.appendChild(title);
-          head.appendChild(headBtn);
-          box.appendChild(head);
-
-          const list = document.createElement("div");
-          list.className = "adjList";
-
-          for(const a of adjArr){
-            const row = document.createElement("div");
-            row.className = "adjRow";
-
-            const left = document.createElement("div");
-            left.className = "adjL";
-
-            const type = document.createElement("div");
-            type.className = "adjType";
-            type.textContent = a.type === "refund" ? "クレーム返金" : "打ち間違い修正";
-
-            const meta = document.createElement("div");
-            meta.className = "adjMeta";
-            const d = a.createdAt ? fmtYMD(new Date(a.createdAt)) : "";
-            meta.textContent = [d, a.reason].filter(Boolean).join(" / ") || "—";
-
-            left.appendChild(type);
-            left.appendChild(meta);
-
-            const right = document.createElement("div");
-            right.className = "adjR";
-
-            const amt = document.createElement("div");
-            amt.className = "adjAmt";
-            amt.textContent = fmtMoney(a.amount || 0);
-
-            const who = document.createElement("div");
-            who.className = "adjWho";
-            who.textContent = a.byEmail || "";
-
-            right.appendChild(amt);
-            right.appendChild(who);
-
-            row.appendChild(left);
-            row.appendChild(right);
-
-            list.appendChild(row);
-          }
-
-          box.appendChild(list);
-          sDet.appendChild(box);
-        }
-
         salesWrap.appendChild(sDet);
       }
 
       det.appendChild(salesWrap);
       monthsEl.appendChild(det);
     }
-  }
-
-  function escapeHtml(str){
-    return safeStr(str)
-      .replaceAll("&","&amp;")
-      .replaceAll("<","&lt;")
-      .replaceAll(">","&gt;")
-      .replaceAll('"',"&quot;")
-      .replaceAll("'","&#039;");
   }
 
   function exportCsv(){
@@ -1341,7 +1137,7 @@ byEmail: data.byEmail || ""
 
     const list = lastBuilt.list.slice().sort((a,b)=> b.date - a.date);
 
-    const header = ["id","date","total","adjustedTotal","buyerName","channel","paymentMethod","memo","itemName","qty","price","subtotal"];
+    const header = ["id","date","total","buyerName","channel","paymentMethod","kind","parentSaleId","isRefund","memo","itemName","qty","price","subtotal"];
     const lines = [header.join(",")];
 
     for(const s of list){
@@ -1349,10 +1145,12 @@ byEmail: data.byEmail || ""
         csvCell(s.id),
         csvCell(fmtYMD(s.date)),
         csvCell(s.total),
-        csvCell((s._adjTotal ?? s.total) || 0),
         csvCell(s.buyerName),
         csvCell(s.channel),
         csvCell(s.paymentMethod),
+        csvCell(s.kind),
+        csvCell(s.parentSaleId),
+        csvCell(s.isRefund ? "true" : ""),
         csvCell(s.memo)
       ];
 
@@ -1372,7 +1170,7 @@ byEmail: data.byEmail || ""
       }
     }
 
-    const blob = new Blob(["\ufeff" + lines.join("\n")], {type:"text/csv;charset=utf-8"});
+    const blob = new Blob(["\\ufeff" + lines.join("\\n")], {type:"text/csv;charset=utf-8"});
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -1391,10 +1189,447 @@ byEmail: data.byEmail || ""
 
   function csvCell(v){
     const s = safeStr(v);
-    if(/[",\n]/.test(s)){
+    if(/[",\\n]/.test(s)){
       return '"' + s.replaceAll('"','""') + '"';
     }
     return s;
+  }
+
+  // ======================
+  //  編集フロー
+  // ======================
+  function closeModal(modal){
+    if(modal && modal.remove) modal.remove();
+  }
+
+  function openEditChoiceModal(sale){
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.innerHTML = `
+      <div class="modalCard" role="dialog" aria-modal="true">
+        <div class="modalTitle">編集内容を選択</div>
+        <div class="modalSub">クレーム返金：マイナスの sales を新規作成 / 打ち間違い修正：salesを上書き</div>
+        <div class="modalBtns">
+          <button class="modalBtn danger" id="btnClaim">
+            <span>クレーム返金処理</span><span class="hint">追記</span>
+          </button>
+          <button class="modalBtn primary" id="btnFix">
+            <span>打ち間違い修正</span><span class="hint">上書き</span>
+          </button>
+          <button class="modalBtn" id="btnCancel">
+            <span>キャンセル</span><span class="hint">閉じる</span>
+          </button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener("click", (e)=>{
+      if(e.target === modal) closeModal(modal);
+    });
+    document.body.appendChild(modal);
+
+    modal.querySelector("#btnCancel").onclick = ()=> closeModal(modal);
+
+    // refund の sales には返金処理を重ねない（必要なら打ち間違い修正で編集）
+    if(sale.isRefund){
+      const bc = modal.querySelector("#btnClaim");
+      bc.disabled = true;
+      bc.style.opacity = "0.45";
+      bc.style.pointerEvents = "none";
+      bc.querySelector(".hint").textContent = "不可";
+    }
+
+    modal.querySelector("#btnClaim").onclick = ()=>{
+      closeModal(modal);
+      openClaimEditor(sale);
+    };
+
+    modal.querySelector("#btnFix").onclick = ()=>{
+      closeModal(modal);
+      openFullEditEditor(sale);
+    };
+  }
+function openClaimEditor(sale){
+  const modal = document.createElement("div");
+  modal.className = "modal";
+
+  modal.innerHTML = `
+    <div class="modalCard" role="dialog" aria-modal="true">
+      <div class="modalTitle">クレーム返金処理（マイナス sales 作成）</div>
+      <div class="modalSub">元の sales は変更しません。紐づく「返金用の sales（マイナス）」を新規作成します。</div>
+
+      <div class="form">
+        <div class="row">
+          <div class="input">
+            <div class="lab">返金額（円）</div>
+            <input id="refundAmt" inputmode="numeric" type="number" min="1" step="1" placeholder="例：2000" />
+          </div>
+          <div class="input">
+            <div class="lab">対象 sale</div>
+            <input value="${escapeHtml(sale.id)}" disabled />
+          </div>
+        </div>
+
+        <div class="input">
+          <div class="lab">事由</div>
+          <textarea id="reason" placeholder="例：商品不良 / 破損 / 誤配送 など"></textarea>
+        </div>
+
+        <div class="miniActions">
+          <button class="sbtn primary" id="save">保存（返金 sales 作成）</button>
+          <button class="sbtn" id="cancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", (e)=>{
+    if(e.target === modal) closeModal(modal);
+  });
+  document.body.appendChild(modal);
+
+  modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
+
+  modal.querySelector("#save").onclick = async ()=>{
+    try{
+      const amt = Number(modal.querySelector("#refundAmt").value || 0);
+      const reason = safeStr(modal.querySelector("#reason").value || "").trim();
+      if(!(amt>0)){
+        toast("返金額を入れてね");
+        return;
+      }
+      if(!reason){
+        toast("事由を入れてね");
+        return;
+      }
+
+      // 返金は「紐づくマイナス sales」を新規作成
+      await addDoc(collection(db,"sales"),{
+        parentSaleId: sale.id,
+        isRefund: true,
+
+        createdAt: serverTimestamp(),
+
+        buyerName: sale.buyerName || "",
+        channel: sale.channel || "refund",
+        paymentMethod: sale.paymentMethod || "",
+        shippingOption: sale.shippingOption || "",
+        kind: "-",
+
+        memo: `返金：${reason}`,
+
+        items: [{
+          name: "クレーム返金",
+          qty: 1,
+          price: -Math.abs(amt),
+          subtotal: -Math.abs(amt)
+        }],
+        total: -Math.abs(amt),
+
+        createdBy: (currentUser?.email || currentUser?.uid || "")
+      });
+
+      toast("返金 sales を作成しました");
+      closeModal(modal);
+
+      await loadAll(true);
+
+    }catch(err){
+      console.error(err);
+      toast("保存失敗");
+    }
+  };
+}
+
+
+  function toLocalInputValue(date){
+    // datetime-local は「YYYY-MM-DDTHH:mm」
+    const d = date instanceof Date ? date : new Date(date);
+    if(isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = pad2(d.getMonth()+1);
+    const dd = pad2(d.getDate());
+    const hh = pad2(d.getHours());
+    const mm = pad2(d.getMinutes());
+    return `${y}-${m}-${dd}T${hh}:${mm}`;
+  }
+
+  function parseLocalInputValue(v){
+    // ブラウザによってはローカルタイム扱いで Date 化される
+    const d = new Date(v);
+    return d;
+  }
+
+  function recalcItems(items){
+    return items.map(it=>{
+      const qty = Number(it.qty||0);
+      const price = Number(it.price||0);
+      return { ...it, qty, price, subtotal: qty*price };
+    });
+  }
+
+  function openFullEditEditor(sale){
+    // バンドル由来は上書き禁止
+    if(sale.isBundled){
+      toast("このデータは編集できません。管理者へ修正内容を伝えてください。");
+      return;
+    }
+
+    const modal = document.createElement("div");
+    modal.className = "modal";
+
+    // shallow copy
+    let items = (sale.items || []).map(it=>({ name: safeStr(it.name||""), qty: Number(it.qty||0), price: Number(it.price||0) }));
+    items = recalcItems(items);
+
+    const totalAuto = items.reduce((a,b)=>a+Number(b.subtotal||0),0);
+
+    modal.innerHTML = `
+      <div class="modalCard" role="dialog" aria-modal="true">
+        <div class="modalTitle">打ち間違い修正（sales上書き）</div>
+        <div class="modalSub">カード内の情報をすべて編集できます。保存すると sales を update します。</div>
+
+        <div class="form">
+          <div class="row">
+            <div class="input">
+              <div class="lab">購入者氏名</div>
+              <input id="buyerName" value="${escapeHtml(safeStr(sale.buyerName))}" placeholder="例：山田 太郎" />
+            </div>
+            <div class="input">
+              <div class="lab">日付</div>
+              <input id="createdAt" type="datetime-local" value="${escapeHtml(toLocalInputValue(sale.date))}" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+              <div class="lab">決済方法</div>
+              <select id="paymentMethodSel">
+                ${buildOptionsHTML(optPaymentMethods, sale.paymentMethod)}
+              </select>
+              <input id="paymentMethodCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：現金 / PayPay）" />
+            </div>
+            <div class="input">
+              <div class="lab">チャンネル</div>
+              <select id="channelSel">
+                ${buildOptionsHTML(optChannels, sale.channel)}
+              </select>
+              <input id="channelCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：マルシェ / インスタ）" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+  <div class="lab">種別 kind</div>
+  <select id="kindSel">
+    <option value="">-</option>
+    <option value="stock">stock</option>
+    <option value="order">order</option>
+  </select>
+</div>
+            <div class="input">
+              <div class="lab">配送 shippingOption</div>
+              <input id="shippingOption" value="${escapeHtml(safeStr(sale.shippingOption))}" placeholder="例：持ち帰り" />
+            </div>
+          </div>
+
+          <div class="input">
+            <div class="lab">メモ</div>
+            <textarea id="memo" placeholder="メモ（任意）">${escapeHtml(safeStr(sale.memo))}</textarea>
+          </div>
+
+          <div class="input">
+            <div class="lab">明細（items）</div>
+            <table class="miniTable" id="itemsTbl">
+              <thead>
+                <tr>
+                  <th style="width:42%;">商品</th>
+                  <th style="width:18%;">数量</th>
+                  <th style="width:20%;">単価</th>
+                  <th style="width:20%;">小計</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+
+            <div class="miniActions">
+              <button class="sbtn" id="addItem">＋ 行追加</button>
+              <button class="sbtn danger" id="delItem">－ 最終行削除</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+              <div class="lab">合計（円）</div>
+              <input id="total" type="number" step="1" value="${escapeHtml(String(totalAuto))}" />
+            </div>
+            <div class="input">
+              <div class="lab">ID（編集不可）</div>
+              <input value="${escapeHtml(safeStr(sale.id))}" disabled />
+            </div>
+          </div>
+
+          <div class="miniActions">
+            <button class="sbtn primary" id="save">保存（上書き）</button>
+            <button class="sbtn" id="cancel">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.addEventListener("click", (e)=>{
+      if(e.target === modal) closeModal(modal);
+    });
+    document.body.appendChild(modal);
+
+    // --- selects: 選択式 + 自由入力
+    const paySel = modal.querySelector("#paymentMethodSel");
+    const payCus = modal.querySelector("#paymentMethodCustom");
+    const chSel  = modal.querySelector("#channelSel");
+    const chCus  = modal.querySelector("#channelCustom");
+    const kSel   = modal.querySelector("#kindSel");
+
+    kSel.value = (sale.kind==="stock"||sale.kind==="order") ? sale.kind : "";
+
+    function wireSelect(sel, custom, initial){
+      const init = safeStr(initial).trim();
+      // 初期が空のときは「（自由入力）」ではなく最初の候補に合わせる
+      if(!init && sel && sel.options.length){
+        // 何もしない（既に最初のoptionが選択）
+      }
+      const apply = ()=>{
+        if(sel.value === "__custom__"){
+          custom.style.display = "block";
+          custom.focus();
+        }else{
+          custom.style.display = "none";
+          custom.value = "";
+        }
+      };
+      sel.addEventListener("change", apply);
+      apply();
+    }
+    wireSelect(paySel, payCus, sale.paymentMethod);
+    wireSelect(chSel,  chCus,  sale.channel);
+
+    const tbody = modal.querySelector("#itemsTbl tbody");
+
+    function renderItems(){
+      tbody.innerHTML = "";
+      items = recalcItems(items);
+      for(let i=0;i<items.length;i++){
+        const it = items[i];
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td><input data-k="name" data-i="${i}" value="${escapeHtml(it.name)}" placeholder="商品名" /></td>
+          <td><input data-k="qty" data-i="${i}" type="number" step="1" inputmode="numeric" value="${escapeHtml(String(it.qty||0))}" /></td>
+          <td><input data-k="price" data-i="${i}" type="number" step="1" inputmode="numeric" value="${escapeHtml(String(it.price||0))}" /></td>
+          <td><input data-k="subtotal" data-i="${i}" value="${escapeHtml(String(it.subtotal||0))}" disabled /></td>
+        `;
+        tbody.appendChild(tr);
+      }
+      // total は items から再計算して自動で入れる（手入力したいなら後でスイッチ足す）
+      const t = items.reduce((a,b)=>a+Number(b.subtotal||0),0);
+      modal.querySelector("#total").value = String(Math.round(t));
+    }
+
+    tbody.addEventListener("input", (e)=>{
+      const inp = e.target;
+      if(!(inp instanceof HTMLInputElement)) return;
+      const i = Number(inp.dataset.i);
+      const k = inp.dataset.k;
+      if(!Number.isFinite(i) || !k) return;
+
+      if(k==="name"){
+        items[i].name = inp.value;
+      }else if(k==="qty"){
+        items[i].qty = Number(inp.value||0);
+      }else if(k==="price"){
+        items[i].price = Number(inp.value||0);
+      }
+      renderItems();
+    });
+
+    modal.querySelector("#addItem").onclick = ()=>{
+      items.push({ name:"", qty:1, price:0, subtotal:0 });
+      renderItems();
+    };
+    modal.querySelector("#delItem").onclick = ()=>{
+      if(items.length<=1){
+        toast("これ以上減らせない");
+        return;
+      }
+      items.pop();
+      renderItems();
+    };
+
+    modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
+
+    modal.querySelector("#save").onclick = async ()=>{
+      try{
+        const buyerName = safeStr(modal.querySelector("#buyerName").value || "").trim();
+        const createdAtStr = safeStr(modal.querySelector("#createdAt").value || "");
+        const paymentMethod = (paySel.value === "__custom__"
+          ? safeStr(payCus.value || "").trim()
+          : safeStr(paySel.value || "").trim());
+        const channel = (chSel.value === "__custom__"
+          ? safeStr(chCus.value || "").trim()
+          : safeStr(chSel.value || "").trim());
+        const memo = safeStr(modal.querySelector("#memo").value || "").trim();
+        const shippingOption = safeStr(modal.querySelector("#shippingOption").value || "").trim();
+                const kind = safeStr(kSel.value || "").trim();
+
+        const createdAtDate = parseLocalInputValue(createdAtStr);
+        if(!createdAtStr || isNaN(createdAtDate.getTime())){
+          toast("日付が不正");
+          return;
+        }
+
+        // items 正規化
+        items = recalcItems(items).map(it=>({
+          name: safeStr(it.name||"").trim(),
+          qty: Number(it.qty||0),
+          price: Number(it.price||0),
+          subtotal: Number(it.subtotal||0)
+        })).filter(it=> it.name || it.qty || it.price);
+
+        const total = Number(modal.querySelector("#total").value || 0);
+
+        if(!items.length){
+          toast("明細が空です");
+          return;
+        }
+        if(!(total>=0)){
+          toast("合計が不正");
+          return;
+        }
+
+        await updateDoc(doc(db, "sales", sale.id), {
+          buyerName,
+          createdAt: createdAtDate,
+          paymentMethod,
+          channel,
+          memo,
+          shippingOption,
+          kind,
+          items,
+          total,
+          updatedAt: serverTimestamp(),
+          updatedBy: (currentUser?.email || currentUser?.uid || "")
+        });
+
+        toast("上書き保存しました");
+        closeModal(modal);
+
+        await loadAll(true);
+      }catch(err){
+        console.error(err);
+        toast("保存失敗（ルール確認）");
+      }
+    };
+
+    // 初期レンダ
+    if(items.length===0) items = [{name:"", qty:1, price:0, subtotal:0}];
+    renderItems();
   }
 
   // ---- auth gate (ログインしてなければ login.html へ)
@@ -1404,8 +1639,9 @@ byEmail: data.byEmail || ""
       setTimeout(()=> location.href = "login.html", 250);
       return;
     }
+    currentUser = user;
     authStateEl.textContent = `ログイン中：${user.email || "user"}`;
-    loadSales();
+    loadAll();
   });
 </script>
 
