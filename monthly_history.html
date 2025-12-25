@@ -384,6 +384,175 @@
       font-weight: 800;
       line-height: 1.5;
     }
+  
+    /* --- adjustments (refund / correction) --- */
+    .btn.small{
+      padding: 7px 10px;
+      font-size: 11px;
+      font-weight: 1000;
+      gap:6px;
+    }
+    .btn.danger{
+      background: linear-gradient(180deg, rgba(208,100,99,.22), rgba(255,255,255,.78));
+      border-color: rgba(208,100,99,.28);
+    }
+    .amountStrike{
+      text-decoration: line-through;
+      opacity: .55;
+      margin-right: 6px;
+      font-weight: 900;
+      font-size: 12px;
+    }
+    .adjBadge{
+      background: rgba(208,100,99,.12);
+      border-color: rgba(208,100,99,.25);
+      color: rgba(34,34,34,.78);
+    }
+    .adjBox{
+      margin-top: 8px;
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      background: rgba(255,255,255,.62);
+      padding: 10px;
+      box-shadow: 0 10px 18px rgba(0,0,0,.04);
+    }
+    .adjHead{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom: 8px;
+    }
+    .adjTitle{
+      font-weight: 1000;
+      font-size: 12px;
+      color: rgba(34,34,34,.78);
+    }
+    .adjList{
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+    }
+    .adjRow{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      padding: 8px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(0,0,0,.06);
+      background: rgba(255,255,255,.60);
+    }
+    .adjL{
+      min-width:0;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .adjType{
+      font-weight: 1000;
+      font-size: 12px;
+    }
+    .adjMeta{
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 800;
+      overflow:hidden;
+      text-overflow: ellipsis;
+      white-space:nowrap;
+      max-width: 62vw;
+    }
+    .adjR{
+      text-align:right;
+      white-space:nowrap;
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .adjAmt{
+      font-weight: 1000;
+      font-size: 12px;
+    }
+    .adjWho{
+      font-size: 11px;
+      color: rgba(34,34,34,.48);
+      font-weight: 800;
+    }
+
+    .modalBack{
+      position:fixed;
+      inset:0;
+      background: rgba(0,0,0,.35);
+      display:none;
+      align-items:center;
+      justify-content:center;
+      padding: 18px 14px;
+      z-index: 120;
+    }
+    .modalBack.on{ display:flex; }
+    .modal{
+      width: min(520px, 100%);
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: linear-gradient(180deg, rgba(255,255,255,.92), rgba(255,255,255,.80));
+      box-shadow: 0 22px 60px rgba(0,0,0,.22);
+      overflow:hidden;
+    }
+    .modalHead{
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .modalHead .t{
+      font-weight: 1000;
+      font-size: 14px;
+      letter-spacing: .02em;
+    }
+    .modalBody{
+      padding: 12px 14px 14px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .row .field{
+      flex: 1 1 180px;
+      min-width: 180px;
+    }
+    textarea{
+      width:100%;
+      border:0;
+      outline:none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+      color: rgba(34,34,34,.88);
+      resize: vertical;
+      min-height: 70px;
+      padding: 2px 0;
+    }
+    .help{
+      font-size: 12px;
+      color: rgba(34,34,34,.58);
+      font-weight: 800;
+      line-height: 1.5;
+    }
+    .modalFoot{
+      padding: 12px 14px 14px;
+      display:flex;
+      gap:10px;
+      justify-content:flex-end;
+      border-top: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.55);
+    }
+
   </style>
 </head>
 
@@ -401,6 +570,7 @@
           <button class="btn" id="btnHome">🏠 HOME</button>
           <button class="btn" id="btnOther">⬛ OTHER</button>
           <button class="btn primary" id="btnReload">↻ 再読込</button>
+          <button class="btn" id="btnCsv">📄 CSV</button>
         </div>
       </div>
 
@@ -431,12 +601,7 @@
                 <input id="q" type="search" placeholder="購入者名 / チャンネル / メモなど" />
               </div>
             </div>
-
-            <div class="navBtns">
-              <button class="btn" id="btnCsv">📄 CSV</button>
-              <button class="btn" id="btnCollapse">▾ 全部たたむ</button>
-            </div>
-          </div>
+</div>
 
           <div class="statRow" id="stats"></div>
 
@@ -449,6 +614,58 @@
         </div>
       </div>
 
+      
+      <!-- refund / correction modal -->
+      <div class="modalBack" id="adjModalBack" aria-hidden="true">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="adjModalTitle">
+          <div class="modalHead">
+            <div class="t" id="adjModalTitle">返金・修正</div>
+            <button class="btn small" id="btnAdjClose">✕ 閉じる</button>
+          </div>
+
+          <div class="modalBody">
+            <div class="help" id="adjTargetInfo">対象：—</div>
+
+            <div class="row">
+              <div class="field">
+                <label>種別</label>
+                <select id="adjType">
+                  <option value="refund">クレーム返金</option>
+                  <option value="typo">打ち間違い修正</option>
+                </select>
+              </div>
+
+              <div class="field">
+                <label>金額（差分）</label>
+                <input id="adjAmount" inputmode="numeric" placeholder="-500 など（返金はマイナス）" />
+              </div>
+            </div>
+
+            <div class="field">
+              <label>理由 / メモ</label>
+              <textarea id="adjReason" placeholder="例：クレーム対応のため一部返金 / 単価打ち間違いを修正 など"></textarea>
+            </div>
+
+            <div class="row">
+              <div class="field">
+                <label>購入者名（上書き 任意）</label>
+                <input id="adjBuyerName" placeholder="空なら変更なし" />
+              </div>
+</div>
+
+            <div class="help">
+              ・売上（sales）自体は触らず、<b>差分（adjustment）</b>として記録します。<br>
+              ・返金は金額がマイナスになります（プラスで入れたら自動でマイナスに補正します）。
+            </div>
+          </div>
+
+          <div class="modalFoot">
+            <button class="btn" id="btnAdjCancel">キャンセル</button>
+            <button class="btn primary" id="btnAdjSave">保存</button>
+          </div>
+        </div>
+      </div>
+
       <div class="toast" id="toast"></div>
     </div>
   </div>
@@ -457,7 +674,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   import {
-    getFirestore, collection, query, orderBy, limit, getDocs
+    getFirestore, collection, query, orderBy, limit, getDocs, addDoc
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   // ✅ 本番（既存ファイルと同じ）
@@ -488,8 +705,92 @@
   const btnHome = el("btnHome");
   const btnOther = el("btnOther");
   const btnReload = el("btnReload");
-  const btnCollapse = el("btnCollapse");
   const btnCsv = el("btnCsv");
+
+  // ---- adjustment modal refs
+  const adjModalBack = el("adjModalBack");
+  const btnAdjClose = el("btnAdjClose");
+  const btnAdjCancel = el("btnAdjCancel");
+  const btnAdjSave = el("btnAdjSave");
+  const adjTargetInfo = el("adjTargetInfo");
+  const adjTypeEl = el("adjType");
+  const adjAmountEl = el("adjAmount");
+  const adjReasonEl = el("adjReason");
+  const adjBuyerNameEl = el("adjBuyerName");
+  let currentAdjSale = null;
+
+  function openAdjModal(sale){
+    currentAdjSale = sale;
+    adjTargetInfo.textContent = `対象：${fmtYMD(sale.date)} / ${sale.id || ""}`;
+    adjTypeEl.value = "refund";
+    adjAmountEl.value = "";
+    adjReasonEl.value = "";
+    adjBuyerNameEl.value = "";
+adjModalBack.classList.add("on");
+    adjModalBack.setAttribute("aria-hidden","false");
+    setTimeout(()=> adjAmountEl.focus(), 0);
+  }
+  function closeAdjModal(){
+    adjModalBack.classList.remove("on");
+    adjModalBack.setAttribute("aria-hidden","true");
+    currentAdjSale = null;
+  }
+
+  btnAdjClose?.addEventListener("click", closeAdjModal);
+  btnAdjCancel?.addEventListener("click", closeAdjModal);
+  adjModalBack?.addEventListener("click", (e)=>{
+    if(e.target === adjModalBack) closeAdjModal();
+  });
+
+  function parseAmountInput(v){
+    const s = safeStr(v).replace(/[¥,\s]/g,"").trim();
+    if(!s) return null;
+    const n = Number(s);
+    if(Number.isFinite(n)) return n;
+    return null;
+  }
+
+  btnAdjSave?.addEventListener("click", async ()=>{
+    if(!currentAdjSale){
+      closeAdjModal();
+      return;
+    }
+    const type = adjTypeEl.value;
+    let amt = parseAmountInput(adjAmountEl.value);
+    if(amt===null){
+      toast("金額が空です");
+      return;
+    }
+    if(type==="refund" && amt>0) amt = -Math.abs(amt);
+
+    const payload = {
+      saleId: currentAdjSale.id,
+      createdAt: Date.now(),
+      type,
+      amount: amt,
+      reason: safeStr(adjReasonEl.value).trim(),
+      buyerNameNew: safeStr(adjBuyerNameEl.value).trim(),
+byEmail: (auth.currentUser?.email || "")
+    };
+
+    try{
+      await addDoc(collection(db, "sales_adjustments"), payload);
+      toast("保存しました");
+      closeAdjModal();
+      await loadAdjustments();
+      // apply again
+      rawSales.forEach(applyAdjustmentsToSale);
+      render();
+    }catch(err){
+      console.error(err);
+      toast("保存失敗（ルール確認）");
+      try{
+        await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+        toast("内容をコピーしました");
+      }catch(e){}
+    }
+  });
+
 
   // ---- helpers
   const pad2 = (n)=> String(n).padStart(2,"0");
@@ -533,6 +834,12 @@
   }
 
   // ---- data cache
+
+  // ---- adjustments cache (refund / correction)
+  // model: { saleId, createdAt(ms), type, amount, reason, buyerNameNew?, byEmail? }
+  let adjustments = [];                // raw
+  let adjBySaleId = new Map();         // saleId -> adjustments[]
+
   let rawSales = [];    // normalized
   let grouped = null;   // Map monthKey -> {monthKey, total, count, sales[]}
   let lastBuilt = null;
@@ -541,17 +848,11 @@
   btnHome.addEventListener("click", ()=> location.href = "index.html");
   btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
   btnReload.addEventListener("click", ()=> loadSales(true));
-  btnCollapse.addEventListener("click", ()=> collapseAll());
   btnCsv.addEventListener("click", ()=> exportCsv());
 
   yearSel.addEventListener("change", ()=> render());
   monthSel.addEventListener("change", ()=> render());
   qEl.addEventListener("input", ()=> render());
-
-  function collapseAll(){
-    monthsEl.querySelectorAll("details").forEach(d=> d.open=false);
-    toast("たたみました");
-  }
 
   function fillYearOptions(sales){
     const years = new Set(sales.map(s=> s.date.getFullYear()));
@@ -625,7 +926,68 @@
     return sale;
   }
 
+
+  async function loadAdjustments(){
+    try{
+      const qAdj = query(
+        collection(db, "sales_adjustments"),
+        orderBy("createdAt", "desc"),
+        limit(5000)
+      );
+      const snap = await getDocs(qAdj);
+      const list = [];
+      snap.forEach(d=>{
+        const data = d.data();
+        list.push({
+          id: d.id,
+          saleId: data.saleId || "",
+          createdAt: Number(data.createdAt || 0),
+          type: data.type || "",
+          amount: Number(data.amount || 0),
+          reason: data.reason || "",
+          buyerNameNew: data.buyerNameNew || "",
+byEmail: data.byEmail || ""
+        });
+      });
+      adjustments = list;
+
+      const map = new Map();
+      for(const a of adjustments){
+        if(!a.saleId) continue;
+        if(!map.has(a.saleId)) map.set(a.saleId, []);
+        map.get(a.saleId).push(a);
+      }
+      for(const arr of map.values()){
+        arr.sort((x,y)=> (y.createdAt||0) - (x.createdAt||0));
+      }
+      adjBySaleId = map;
+    }catch(err){
+      console.warn("adjustments load skipped:", err?.message || err);
+      adjustments = [];
+      adjBySaleId = new Map();
+    }
+  }
+
+  function applyAdjustmentsToSale(sale){
+    const arr = adjBySaleId.get(sale.id) || [];
+    const delta = arr.reduce((a,b)=> a + Number(b.amount||0), 0);
+
+    // overrides: newest wins（購入者名のみ）
+    let buyerName = sale.buyerName;
+    for(const a of arr){
+      if(a.buyerNameNew) buyerName = a.buyerNameNew;
+    }
+
+    sale._adj = { list: arr, delta, has: arr.length>0, buyerName };
+    sale._adjTotal = Number(sale.total||0) + delta;
+
+    // 検索用テキストは元の memo を使う（上書きはしない）
+    sale._search = saleToSearchText({ ...sale, buyerName });
+    return sale;
+  }
+
   async function loadSales(force=false){
+
     authStateEl.textContent = "読み込み中…";
     monthsEl.innerHTML = "";
     statsEl.innerHTML = "";
@@ -703,20 +1065,15 @@
   }
 
   function renderStats(list){
-    const total = list.reduce((a,b)=> a + Number(b.total||0), 0);
+    const totalRaw = list.reduce((a,b)=> a + Number(b.total||0), 0);
+    const totalAdj = list.reduce((a,b)=> a + Number((b._adjTotal ?? b.total) ||0), 0);
+    const totalDelta = totalAdj - totalRaw;
     const cnt = list.length;
-
-    const byChannel = new Map();
-    for(const s of list){
-      const k = safeStr(s.channel || "未設定");
-      byChannel.set(k, (byChannel.get(k)||0) + Number(s.total||0));
-    }
-    const topChannel = [...byChannel.entries()].sort((a,b)=> b[1]-a[1])[0];
 
     statsEl.innerHTML = "";
     const p1 = document.createElement("div");
     p1.className = "pill";
-    p1.textContent = `合計：${fmtMoney(total)}`;
+    p1.textContent = `合計：${fmtMoney(totalAdj)}`;
     statsEl.appendChild(p1);
 
     const p2 = document.createElement("div");
@@ -724,11 +1081,16 @@
     p2.textContent = `件数：${cnt.toLocaleString("ja-JP")} 件`;
     statsEl.appendChild(p2);
 
-    if(topChannel){
+    if(Math.abs(totalDelta) > 0.0001){
       const p3 = document.createElement("div");
       p3.className = "pill";
-      p3.textContent = `最大チャンネル：${topChannel[0]}（${fmtMoney(topChannel[1])}）`;
+      p3.textContent = `修正差分：${fmtMoney(totalDelta)}`;
       statsEl.appendChild(p3);
+
+      const p4 = document.createElement("div");
+      p4.className = "pill";
+      p4.textContent = `元合計：${fmtMoney(totalRaw)}`;
+      statsEl.appendChild(p4);
     }
   }
 
@@ -808,16 +1170,48 @@
 
         const meta = document.createElement("div");
         meta.className = "saleMeta";
-        meta.textContent = [s.buyerName, s.memo].filter(Boolean).join(" / ") || "—";
+        meta.textContent = (s._adj?.buyerName ?? s.buyerName) || "—";
 
         sLeft.appendChild(top);
         sLeft.appendChild(meta);
 
         const sRight = document.createElement("div");
         sRight.className = "saleRight";
-        sRight.innerHTML = `<div class="saleTotal">${fmtMoney(s.total)}</div><div class="saleId">${s.id || ""}</div>`;
+        {
+          const raw = Number(s.total||0);
+          const adj = Number((s._adjTotal ?? raw) || 0);
+          const hasAdj = (s._adj?.has);
+          const rawHtml = hasAdj ? `<span class="amountStrike">${fmtMoney(raw)}</span>` : "";
+          sRight.innerHTML = `<div class="saleTotal">${rawHtml}${fmtMoney(adj)}</div><div class="saleId">${s.id || ""}</div>`;
+        }
 
         sSum.appendChild(sLeft);
+
+        // actions
+        const act = document.createElement("div");
+        act.style.display = "flex";
+        act.style.gap = "8px";
+        act.style.alignItems = "center";
+        act.style.marginLeft = "8px";
+
+        if(s._adj?.has){
+          const b = document.createElement("span");
+          b.className = "badge adjBadge";
+          b.textContent = "修正あり";
+          act.appendChild(b);
+        }
+
+        const btnAdj = document.createElement("button");
+        btnAdj.className = "btn small";
+        btnAdj.textContent = "✎ 返金/修正";
+        btnAdj.addEventListener("click", (e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          openAdjModal(s);
+        });
+        act.appendChild(btnAdj);
+
+        sSum.appendChild(act);
         sSum.appendChild(sRight);
         sDet.appendChild(sSum);
 
@@ -855,6 +1249,79 @@
         }
 
         sDet.appendChild(items);
+
+        // adjustments display
+        const adjArr = s._adj?.list || [];
+        if(adjArr.length){
+          const box = document.createElement("div");
+          box.className = "adjBox";
+
+          const head = document.createElement("div");
+          head.className = "adjHead";
+
+          const title = document.createElement("div");
+          title.className = "adjTitle";
+          title.textContent = "返金・修正履歴";
+
+          const headBtn = document.createElement("button");
+          headBtn.className = "btn small";
+          headBtn.textContent = "＋ 追加";
+          headBtn.addEventListener("click", (e)=>{
+            e.preventDefault();
+            e.stopPropagation();
+            openAdjModal(s);
+          });
+
+          head.appendChild(title);
+          head.appendChild(headBtn);
+          box.appendChild(head);
+
+          const list = document.createElement("div");
+          list.className = "adjList";
+
+          for(const a of adjArr){
+            const row = document.createElement("div");
+            row.className = "adjRow";
+
+            const left = document.createElement("div");
+            left.className = "adjL";
+
+            const type = document.createElement("div");
+            type.className = "adjType";
+            type.textContent = a.type === "refund" ? "クレーム返金" : "打ち間違い修正";
+
+            const meta = document.createElement("div");
+            meta.className = "adjMeta";
+            const d = a.createdAt ? fmtYMD(new Date(a.createdAt)) : "";
+            meta.textContent = [d, a.reason].filter(Boolean).join(" / ") || "—";
+
+            left.appendChild(type);
+            left.appendChild(meta);
+
+            const right = document.createElement("div");
+            right.className = "adjR";
+
+            const amt = document.createElement("div");
+            amt.className = "adjAmt";
+            amt.textContent = fmtMoney(a.amount || 0);
+
+            const who = document.createElement("div");
+            who.className = "adjWho";
+            who.textContent = a.byEmail || "";
+
+            right.appendChild(amt);
+            right.appendChild(who);
+
+            row.appendChild(left);
+            row.appendChild(right);
+
+            list.appendChild(row);
+          }
+
+          box.appendChild(list);
+          sDet.appendChild(box);
+        }
+
         salesWrap.appendChild(sDet);
       }
 
@@ -880,7 +1347,7 @@
 
     const list = lastBuilt.list.slice().sort((a,b)=> b.date - a.date);
 
-    const header = ["id","date","total","buyerName","channel","paymentMethod","memo","itemName","qty","price","subtotal"];
+    const header = ["id","date","total","adjustedTotal","buyerName","channel","paymentMethod","memo","itemName","qty","price","subtotal"];
     const lines = [header.join(",")];
 
     for(const s of list){
@@ -888,6 +1355,7 @@
         csvCell(s.id),
         csvCell(fmtYMD(s.date)),
         csvCell(s.total),
+        csvCell((s._adjTotal ?? s.total) || 0),
         csvCell(s.buyerName),
         csvCell(s.channel),
         csvCell(s.paymentMethod),
