@@ -345,6 +345,7 @@
         <button class="pillBtn" id="backBtn" type="button">← 戻る</button>
         <button class="pillBtn" id="catBtn" type="button">⚙ カテゴリー</button>
         <button class="pillBtn" id="payBtn" type="button">💴 支払方法</button>
+        <button class="pillBtn" id="csvBtn" type="button">⬇ CSV</button>
         <button class="pillBtn pillBtnPrimary" id="addBtn" type="button">＋ 支出追加</button>
       </div>
     </div>
@@ -437,6 +438,8 @@
       doc,
       getDocs,
       addDoc,
+      setDoc,
+      writeBatch,
       updateDoc,
       deleteDoc,
       query,
@@ -465,6 +468,7 @@
     const addBtn = document.getElementById("addBtn");
     const catBtn = document.getElementById("catBtn");
     const payBtn = document.getElementById("payBtn");
+    const csvBtn = document.getElementById("csvBtn");
     const refreshBtn = document.getElementById("refreshBtn");
 
     const monthInput = document.getElementById("monthInput");
@@ -1109,6 +1113,321 @@
       openOverlay();
     }
 
+
+    /* ===== CSV ===== */
+    function csvEscape(v){
+      const s = (v===null||v===undefined) ? "" : String(v);
+      // keep line breaks inside quotes
+      if(/[",\n\r]/.test(s)){
+        return '"' + s.replaceAll('"','""') + '"';
+      }
+      return s;
+    }
+
+    function buildCSV(headers, rows){
+      const lines = [];
+      lines.push(headers.map(csvEscape).join(","));
+      for(const r of rows){
+        lines.push(headers.map(h=>csvEscape(r[h])).join(","));
+      }
+      // Excel対策BOM
+      return "\ufeff" + lines.join("\r\n");
+    }
+
+    function downloadText(filename, text, mime="text/csv"){
+      const blob = new Blob([text], { type: `${mime};charset=utf-8` });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(()=> URL.revokeObjectURL(url), 1500);
+    }
+
+    function parseCSV(text){
+      // RFC4180簡易：カンマ/改行/ダブルクォート対応
+      const s = (text || "").replace(/^\ufeff/,"");
+      const rows = [];
+      let row = [];
+      let cur = "";
+      let i = 0;
+      let inQ = false;
+
+      const pushCell = ()=>{ row.push(cur); cur=""; };
+      const pushRow  = ()=>{ rows.push(row); row=[]; };
+
+      while(i < s.length){
+        const ch = s[i];
+
+        if(inQ){
+          if(ch === '"'){
+            if(s[i+1] === '"'){ cur += '"'; i += 2; continue; }
+            inQ = false; i++; continue;
+          }else{
+            cur += ch; i++; continue;
+          }
+        }else{
+          if(ch === '"'){ inQ = true; i++; continue; }
+          if(ch === ","){ pushCell(); i++; continue; }
+          if(ch === "\r"){
+            if(s[i+1] === "\n"){ pushCell(); pushRow(); i += 2; continue; }
+            pushCell(); pushRow(); i++; continue;
+          }
+          if(ch === "\n"){ pushCell(); pushRow(); i++; continue; }
+          cur += ch; i++; continue;
+        }
+      }
+      pushCell();
+      pushRow();
+
+      // 末尾の空行を除去
+      while(rows.length && rows[rows.length-1].every(c=> String(c||"").trim()==="")){
+        rows.pop();
+      }
+      return rows;
+    }
+
+    function normalizeHeader(h){
+      const x = (h||"").trim();
+      // 日本語ヘッダ互換
+      const map = {
+        "日付":"date",
+        "金額":"amount",
+        "カテゴリー":"categoryName",
+        "内容":"memo",
+        "支払方法":"paymentMethodName",
+        "id":"id",
+        "date":"date",
+        "amount":"amount",
+        "categoryId":"categoryId",
+        "categoryName":"categoryName",
+        "memo":"memo",
+        "paymentMethodId":"paymentMethodId",
+        "paymentMethodName":"paymentMethodName",
+        "createdAt":"createdAt"
+      };
+      return map[x] || x;
+    }
+
+    function rowsToObjects(parsed){
+      if(!parsed || parsed.length < 2) return [];
+      const headersRaw = parsed[0];
+      const headers = headersRaw.map(normalizeHeader);
+      const out = [];
+      for(let r=1;r<parsed.length;r++){
+        const obj = {};
+        for(let c=0;c<headers.length;c++){
+          obj[headers[c]] = parsed[r][c] ?? "";
+        }
+        out.push(obj);
+      }
+      return out;
+    }
+
+    function exportCSV(mode){
+      // mode: "month" | "filtered"
+      const ymStr = monthInput.value || ym(new Date());
+      const list = (mode==="filtered") ? applyFilters() : [...expenses];
+
+      const headers = [
+        "id","date","amount","categoryId","categoryName","memo",
+        "paymentMethodId","paymentMethodName","createdAt"
+      ];
+
+      const rows = list
+        .slice()
+        .sort((a,b)=> (a.date||"").localeCompare(b.date||"ja") || String(a.id||"").localeCompare(String(b.id||"")))
+        .map(x=>({
+          id: x.id || "",
+          date: safeText(x.date),
+          amount: Number(x.amount||0),
+          categoryId: x.categoryId || "",
+          categoryName: safeText(x.categoryName),
+          memo: (x.memo ?? ""),
+          paymentMethodId: x.paymentMethodId || "",
+          paymentMethodName: safeText(x.paymentMethodName || x.paymentMethod),
+          createdAt: (()=> {
+            const d = toDate(x.createdAt);
+            return d ? d.toISOString() : "";
+          })()
+        }));
+
+      const csv = buildCSV(headers, rows);
+      const suffix = (mode==="filtered") ? "filtered" : "month";
+      downloadText(`expenses_${ymStr}_${suffix}.csv`, csv);
+    }
+
+    async function importCSVFile(file){
+      const text = await file.text();
+      const parsed = parseCSV(text);
+      const objs = rowsToObjects(parsed);
+
+      if(!objs.length){
+        alert("CSVにデータがありません");
+        return;
+      }
+
+      // 最新カテゴリ/支払方法を読み直す（名前マッチ用）
+      await loadCategories();
+      await ensureDefaultCategories();
+      await loadPaymentMethods();
+      await ensureDefaultPaymentMethods();
+
+      // 名前→ID補完（無い場合は自動追加）
+      async function ensureCategoryByName(name){
+        const nm = (name||"").trim();
+        if(!nm) return { id:"", name:"(未設定)" };
+        let hit = categories.find(c=>c.name===nm);
+        if(hit) return { id: hit.id, name: hit.name };
+
+        // 自動追加（順番は末尾）
+        const maxOrder = categories.reduce((m,c)=> Math.max(m, Number(c.order)||0), 0);
+        const ref = await addDoc(collection(db, "expense_categories"), {
+          name: nm, order: maxOrder+1, active: true, createdAt: serverTimestamp()
+        });
+        await loadCategories();
+        hit = categories.find(c=>c.id===ref.id);
+        return { id: hit?.id || "", name: hit?.name || nm };
+      }
+
+      async function ensurePayByName(name){
+        const nm = (name||"").trim();
+        if(!nm) return { id:"", name:"" };
+        let hit = paymentMethods.find(p=>p.name===nm);
+        if(hit) return { id: hit.id, name: hit.name };
+
+        const maxOrder = paymentMethods.reduce((m,p)=> Math.max(m, Number(p.order)||0), 0);
+        const ref = await addDoc(collection(db, "expense_payment_methods"), {
+          name: nm, order: maxOrder+1, active: true, createdAt: serverTimestamp()
+        });
+        await loadPaymentMethods();
+        hit = paymentMethods.find(p=>p.id===ref.id);
+        return { id: hit?.id || "", name: hit?.name || nm };
+      }
+
+      // 書き込み（400件ずつバッチ）
+      const total = objs.length;
+      let done = 0;
+
+      for(let offset=0; offset<total; offset+=400){
+        const batch = writeBatch(db);
+        const chunk = objs.slice(offset, offset+400);
+
+        for(const r of chunk){
+          const date = (r.date || "").trim();
+          if(!date) continue;
+
+          const amount = Number(String(r.amount||"0").replace(/,/g,"")) || 0;
+          const memo = (r.memo || "").toString();
+
+          // category
+          let categoryId = (r.categoryId || "").trim();
+          let categoryName = (r.categoryName || "").trim();
+          if(!categoryId && categoryName){
+            const c = await ensureCategoryByName(categoryName);
+            categoryId = c.id;
+            categoryName = c.name;
+          }else if(categoryId && !categoryName){
+            categoryName = (categories.find(c=>c.id===categoryId)?.name) || "(未設定)";
+          }else if(!categoryId && !categoryName){
+            categoryName = "(未設定)";
+          }
+
+          // payment
+          let paymentMethodId = (r.paymentMethodId || "").trim();
+          let paymentMethodName = (r.paymentMethodName || "").trim();
+          if(!paymentMethodId && paymentMethodName){
+            const p = await ensurePayByName(paymentMethodName);
+            paymentMethodId = p.id;
+            paymentMethodName = p.name;
+          }else if(paymentMethodId && !paymentMethodName){
+            paymentMethodName = (paymentMethods.find(p=>p.id===paymentMethodId)?.name) || "";
+          }
+
+          const payload = {
+            date,
+            amount,
+            categoryId,
+            categoryName,
+            paymentMethodId,
+            paymentMethodName,
+            paymentMethod: paymentMethodName || "",
+            memo,
+            updatedAt: serverTimestamp()
+          };
+
+          const id = (r.id || "").trim();
+          if(id){
+            // id指定：上書き（merge）
+            const ref = doc(db, "expenses", id);
+            batch.set(ref, payload, { merge:true });
+          }else{
+            // id無し：新規
+            const ref = doc(collection(db, "expenses"));
+            batch.set(ref, { ...payload, createdAt: serverTimestamp() });
+          }
+        }
+
+        await batch.commit();
+        done += chunk.length;
+      }
+
+      alert(`CSV取込 完了：${done}件（空行は除外）`);
+      await refreshAll();
+    }
+
+    function openCSVManager(){
+      sheetTitle.textContent = "CSV";
+      const ymStr = monthInput.value || ym(new Date());
+
+      sheetBody.innerHTML = `
+        <div class="hint">
+          過去分を「月ごとにCSVで退避 → 必要時に復元」しやすいように、CSV出力/取込を用意しました。
+        </div>
+
+        <div class="rowLine" style="border-top:none; padding-top:0; margin-top:12px;">
+          <button class="pillBtn pillBtnPrimary" id="csvExportMonth" type="button" style="padding:12px 12px;">この月をCSV出力</button>
+          <button class="pillBtn" id="csvExportFiltered" type="button" style="padding:12px 12px;">表示中(フィルタ)をCSV出力</button>
+        </div>
+
+        <div class="rowLine" style="justify-content:flex-start;">
+          <div class="hint">対象月：<span class="mono">${escapeHtml(ymStr)}</span></div>
+        </div>
+
+        <div class="rowLine" style="justify-content:flex-start;">
+          <input id="csvFile" type="file" accept=".csv,text/csv" style="flex:1;">
+          <button class="pillBtn" id="csvImportDo" type="button" style="padding:12px 12px;">CSV取込</button>
+        </div>
+
+        <div class="hint" style="margin-top:10px;">
+          ※取込は <span class="mono">date/amount/categoryId/categoryName/memo/paymentMethodId/paymentMethodName</span> を読みます。<br/>
+          ※「日付/金額/カテゴリー/内容/支払方法」の日本語ヘッダでもOK（カテゴリー/支払方法は名前で紐づけ）。
+        </div>
+      `;
+
+      sheetFoot.style.display = "none";
+      openOverlay();
+
+      sheetBody.querySelector("#csvExportMonth").onclick = ()=> exportCSV("month");
+      sheetBody.querySelector("#csvExportFiltered").onclick = ()=> exportCSV("filtered");
+
+      sheetBody.querySelector("#csvImportDo").onclick = async ()=>{
+        const f = sheetBody.querySelector("#csvFile").files?.[0];
+        if(!f){ alert("CSVファイルを選択してください"); return; }
+        if(!confirm("CSVを取り込みます。重複がある場合は id 指定の行のみ上書き（merge）されます。続けますか？")) return;
+        try{
+          await importCSVFile(f);
+          closeOverlay();
+        }catch(e){
+          console.error(e);
+          alert("CSV取込に失敗しました（形式/権限/ネットワーク確認）");
+        }
+      };
+    }
+
+
     /* ===== refresh ===== */
     async function refreshAll(){
       const ymStr = monthInput.value || ym(new Date());
@@ -1128,6 +1447,7 @@
     addBtn.onclick = ()=> openExpenseEditor(null);
     catBtn.onclick = ()=> openCategoryManager();
     payBtn.onclick = ()=> openPaymentManager();
+    csvBtn.onclick = ()=> openCSVManager();
     refreshBtn.onclick = ()=> refreshAll();
 
     qInput.addEventListener("input", ()=> render());
