@@ -458,8 +458,7 @@ select {
               <div class="titleRow"><h3 style="margin:0;">POS</h3></div>
               <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
             </div>
-            <span class="pill" id="masterPill">商品マスタ：読込中</span>
-            <button class="titleIcon" id="pmToggleBtn" type="button" aria-label="商品マスタ編集" title="商品マスタ編集">✎</button>
+            <span class="pill" id="masterPill" style="display:none"></span>
             <button class="titleIcon" id="mastersToggleBtn" aria-label="マスタ編集" title="マスタ編集">⚙︎</button>
           </div>
 
@@ -554,11 +553,11 @@ select {
                 <input id="pmId" disabled />
               </div>
               <div>
-                <div class="label">表示</div>
-                <select id="pmActive">
-                  <option value="true">表示</option>
-                  <option value="false">非表示</option>
-                </select>
+                <div class="label">非表示</div>
+                <label style="display:flex; align-items:center; gap:8px; margin-top:4px;">
+                  <input id="pmHidden" type="checkbox" />
+                  <span style="font-size:12px; font-weight:800; color: var(--text-sub);">この商品を非表示にする</span>
+                </label>
               </div>
             </div>
             <div style="margin-top:10px;">
@@ -591,6 +590,45 @@ select {
   <div class="toast" id="toast">保存しました</div>
 
 
+<!-- Master Menu Modal -->
+<div class="modal" id="masterMenuModal" aria-hidden="true">
+  <div class="modalInner">
+    <div class="modalHead">
+      <h3 id="mastersTitle">マスタ編集</h3>
+      <button class="iconBtn" id="masterMenuCloseBtn" type="button">ⓧ</button>
+    </div>
+    <div class="modalBody">
+      <div class="btnRow" style="flex-direction:column;">
+        <button class="btn" id="menuProductMasterBtn" type="button">商品マスタ編集</button>
+        <button class="btn" id="menuChannelsMasterBtn" type="button">販売方法マスタ編集</button>
+        <button class="btn" id="menuVenuesMasterBtn" type="button">開催場所マスタ編集</button>
+        <button class="btn" id="menuPaymentsMasterBtn" type="button">決済方法マスタ編集</button>
+        <button class="btn" id="menuKindsMasterBtn" type="button">kindマスタ編集</button>
+      </div>
+      <div class="muted" style="margin-top:10px;">※ 変更は差分（patch）としてFirestoreに保存されます。</div>
+    </div>
+  </div>
+</div>
+
+<!-- Mode Select Modal (add / edit) -->
+<div class="modal" id="masterModeModal" aria-hidden="true">
+  <div class="modalInner">
+    <div class="modalHead">
+      <h3 id="masterModeTitle">編集モード</h3>
+      <button class="iconBtn" id="masterModeCloseBtn" type="button">ⓧ</button>
+    </div>
+    <div class="modalBody">
+      <div class="muted" id="masterModeHelp">追加か修正かを選んでください。</div>
+      <div class="btnRow" style="margin-top:12px;">
+        <button class="btn" id="masterModeAddBtn" type="button">追加</button>
+        <button class="btn primaryBtn" id="masterModeEditBtn" type="button">修正</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
   <!-- Masters Modal (simple masters: channels/venues/payments/kinds) -->
   <div class="modal" id="mastersModal" aria-hidden="true">
     <div class="modalInner">
@@ -604,7 +642,7 @@ select {
         </div>
 
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+          <span class="label" style="display:none; align-items:center; gap:8px;">
             対象
             <select id="masterTypeSelect">
               <option value="channels">販売方法マスタ</option>
@@ -696,8 +734,27 @@ const $receiptTotal = $("receiptTotal");
 const $orderDateInput = $("orderDateInput");
 const $kindSelect = $("kindSelect");
 const $mastersToggleBtn = $("mastersToggleBtn");
+const $masterMenuModal = $("masterMenuModal");
+const $masterMenuCloseBtn = $("masterMenuCloseBtn");
+const $menuProductMasterBtn = $("menuProductMasterBtn");
+const $menuChannelsMasterBtn = $("menuChannelsMasterBtn");
+const $menuVenuesMasterBtn = $("menuVenuesMasterBtn");
+const $menuPaymentsMasterBtn = $("menuPaymentsMasterBtn");
+const $menuKindsMasterBtn = $("menuKindsMasterBtn");
+
+const $masterModeModal = $("masterModeModal");
+const $masterModeTitle = $("masterModeTitle");
+const $masterModeHelp  = $("masterModeHelp");
+const $masterModeCloseBtn = $("masterModeCloseBtn");
+const $masterModeAddBtn  = $("masterModeAddBtn");
+const $masterModeEditBtn = $("masterModeEditBtn");
+
+let pendingMasterKey = null; // "products" | "channels" | "venues" | "payments" | "kinds"
+let pendingMasterLabel = "";
+let pendingMasterEditMode = null; // "add" | "edit"
 const $mastersModal = $("mastersModal");
 const $mastersCloseBtn = $("mastersCloseBtn");
+const $mastersTitle = $("mastersTitle");
 const $masterTypeSelect = $("masterTypeSelect");
 const $masterRows = $("masterRows");
 const $masterAddRowBtn = $("masterAddRowBtn");
@@ -725,6 +782,26 @@ let currentUser = null; // auth user
 const ADMIN_EMAIL = "enue_staff03@management.com";
 let currentUserEmail = null;
 
+
+function openMasterMenu(){
+  if(!$masterMenuModal) return;
+  $masterMenuModal.classList.add("show");
+}
+function closeMasterMenu(){
+  if(!$masterMenuModal) return;
+  $masterMenuModal.classList.remove("show");
+}
+function openModeModal(key, label){
+  pendingMasterKey = key;
+  pendingMasterLabel = label;
+  pendingMasterEditMode = null;
+  if($masterModeTitle) $masterModeTitle.textContent = `${label}：追加 or 修正`;
+  if($masterModeHelp) $masterModeHelp.textContent = "追加か修正かを選んでください。";
+  $masterModeModal.classList.add("show");
+}
+function closeModeModal(){
+  $masterModeModal.classList.remove("show");
+}
 
 function setStatus(ok, text){
   firebaseOk = ok;
@@ -1299,7 +1376,6 @@ $paymentSelect.addEventListener("change", ()=>{
 /* =====================================================
    商品マスタ編集（updates/adds patchへ差分保存）
 ===================================================== */
-const $pmToggleBtn = $("pmToggleBtn");
 const $pmModal = $("pmModal");
 const $pmCloseBtn = $("pmCloseBtn");
 const $pmSaveBtn = $("pmSaveBtn");
@@ -1309,7 +1385,7 @@ const $pmSelect = $("pmSelect");
 const $pmId = $("pmId");
 const $pmName = $("pmName");
 const $pmPrice = $("pmPrice");
-const $pmActive = $("pmActive");
+const $pmHidden = $("pmHidden");
 
 let pmDirty = false;
 let pmDraft = null; // {id,name,price,active}
@@ -1317,21 +1393,44 @@ let pmOrigin = null;
 
 function pmMarkDirty(){ pmDirty = true; }
 
-function pmOpen(){
+function pmOpen(mode){
   pmDirty = false;
   pmOrigin = null;
   pmDraft = null;
   pmRenderSelect();
+
+  const pmSelectField = $pmSelect?.closest?.(".field");
+  const pmHiddenWrap = $pmHidden?.closest?.("div"); // inner wrap
+  if(mode === "add"){
+    // 追加：商品名・金額のみ（IDは自動採番）
+    const id = pmNextId();
+    pmSetForm({ id, name:"", price:"", active:true });
+    if($pmHidden) $pmHidden.checked = false;
+    if($pmSelect) $pmSelect.value = "";
+    if(pmSelectField) pmSelectField.style.display = "none";
+    if(pmHiddenWrap) pmHiddenWrap.style.display = "none";
+  }else{
+    // 修正：対象商品を選んで編集（非表示も可）
+    if(pmSelectField) pmSelectField.style.display = "";
+    if(pmHiddenWrap) pmHiddenWrap.style.display = "";
+    if($pmSelect.options.length > 1){
+      $pmSelect.selectedIndex = 1;
+      pmLoadFromSelect();
+    }else{
+      $pmSelect.selectedIndex = 0;
+      pmSetForm(null);
+    }
+  }
+
   // default select first (placeholderを除いた先頭)
-  if($pmSelect.options.length > 1){
+  if(mode !== "add" && $pmSelect.options.length > 1){
     $pmSelect.selectedIndex = 1;
     pmLoadFromSelect();
-  }else{
+  }else if(mode !== "add"){
     $pmSelect.selectedIndex = 0;
     pmSetForm(null);
   }
   $pmModal.classList.add("show");
-  if($pmToggleBtn) $pmToggleBtn.textContent = "ⓧ";
 }
 
 function pmClose(force){
@@ -1344,7 +1443,6 @@ function pmClose(force){
     // 破棄して閉じる
   }
   $pmModal.classList.remove("show");
-  if($pmToggleBtn) $pmToggleBtn.textContent = "✎";
 }
 
 function pmRenderSelect(){
@@ -1370,7 +1468,7 @@ function pmSetForm(p){
   $pmId.value = pmDraft?.id || "";
   $pmName.value = pmDraft?.name || "";
   $pmPrice.value = (pmDraft?.price ?? "") + "";
-  $pmActive.value = (pmDraft?.active ? "true" : "false");
+  if($pmHidden) $pmHidden.checked = !(pmDraft?.active ?? true);
 }
 
 function pmLoadFromSelect(){
@@ -1396,7 +1494,7 @@ $pmSelect.addEventListener("change", ()=>{
   pmLoadFromSelect();
 });
 
-[$pmName,$pmPrice,$pmActive].forEach(el=>{
+[$pmName,$pmPrice,$pmHidden].forEach(el=>{
   el.addEventListener("input", pmMarkDirty);
   el.addEventListener("change", pmMarkDirty);
 });
@@ -1404,6 +1502,7 @@ $pmSelect.addEventListener("change", ()=>{
 $pmNewBtn.addEventListener("click", ()=>{
   const id = pmNextId();
   pmSetForm({ id, name:"", price:"", active:true });
+  if($pmHidden) $pmHidden.checked = false;
   // 新規追加は「編集対象商品」を選んだ状態にしない
   $pmSelect.value = "";
   pmDirty = true;
@@ -1415,7 +1514,7 @@ async function pmSave(closeAfter){
   const id = $pmId.value.trim();
   const name = $pmName.value.trim();
   const price = parseInt(($pmPrice.value||"").toString().replace(/[^0-9]/g,""), 10);
-  const active = ($pmActive.value === "true");
+  const active = $pmHidden ? (!$pmHidden.checked) : true;
 
   if(!id){
     alert("IDが不正です");
@@ -1462,10 +1561,6 @@ async function pmSave(closeAfter){
 $pmSaveBtn.addEventListener("click", ()=> pmSave(true));
 $pmDiscardBtn.addEventListener("click", ()=> { pmDirty = false; pmClose(true); });
 $pmCloseBtn.addEventListener("click", ()=> pmClose(false));
-$pmToggleBtn.addEventListener("click", ()=>{
-  if($pmModal.classList.contains("show")) pmClose(false);
-  else pmOpen();
-});
 
 const loaded = await loadProductsWithPatch();
 products = loaded.products;
@@ -1473,7 +1568,7 @@ products = loaded.products;
 // 表示用（右上ピルがあれば）
 const $masterPill = document.getElementById('masterPill');
 if($masterPill){
-  $masterPill.textContent = `商品マスタ：${products.length}件（updates ${loaded.updatesCount} / adds ${loaded.addsCount}）`;
+  $masterPill.textContent = `商品マスタ：${products.length}件`;
 }
 
 renderProducts();
@@ -1494,11 +1589,23 @@ applyMastersToTopSelects();
 /* =====================================================
    Masters modal (patch writer)
 ===================================================== */
-function mastersOpen(){
+let currentMasterKey = "channels";
+function mastersOpen(key, mode){
+  if(key) currentMasterKey = key;
   if(!$mastersModal) return;
   $mastersModal.classList.add("show");
   $mastersModal.setAttribute("aria-hidden","false");
-  buildMasterRows();
+  if($masterTypeSelect) $masterTypeSelect.value = currentMasterKey;
+  if($mastersTitle){
+    const labelMap = { channels:"販売方法マスタ編集", venues:"開催場所マスタ編集", payments:"決済方法マスタ編集", kinds:"kindマスタ編集" };
+    $mastersTitle.textContent = labelMap[currentMasterKey] || "マスタ編集";
+  }
+  if(mode === "add"){
+    $masterRows.innerHTML = "";
+    addRow();
+  }else{
+    buildMasterRows();
+  }
 }
 function mastersClose(){
   if(!$mastersModal) return;
@@ -1507,7 +1614,7 @@ function mastersClose(){
 }
 
 function buildMasterRows(){
-  const key = $masterTypeSelect.value;
+  const key = currentMasterKey;
   const arr = masters[key] || [];
   $masterRows.innerHTML = "";
   arr.forEach(x => addRow(x.id, (x.label ?? x.name ?? ""), x.active !== false));
@@ -1543,7 +1650,7 @@ function escapeHtml(str){
 }
 
 async function saveMasterRows(){
-  const key = $masterTypeSelect.value;
+  const key = currentMasterKey;
   const def = MASTER_DEFS[key];
   const bundleIds = masterBundleIds[key] || new Set();
 
@@ -1565,7 +1672,7 @@ async function saveMasterRows(){
   showToast("マスタ保存OK");
 }
 
-if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", mastersOpen);
+if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", openMasterMenu);
 if($mastersCloseBtn)  $mastersCloseBtn.addEventListener("click", mastersClose);
 if($masterTypeSelect) $masterTypeSelect.addEventListener("change", buildMasterRows);
 if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
@@ -1574,6 +1681,47 @@ if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
   catch(e){ console.error(e); alert("保存に失敗しました"); }
 });
 
+
+/* =====================================================
+   Master menu (⚙) 5 choices
+===================================================== */
+if($masterMenuCloseBtn) $masterMenuCloseBtn.addEventListener("click", closeMasterMenu);
+if($masterMenuModal){
+  $masterMenuModal.addEventListener("click",(e)=>{
+    if(e.target === $masterMenuModal) closeMasterMenu();
+  });
+}
+
+function goMaster(key,label){
+  closeMasterMenu();
+  openModeModal(key,label);
+}
+
+if($menuProductMasterBtn)  $menuProductMasterBtn.onclick  = ()=> goMaster("products","商品マスタ編集");
+if($menuChannelsMasterBtn) $menuChannelsMasterBtn.onclick = ()=> goMaster("channels","販売方法マスタ編集");
+if($menuVenuesMasterBtn)   $menuVenuesMasterBtn.onclick   = ()=> goMaster("venues","開催場所マスタ編集");
+if($menuPaymentsMasterBtn) $menuPaymentsMasterBtn.onclick = ()=> goMaster("payments","決済方法マスタ編集");
+if($menuKindsMasterBtn)    $menuKindsMasterBtn.onclick    = ()=> goMaster("kinds","kindマスタ編集");
+
+if($masterModeCloseBtn) $masterModeCloseBtn.onclick = closeModeModal;
+if($masterModeModal){
+  $masterModeModal.addEventListener("click",(e)=>{
+    if(e.target === $masterModeModal) closeModeModal();
+  });
+}
+
+if($masterModeAddBtn) $masterModeAddBtn.onclick = ()=>{
+  pendingMasterEditMode = "add";
+  closeModeModal();
+  if(pendingMasterKey === "products") pmOpen("add");
+  else mastersOpen(pendingMasterKey, "add");
+};
+if($masterModeEditBtn) $masterModeEditBtn.onclick = ()=>{
+  pendingMasterEditMode = "edit";
+  closeModeModal();
+  if(pendingMasterKey === "products") pmOpen("edit");
+  else mastersOpen(pendingMasterKey, "edit");
+};
 
 // admin diff popover (next to status)
 if($diffPill){
