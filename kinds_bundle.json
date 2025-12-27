@@ -1,0 +1,7 @@
+{
+  "kinds": [
+    { "id": "stock", "label": "stock", "active": true },
+    { "id": "order", "label": "order", "active": true },
+    { "id": "-", "label": "-", "active": true }
+  ]
+}
