@@ -432,6 +432,9 @@ select {
   color: #222;
 }
 
+
+  /* UI: hide top selector row (kept for JS refs) */
+  .row2{display:none !important;}
 </style>
 </head>
 
@@ -463,13 +466,24 @@ select {
           </div>
 
           <div class="posBody">
-            <!-- top quick selectors removed: edit in receipt modal -->
-            <div class="row2" id="topSelectors" style="display:none;">
-              <span class="label">販売方法 <select id="channelSelect"></select></span>
-              <span class="label" id="venueWrap" style="display:none;">開催場所 <select id="venueSelect"></select></span>
-              <span class="label">決済方法 <select id="paymentSelect"></select></span>
+            <div class="row2">
+              <span class="label">
+                販売方法
+                <select id="channelSelect"></select>
+              </span>
+
+              <span class="label" id="venueWrap" style="display:none;">
+                開催場所
+                <select id="venueSelect"></select>
+              </span>
+
+              <span class="label">
+                決済方法
+                <select id="paymentSelect"></select>
+              </span>
             </div>
-<div class="products" id="products"></div>
+
+            <div class="products" id="products"></div>
 
             <button class="primary" id="checkoutBtn" type="button" disabled>決済へ進む</button>
             <div class="total" id="totalText">合計：￥0</div>
@@ -488,22 +502,18 @@ select {
       </div>
       <div class="modalBody">
         <div class="muted" id="receiptMeta"></div>
-
-        <!-- 1) 受注日 -->
         <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             受注日
             <input id="orderDateInput" type="date" />
           </span>
         </div>
 
-        <!-- 2) 購入者氏名 -->
         <div style="margin-top:10px;">
           <div class="label">購入者氏名</div>
           <input id="receiptCustomerName" placeholder="例：山田 太郎" />
         </div>
 
-        <!-- 3) 販売方法（マルシェ時のみ開催場所を表示） -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             販売方法
@@ -518,7 +528,6 @@ select {
           </span>
         </div>
 
-        <!-- 4) 決済方法 -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             決済方法
@@ -526,21 +535,21 @@ select {
           </span>
         </div>
 
-        <!-- 5) kind -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             kind
-            <select id="kindSelect"></select>
+            <select id="receiptKindSelect"></select>
           </span>
         </div>
-<div id="urgentWrap" style="margin-top:10px; display:none;">
+
+        <div id="urgentWrap" style="margin-top:10px; display:none;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             お急ぎOP
             <select id="urgentSelect"></select>
           </span>
           <div class="muted" style="margin-top:6px;">※ kind=order のときだけ表示されます</div>
         </div>
-        <div id="receiptList" style="margin-top:10px;"></div>
+<div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
         <div class="btnRow">
@@ -935,11 +944,17 @@ function detectPaymentIdByLabelIncludes(keyword){
 }
 
 function resolveDefaultChannelId(){
-  // 1) localStorage settings
-  if(settings.currentChannel) return settings.currentChannel;
+  // 1) schedule override (future)
+  if(typeof resolveChannelBySchedule === 'function'){
+    const s = resolveChannelBySchedule(new Date());
+    if(s) return s;
+  }
 
-  // 2) prefs
+  // 2) prefs (strong default)
   if(posPrefs?.defaults?.channelId) return posPrefs.defaults.channelId;
+
+  // 3) localStorage settings (fallback)
+  if(settings.currentChannel) return settings.currentChannel;
 
   // 3) auto-detect instagram
   if(INSTAGRAM_CHANNEL_ID) return INSTAGRAM_CHANNEL_ID;
