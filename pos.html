@@ -327,6 +327,40 @@
     }
     .toast.show{ display:block; }
 
+    /* success pop */
+    .successPop{
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%,-50%) scale(.85);
+      opacity: 0;
+      pointer-events: none;
+      background: rgba(255,255,255,.94);
+      border: 1px solid rgba(0,0,0,.12);
+      border-radius: 18px;
+      padding: 14px 18px;
+      box-shadow: 0 18px 45px rgba(0,0,0,.18);
+      font-weight: 900;
+      letter-spacing: .04em;
+      z-index: 3000;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      font-size: 18px;
+      text-align: center;
+      min-width: 180px;
+    }
+    .successPop.show{
+      animation: successPop 1.15s ease forwards;
+    }
+    @keyframes successPop{
+      0%   { opacity:0; transform: translate(-50%,-50%) scale(.78); }
+      15%  { opacity:1; transform: translate(-50%,-50%) scale(1.06); }
+      30%  { opacity:1; transform: translate(-50%,-50%) scale(1.00); }
+      80%  { opacity:1; transform: translate(-50%,-50%) scale(1.00); }
+      100% { opacity:0; transform: translate(-50%,-50%) scale(.98); }
+    }
+
+
     @media (max-width: 600px){
       body{ padding: 10px; }
       .brand-main{ font-size: 18px; }
@@ -587,6 +621,7 @@ select {
   </div>
 
   <div class="toast" id="toast">保存しました</div>
+  <div class="successPop" id="successPop">決済完了🌟</div>
 
 <script type="module">
 /* =====================================================
@@ -642,6 +677,7 @@ const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
 
 const $toast = $("toast");
+const $successPop = $("successPop");
 
 /* =====================================================
    Firebase init
@@ -834,6 +870,10 @@ function renderKindSelect(){
     o.textContent = k.label ?? k.id;
     $kindSelect.appendChild(o);
   });
+
+  // 初期値：stock（なければ先頭）
+  if ([...$kindSelect.options].some(o=>o.value==="stock")) $kindSelect.value = "stock";
+  else if ($kindSelect.options.length) $kindSelect.selectedIndex = 0;
 }
 
 async function initKindMaster(){
@@ -1022,7 +1062,7 @@ $confirmBtn.onclick = async ()=>{
   try{
     await writeSale();
     $receiptModal.classList.remove("show");
-    showToast("保存しました");
+    showSuccessPop("決済完了🌟");
     document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
     document.querySelectorAll(".qtySelect").forEach(s=>{s.disabled=true; s.value=1});
     // kindは次回も使うので維持（必要ならここで初期化）
@@ -1043,6 +1083,17 @@ function showToast(msg){
   $toast.textContent = msg;
   $toast.classList.add("show");
   setTimeout(()=> $toast.classList.remove("show"),1200);
+}
+
+
+function showSuccessPop(msg="決済完了🌟"){
+  if(!$successPop) return;
+  $successPop.textContent = msg;
+  $successPop.classList.remove("show");
+  // reflow for restart animation
+  void $successPop.offsetWidth;
+  $successPop.classList.add("show");
+  setTimeout(()=> $successPop.classList.remove("show"), 1200);
 }
 
 function setReceiptMetaText(){
@@ -1217,7 +1268,7 @@ async function pmSave(closeAfter){
       updatedBy: currentUser?.email || ""
     }, { merge: true });
 
-    showToast("保存しました");
+    showSuccessPop("決済完了🌟");
 
     // ローカル表示も更新（次回ロードでpatchが反映されるが、体感のため即反映）
     const idx = products.findIndex(p => p.id === id);
