@@ -447,6 +447,7 @@ select {
         <div class="nav">
           <a class="nav-btn" href="index.html" aria-label="戻る">← 戻る</a>
           <span class="pill" id="statusPill">未接続</span>
+          <span class="pill" id="diffPill" style="display:none; cursor:pointer;">updates 0 / adds 0</span>
         </div>
       </div>
 
@@ -627,7 +628,16 @@ select {
     </div>
   </div>
 
-  <!-- Admin patch summary -->
+  
+  <!-- Admin diff breakdown (header next to status) -->
+  <div id="diffPop" style="display:none; position:fixed; right:18px; top:64px; z-index:60;
+    background: rgba(255,255,255,.95); border:1px solid rgba(0,0,0,.08); border-radius:14px;
+    padding:10px 12px; box-shadow:0 18px 45px rgba(0,0,0,.14); max-width:280px; font-size:13px; line-height:1.35;">
+    <div style="font-weight:700; margin-bottom:6px;">差分内訳</div>
+    <div id="diffPopLines"></div>
+  </div>
+
+<!-- Admin patch summary -->
   <div id="patchPill" class="pill" style="display:none; position:fixed; right:18px; bottom:18px; z-index:50; cursor:pointer;">
     差分：0
   </div>
@@ -695,6 +705,9 @@ const $masterSaveBtn = $("masterSaveBtn");
 const $patchPill = $("patchPill");
 const $patchPop = $("patchPop");
 const $patchBreakdown = $("patchBreakdown");
+const $diffPill = $("diffPill");
+const $diffPop = $("diffPop");
+const $diffPopLines = $("diffPopLines");
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
@@ -1038,36 +1051,53 @@ const ADMIN_EMAIL = "enue_staff03@management.com";
 let currentUserEmail = null;
 
 async function refreshPatchSummary(){
-  if(currentUserEmail !== ADMIN_EMAIL) {
+  const isAdmin = (currentUserEmail === ADMIN_EMAIL);
+  // 非管理者は非表示
+  if(!isAdmin) {
+    if($diffPill) $diffPill.style.display = "none";
+    if($diffPop) $diffPop.style.display = "none";
+    // 旧UIは使わない
     if($patchPill) $patchPill.style.display = "none";
     if($patchPop) $patchPop.style.display = "none";
     return;
   }
 
   const targets = [
-    { label:"商品マスタ", updates:"products_patch_updates", adds:"products_patch_adds" },
-    { label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
-    { label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates, adds:MASTER_DEFS.venues.adds },
-    { label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
-    { label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds }
+    { key:"products", label:"商品マスタ", updates:"products_patch_updates", adds:"products_patch_adds" },
+    { key:"channels", label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
+    { key:"venues", label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates, adds:MASTER_DEFS.venues.adds },
+    { key:"payments", label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
+    { key:"kinds", label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds }
   ];
 
-  let total=0;
-  const lines=[];
+  let totalUpdates = 0;
+  let totalAdds = 0;
+  const lines = [];
+
   for(const t of targets){
     const u = (await getDocs(collection(db, t.updates))).size;
     const a = (await getDocs(collection(db, t.adds))).size;
-    const n = u+a;
-    total += n;
-    lines.push(`${t.label} ${n}件`);
+    totalUpdates += u;
+    totalAdds += a;
+    lines.push({ label: t.label, updates: u, adds: a });
   }
 
-  if($patchPill){
-    $patchPill.textContent = `差分：${total}`;
-    $patchPill.style.display = "block";
+  // ヘッダー横の表示（0件でも表示）
+  if($diffPill){
+    $diffPill.textContent = `updates ${totalUpdates} / adds ${totalAdds}`;
+    $diffPill.style.display = "inline-flex";
   }
+  if($diffPopLines){
+    $diffPopLines.innerHTML = lines
+      .map(x => `<div style="display:flex; justify-content:space-between; gap:10px;"><span>${x.label}</span><span>u${x.updates} / a${x.adds}</span></div>`)
+      .join("");
+  }
+
+  // 旧UI（画面右下）は非表示に統一
+  if($patchPill) $patchPill.style.display = "none";
+  if($patchPop) $patchPop.style.display = "none";
   if($patchBreakdown){
-    $patchBreakdown.innerHTML = lines.map(s=>`<div>${s}</div>`).join("");
+    $patchBreakdown.innerHTML = lines.map(x=>`<div>${x.label} u${x.updates} / a${x.adds}</div>`).join("");
   }
 }
 
@@ -1455,6 +1485,21 @@ if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
 if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
   try{ await saveMasterRows(); }
   catch(e){ console.error(e); alert("保存に失敗しました"); }
+});
+
+
+// admin diff popover (next to status)
+if($diffPill){
+  $diffPill.addEventListener("click", ()=>{
+    const show = ($diffPop.style.display === "none" || $diffPop.style.display === "");
+    $diffPop.style.display = show ? "block" : "none";
+  });
+}
+document.addEventListener("click", (e)=>{
+  if(!$diffPop || !$diffPill) return;
+  if(e.target === $diffPill || $diffPill.contains(e.target)) return;
+  if($diffPop.contains(e.target)) return;
+  $diffPop.style.display = "none";
 });
 
 // admin pill popover
