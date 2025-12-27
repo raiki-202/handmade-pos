@@ -3,7 +3,6 @@
     { "id": "cash", "label": "現金", "active": true },
     { "id": "paypay", "label": "PayPay", "active": true },
     { "id": "credit", "label": "クレカ", "active": true },
-    { "id": "credit", "label": "test", "active": true },
     { "id": "other", "label": "その他", "active": true }
   ]
 }
