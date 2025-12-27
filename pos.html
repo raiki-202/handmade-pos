@@ -1073,6 +1073,7 @@ function applyKindDefault(){
 
 async function refreshPatchSummary(){
   const isAdmin = (currentUserEmail === ADMIN_EMAIL);
+
   // 非管理者は非表示
   if(!isAdmin) {
     if($diffPill) $diffPill.style.display = "none";
@@ -1091,26 +1092,64 @@ async function refreshPatchSummary(){
     { key:"kinds", label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds }
   ];
 
+  // まずは「0件でも出す」を保証（読めなくても表示される）
   let totalUpdates = 0;
   let totalAdds = 0;
+  let hadError = false;
   const lines = [];
 
+  if($diffPill){
+    $diffPill.textContent = `updates 0 / adds 0`;
+    $diffPill.style.display = "inline-flex";
+  }
+
   for(const t of targets){
-    const u = (await getDocs(collection(db, t.updates))).size;
-    const a = (await getDocs(collection(db, t.adds))).size;
+    let u = 0, a = 0, err = null;
+
+    try{
+      u = (await getDocs(collection(db, t.updates))).size;
+    }catch(e){
+      hadError = true;
+      err = e;
+    }
+
+    try{
+      a = (await getDocs(collection(db, t.adds))).size;
+    }catch(e){
+      hadError = true;
+      err = err || e;
+    }
+
     totalUpdates += u;
     totalAdds += a;
-    lines.push({ label: t.label, updates: u, adds: a });
+
+    lines.push({
+      label: t.label,
+      updates: u,
+      adds: a,
+      err: err ? (err.code || "error") : null
+    });
   }
 
   // ヘッダー横の表示（0件でも表示）
   if($diffPill){
-    $diffPill.textContent = `updates ${totalUpdates} / adds ${totalAdds}`;
+    $diffPill.textContent = hadError
+      ? `updates ${totalUpdates} / adds ${totalAdds} ⚠`
+      : `updates ${totalUpdates} / adds ${totalAdds}`;
     $diffPill.style.display = "inline-flex";
+    $diffPill.title = hadError ? "一部マスタの差分read権限/接続でエラーがあります" : "";
   }
+
+  // 吹き出し内訳（エラーなら code を表示）
   if($diffPopLines){
     $diffPopLines.innerHTML = lines
-      .map(x => `<div style="display:flex; justify-content:space-between; gap:10px;"><span>${x.label}</span><span>u${x.updates} / a${x.adds}</span></div>`)
+      .map(x => {
+        const right = x.err ? `ERR(${x.err})` : `u${x.updates} / a${x.adds}`;
+        return `<div style="display:flex; justify-content:space-between; gap:10px; padding:4px 0;">
+          <span style="opacity:.85">${x.label}</span>
+          <span style="font-variant-numeric: tabular-nums;">${right}</span>
+        </div>`;
+      })
       .join("");
   }
 
@@ -1118,7 +1157,12 @@ async function refreshPatchSummary(){
   if($patchPill) $patchPill.style.display = "none";
   if($patchPop) $patchPop.style.display = "none";
   if($patchBreakdown){
-    $patchBreakdown.innerHTML = lines.map(x=>`<div>${x.label} u${x.updates} / a${x.adds}</div>`).join("");
+    $patchBreakdown.innerHTML = lines.map(x=>`
+      <div class="row">
+        <span>${x.label}</span>
+        <span>${x.err ? `ERR(${x.err})` : `updates ${x.updates} / adds ${x.adds}`}</span>
+      </div>
+    `).join("");
   }
 }
 
