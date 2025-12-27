@@ -721,6 +721,10 @@ let db = null;
 let firebaseOk = false;
 let currentUser = null; // auth user
 
+// ===== Auth state shared vars (declare early to avoid timing issues) =====
+const ADMIN_EMAIL = "enue_staff03@management.com";
+let currentUserEmail = null;
+
 
 function setStatus(ok, text){
   firebaseOk = ok;
@@ -762,14 +766,21 @@ const defaultSettings = {
   venues: ["cafe1400"],
   currentChannel: "マルシェ",
   currentVenue: "cafe1400",
-  paymentMethod: "現金",
-  paymentMethods: ["現金","PayPay","クレカ","その他"],
+  paymentMethod: "cash",
+  paymentMethods: ["cash","paypay","credit","other"],
 };
 
+
+function migratePaymentMethod(s){
+  const map = { "現金":"cash", "PayPay":"paypay", "クレカ":"credit", "その他":"other" };
+  if(map[s.paymentMethod]) s.paymentMethod = map[s.paymentMethod];
+  return s;
+}
 function loadSettings(){
   try{
     const raw = localStorage.getItem(LS_SETTINGS_KEY);
-    return raw ? { ...defaultSettings, ...JSON.parse(raw) } : structuredClone(defaultSettings);
+    const s = raw ? { ...defaultSettings, ...JSON.parse(raw) } : structuredClone(defaultSettings);
+    return migratePaymentMethod(s);
   }catch{
     return structuredClone(defaultSettings);
   }
@@ -871,9 +882,11 @@ function renderSettingsUI(){
   });
 
   $paymentSelect.innerHTML = "";
-  (settings.paymentMethods || ["現金","PayPay","クレカ","その他"]).forEach(v=>{
+  const payLabelMap = { cash:"現金", paypay:"PayPay", credit:"クレカ", other:"その他" };
+  (settings.paymentMethods || ["cash","paypay","credit","other"]).forEach(v=>{
     const o = document.createElement("option");
-    o.value = v; o.textContent = v;
+    o.value = v;
+    o.textContent = payLabelMap[v] || v;
     if(v === settings.paymentMethod) o.selected = true;
     $paymentSelect.appendChild(o);
   });
@@ -994,7 +1007,7 @@ const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new 
 
 async function loadSimpleBundle(key){
   const def = MASTER_DEFS[key];
-  const res = await fetch(def.bundleUrl);
+  const res = await fetch(def.bundleUrl, { cache: "no-store" });
   if(!res.ok) throw new Error(`${def.bundleUrl} not found`);
   const json = await res.json();
   const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
@@ -1048,8 +1061,6 @@ function applyKindDefault(){
 }
 
 /* Admin: patch summary */
-const ADMIN_EMAIL = "enue_staff03@management.com";
-let currentUserEmail = null;
 
 async function refreshPatchSummary(){
   const isAdmin = (currentUserEmail === ADMIN_EMAIL);
@@ -1111,15 +1122,25 @@ async function writeSale(){
   // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
   const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
 
+  const kindId = ($kindSelect?.value || "stock");
+  const kindLabel = getSelectedLabel($kindSelect);
+
+  const paymentId = $paymentSelect.value;
+  const paymentLabel = getSelectedLabel($paymentSelect);
+
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
     orderDate: orderDate || todayYMD(),
-    kind: ($kindSelect?.value || "stock"),
+    kindId,
+    kindLabel,
     orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
     channel: settings.currentChannel,
     venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
-    paymentMethod: $paymentSelect.value,
+    paymentId,
+    paymentLabel,
+    // 互換用（過去集計が paymentMethod を見ている場合の保険）
+    paymentMethod: paymentId,
     total,
     items
   });
@@ -1167,6 +1188,11 @@ if($orderDateInput){
   if($kindSelect) $kindSelect.addEventListener("change", ()=>{ settings.kind = $kindSelect.value; saveSettings(); });
 }
 
+
+function getSelectedLabel(selectEl){
+  const opt = selectEl?.selectedOptions?.[0];
+  return opt ? opt.textContent : (selectEl?.value || "");
+}
 function showToast(msg){
   $toast.textContent = msg;
   $toast.classList.add("show");
@@ -1175,7 +1201,8 @@ function showToast(msg){
 
 function setReceiptMetaText(){
   const d = ($orderDateInput?.value || todayYMD());
-  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
+  const payLabel = getSelectedLabel($paymentSelect);
+  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${payLabel}`;
 }
 
 /* =====================================================
@@ -1194,6 +1221,12 @@ try{
 }
 
 renderSettingsUI();
+
+// kinds -> kindSelect（UI配線）
+if($kindSelect && masters.kinds?.length){
+  fillSelect($kindSelect, masters.kinds);
+  applyKindDefault();
+}
 
 // settings change handlers
 $channelSelect.addEventListener("change", ()=>{
