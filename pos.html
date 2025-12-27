@@ -569,14 +569,6 @@ select {
               <input id="pmPrice" inputmode="numeric" placeholder="例：1400" />
             </div>
           </div>
-
-          <div class="field">
-            <div class="fieldTitle">新規追加</div>
-            <div class="muted">「新規追加」を押すと次のIDを自動採番してフォームに入れます。</div>
-            <div class="btnRow" style="margin-top:10px;">
-              <button class="btn" id="pmNewBtn" type="button">新規追加</button>
-            </div>
-          </div>
         </div>
 
         <div class="btnRow">
@@ -1379,9 +1371,7 @@ $paymentSelect.addEventListener("change", ()=>{
 const $pmModal = $("pmModal");
 const $pmCloseBtn = $("pmCloseBtn");
 const $pmSaveBtn = $("pmSaveBtn");
-const $pmDiscardBtn = $("pmDiscardBtn");
-const $pmNewBtn = $("pmNewBtn");
-const $pmSelect = $("pmSelect");
+const $pmDiscardBtn = $("pmDiscardBtn");const $pmSelect = $("pmSelect");
 const $pmId = $("pmId");
 const $pmName = $("pmName");
 const $pmPrice = $("pmPrice");
@@ -1499,14 +1489,6 @@ $pmSelect.addEventListener("change", ()=>{
   el.addEventListener("change", pmMarkDirty);
 });
 
-$pmNewBtn.addEventListener("click", ()=>{
-  const id = pmNextId();
-  pmSetForm({ id, name:"", price:"", active:true });
-  if($pmHidden) $pmHidden.checked = false;
-  // 新規追加は「編集対象商品」を選んだ状態にしない
-  $pmSelect.value = "";
-  pmDirty = true;
-});
 
 async function pmSave(closeAfter){
   if(!pmDraft) return;
