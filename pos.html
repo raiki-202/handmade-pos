@@ -846,11 +846,14 @@ async function bootFirebase(){
 const LS_SETTINGS_KEY = "pos_settings_v2";
 
 const defaultSettings = {
-  channels: ["マルシェ", "インスタグラム", "onlinestore"],
+  // ※ ここは「初回起動時の初期値」。
+  // 既にlocalStorageに保存がある場合はそちらが優先されます（下で1回だけマイグレーションも入れてます）
+  channels: ["instagram","marche","onlinestore"],
   venues: ["cafe1400"],
-  currentChannel: "marche",
+  currentChannel: "instagram",
   currentVenue: "cafe1400",
-  paymentMethod: "cash",
+  // インスタ既定 → PayPay
+  paymentMethod: "paypay",
   paymentMethods: ["cash","paypay","credit","other"],
 };
 
@@ -978,6 +981,45 @@ function renderSettingsUI(){
 
   $venueWrap.style.display = (settings.currentChannel === "marche") ? "inline-flex" : "none";
 }
+/* =====================================================
+   Channel → Payment default rules
+   - 販売方法 初期値：インスタ
+   - 販売方法=インスタ → 決済初期値=PayPay
+   - 販売方法=マルシェ → 決済初期値=現金
+   - マルシェ初期値でも「開催場所」が必ず表示されるようにする（トグル往復不要）
+===================================================== */
+let INSTAGRAM_CHANNEL_ID = "instagram"; // masters読込後に自動検出で上書きする
+
+function detectInstagramChannelId(){
+  const hit = (masters.channels || []).find(x=>{
+    const id = (x.id || "").toLowerCase();
+    const label = (x.label ?? x.name ?? "").toString();
+    return id.includes("insta") || id.includes("instagram") || label.includes("インスタ");
+  });
+  if(hit?.id) INSTAGRAM_CHANNEL_ID = hit.id;
+}
+
+function setPaymentIfExists(paymentId){
+  if(!$paymentSelect) return;
+  const exists = [...$paymentSelect.options].some(o => o.value === paymentId);
+  if(!exists) return;
+  $paymentSelect.value = paymentId;
+  settings.paymentMethod = paymentId;
+}
+
+function applyChannelRules(opts={ forcePayment:false }){
+  const ch = settings.currentChannel;
+
+  // venue visibility (idで判定)
+  if($venueWrap) $venueWrap.style.display = (ch === "marche") ? "inline-flex" : "none";
+
+  // payment default
+  if(opts.forcePayment){
+    if(ch === "marche") setPaymentIfExists("cash");
+    else if(ch === INSTAGRAM_CHANNEL_ID) setPaymentIfExists("paypay");
+  }
+}
+
 
 function renderProducts(){
   $products.innerHTML = "";
@@ -1272,7 +1314,7 @@ async function writeSale(){
     kindLabel,
     orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
     channel: settings.currentChannel,
-    venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
+    venue: settings.currentChannel==="marche" ? settings.currentVenue : "",
     paymentId,
     paymentLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
@@ -1356,6 +1398,22 @@ try{
   console.warn("masters init failed", e);
 }
 
+
+// masters読込後：インスタのIDを自動検出（idが instagram / insta_... などでもOK）
+detectInstagramChannelId();
+
+// 1回だけ：初期値の方針変更（販売方法=インスタ、決済=PayPay）を反映
+// ※ 既に運用している端末でも「一度だけ」効きます（以後はユーザーの選択を尊重）
+const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v3";
+if(!localStorage.getItem(MIG_DEFAULTS_KEY)){
+  settings.currentChannel = INSTAGRAM_CHANNEL_ID || settings.currentChannel;
+  // チャンネルに応じた決済初期値
+  settings.paymentMethod = (settings.currentChannel === "marche") ? "cash" : "paypay";
+  localStorage.setItem(MIG_DEFAULTS_KEY, "1");
+  saveSettings();
+}
+
+
 // migrate legacy settings (label -> id)
 (function migrateLegacySettings(){
   // channel
@@ -1380,6 +1438,8 @@ try{
 })();
 
 renderSettingsUI();
+// 初期表示の整合（決済初期値・開催場所表示）
+applyChannelRules({ forcePayment:true });
 
 // kinds -> kindSelect（UI配線）
 if($kindSelect && masters.kinds?.length){
@@ -1390,7 +1450,10 @@ if($kindSelect && masters.kinds?.length){
 // settings change handlers
 $channelSelect.addEventListener("change", ()=>{
   settings.currentChannel = $channelSelect.value;
-  $venueWrap.style.display = (settings.currentChannel === "marche") ? "inline-flex" : "none";
+
+  // チャンネル変更時：開催場所の表示と決済初期値を自動で合わせる
+  applyChannelRules({ forcePayment:true });
+
   saveSettings();
 });
 $venueSelect.addEventListener("change", ()=>{
@@ -1601,9 +1664,15 @@ function applyMastersToTopSelects(){
   if(masters.venues?.length)   fillSelect($venueSelect, masters.venues, settings.currentVenue);
   if(masters.payments?.length) fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
 
-  if($venueWrap) $venueWrap.style.display = ($channelSelect.value === "マルシェ") ? "inline-flex" : "none";
+  if($venueWrap) $venueWrap.style.display = ($channelSelect.value === "marche") ? "inline-flex" : "none";
 }
 applyMastersToTopSelects();
+// bundle/patch読込後のselect再描画でもルールを維持
+settings.currentChannel = $channelSelect.value;
+settings.currentVenue = $venueSelect.value;
+settings.paymentMethod = $paymentSelect.value;
+applyChannelRules({ forcePayment:true });
+saveSettings();
 
 /* =====================================================
    Masters modal (patch writer)
@@ -1748,6 +1817,12 @@ async function saveMasterRows(){
 
   await initSimpleMaster(key);
   applyMastersToTopSelects();
+// bundle/patch読込後のselect再描画でもルールを維持
+settings.currentChannel = $channelSelect.value;
+settings.currentVenue = $venueSelect.value;
+settings.paymentMethod = $paymentSelect.value;
+applyChannelRules({ forcePayment:true });
+saveSettings();
   await refreshPatchSummary();
   showToast("マスタ保存OK");
 }
