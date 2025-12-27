@@ -736,18 +736,27 @@ async function bootFirebase(){
   try{
     const app = initializeApp(firebaseConfig);
 
+    // Firestore
+    db = getFirestore(app);
+
+    // Auth
     const auth = getAuth(app);
     await setPersistence(auth, browserLocalPersistence);
+
     // ログインしてなければログイン画面へ（ログイン後はこのPOSへ戻す）
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
       currentUser = user;
       currentUserEmail = user?.email || null;
-      refreshPatchSummary().catch(()=>{});
+
       if (!user) {
         location.href = 'login.html?redirect=' + encodeURIComponent('pos.html');
+        return;
       }
+
+      // 管理者のみ：差分件数の可視化（diffPill + 吹き出し）
+      try{ await refreshPatchSummary(); }catch(e){ /* noop */ }
     });
-    db = getFirestore(app);
+
     setStatus(true, "Firestore接続OK");
   }catch(e){
     console.error(e);
