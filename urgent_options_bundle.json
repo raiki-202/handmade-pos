@@ -1,0 +1,6 @@
+{
+  "urgentOptions": [
+    { "id": "same_day", "label": "当日対応", "active": true },
+    { "id": "next_day", "label": "翌日対応", "active": true }
+  ]
+}
