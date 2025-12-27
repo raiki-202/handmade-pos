@@ -5,5 +5,8 @@
       "marche": "cash",
       "instagram": "paypay"
     }
+  },
+  "overrides": {
+    "scheduleEnabled": true
   }
 }
