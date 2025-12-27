@@ -665,7 +665,7 @@ select {
         <!-- Save button at bottom -->
         <div style="margin-top:14px; display:flex;">
           <button class="btn primaryBtn" id="masterSaveBtn" type="button" style="width:100%; justify-content:center;">
-            保存（差分として登録）
+            保存して閉じる
           </button>
         </div>
       </div>
@@ -2077,7 +2077,11 @@ if($masterDeleteRowBtn) $masterDeleteRowBtn.addEventListener("click", ()=>{
   rows[rows.length - 1].remove();
 });
 if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
-  try{ await saveMasterRows(); }
+  try{
+    await saveMasterRows();
+    // 保存後は閉じる（他マスタと同じ挙動）
+    closeModeModal();
+  }
   catch(e){ console.error(e); alert("保存に失敗しました"); }
 });
 
