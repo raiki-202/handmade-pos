@@ -669,7 +669,10 @@ select {
   <div id="diffPop" style="display:none; position:fixed; right:18px; top:64px; z-index:60;
     background: rgba(255,255,255,.95); border:1px solid rgba(0,0,0,.08); border-radius:14px;
     padding:10px 12px; box-shadow:0 18px 45px rgba(0,0,0,.14); max-width:280px; font-size:13px; line-height:1.35;">
-    <div style="font-weight:700; margin-bottom:6px;">差分内訳</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">
+      <div style="font-weight:700;">差分内訳</div>
+      <button id="exportDiffCsvBtn" class="btn" style="padding:6px 10px; font-size:12px; border-radius:10px;">CSV出力</button>
+    </div>
     <div id="diffPopLines"></div>
   </div>
 
@@ -764,6 +767,16 @@ const $patchBreakdown = $("patchBreakdown");
 const $diffPill = $("diffPill");
 const $diffPop = $("diffPop");
 const $diffPopLines = $("diffPopLines");
+const $exportDiffCsvBtn = $("exportDiffCsvBtn");
+
+if($exportDiffCsvBtn){
+  $exportDiffCsvBtn.addEventListener("click", async (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    try{ await exportAllDiffsOneCsv(); }
+    catch(err){ console.error(err); alert("CSV出力に失敗しました"); }
+  });
+}
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
@@ -1198,6 +1211,148 @@ function applyKindDefault(){
   else if($kindSelect.options.length) $kindSelect.selectedIndex = 0;
 }
 
+
+/* =====================================================
+   Admin: Export all diffs as ONE CSV (admin only)
+===================================================== */
+function csvEscape(v){
+  const s = (v === null || v === undefined) ? "" : String(v);
+  // normalize newlines
+  const t = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  // wrap always (safer for commas/quotes)
+  return `"${t.replace(/"/g,'""')}"`;
+}
+function tsToString(v){
+  try{
+    if(!v) return "";
+    if(typeof v === "string") return v;
+    if(typeof v?.toDate === "function") return v.toDate().toISOString();
+    if(v instanceof Date) return v.toISOString();
+    return "";
+  }catch{
+    return "";
+  }
+}
+function downloadCsv(filename, csvText){
+  // Excel向けにBOM付与
+  const bom = "\uFEFF";
+  const blob = new Blob([bom + csvText], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+async function exportAllDiffsOneCsv(){
+  const isAdmin = (currentUserEmail === ADMIN_EMAIL);
+  if(!isAdmin){
+    alert("管理者のみ実行できます");
+    return;
+  }
+  if(!db){
+    alert("Firestore未接続です");
+    return;
+  }
+
+  const targets = [
+    { key:"products",  label:"商品マスタ",     updates:"products_patch_updates", adds:"products_patch_adds" },
+    { key:"channels",  label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
+    { key:"venues",    label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates,   adds:MASTER_DEFS.venues.adds },
+    { key:"payments",  label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
+    { key:"kinds",     label:"kindマスタ",     updates:MASTER_DEFS.kinds.updates,    adds:MASTER_DEFS.kinds.adds }
+  ];
+
+  const rows = [];
+  for(const t of targets){
+    // updates
+    try{
+      const snapU = await getDocs(collection(db, t.updates));
+      snapU.forEach(d=>{
+        const id = d.id;
+        const data = d.data() || {};
+        const updatedAt = tsToString(data.updatedAt);
+        const updatedBy = data.updatedBy || "";
+        Object.keys(data).forEach(field=>{
+          if(field === "updatedAt" || field === "updatedBy") return;
+          rows.push({
+            masterKey: t.key,
+            masterLabel: t.label,
+            diffType: "update",
+            id,
+            field,
+            value: (data[field] === undefined ? "" : data[field]),
+            updatedAt,
+            updatedBy
+          });
+        });
+        // フィールドが1つも無いパッチも行として残す（空パッチ対策）
+        const hasFields = Object.keys(data).some(k=>k!=="updatedAt" && k!=="updatedBy");
+        if(!hasFields){
+          rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"update", id, field:"", value:"", updatedAt, updatedBy });
+        }
+      });
+    }catch(e){
+      console.warn("export updates failed", t, e);
+      rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"update", id:"", field:"__ERROR__", value:(e?.message||String(e)), updatedAt:"", updatedBy:"" });
+    }
+
+    // adds
+    try{
+      const snapA = await getDocs(collection(db, t.adds));
+      snapA.forEach(d=>{
+        const id = d.id;
+        const data = d.data() || {};
+        const updatedAt = tsToString(data.updatedAt);
+        const updatedBy = data.updatedBy || "";
+        Object.keys(data).forEach(field=>{
+          if(field === "updatedAt" || field === "updatedBy") return;
+          rows.push({
+            masterKey: t.key,
+            masterLabel: t.label,
+            diffType: "add",
+            id,
+            field,
+            value: (data[field] === undefined ? "" : data[field]),
+            updatedAt,
+            updatedBy
+          });
+        });
+        const hasFields = Object.keys(data).some(k=>k!=="updatedAt" && k!=="updatedBy");
+        if(!hasFields){
+          rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"add", id, field:"", value:"", updatedAt, updatedBy });
+        }
+      });
+    }catch(e){
+      console.warn("export adds failed", t, e);
+      rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"add", id:"", field:"__ERROR__", value:(e?.message||String(e)), updatedAt:"", updatedBy:"" });
+    }
+  }
+
+  // 並び：マスタ→diff→id→field
+  rows.sort((a,b)=>{
+    const k1 = (a.masterKey||"").localeCompare(b.masterKey||"");
+    if(k1) return k1;
+    const k2 = (a.diffType||"").localeCompare(b.diffType||"");
+    if(k2) return k2;
+    const k3 = (a.id||"").localeCompare(b.id||"");
+    if(k3) return k3;
+    return (a.field||"").localeCompare(b.field||"");
+  });
+
+  const headers = ["masterKey","masterLabel","diffType","id","field","value","updatedAt","updatedBy"];
+  const csv = [
+    headers.join(","),
+    ...rows.map(r => headers.map(h => csvEscape(r[h])).join(","))
+  ].join("\n");
+
+  const now = new Date();
+  const stamp = now.toISOString().slice(0,19).replace(/[:T]/g,"-");
+  downloadCsv(`enue_diff_all_${stamp}.csv`, csv);
+}
+
+
 /* Admin: patch summary */
 
 async function refreshPatchSummary(){
@@ -1207,6 +1362,7 @@ async function refreshPatchSummary(){
   if(!isAdmin) {
     if($diffPill) $diffPill.style.display = "none";
     if($diffPop) $diffPop.style.display = "none";
+    if($exportDiffCsvBtn) $exportDiffCsvBtn.style.display = "none";
     // 旧UIは使わない
     if($patchPill) $patchPill.style.display = "none";
     if($patchPop) $patchPop.style.display = "none";
@@ -1231,6 +1387,7 @@ async function refreshPatchSummary(){
     $diffPill.textContent = `updates 0 / adds 0`;
     $diffPill.style.display = "inline-flex";
   }
+  if($exportDiffCsvBtn) $exportDiffCsvBtn.style.display = "inline-flex";
 
   for(const t of targets){
     let u = 0, a = 0, err = null;
