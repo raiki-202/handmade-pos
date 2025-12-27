@@ -767,35 +767,11 @@ const $totalText  = $("totalText");
 const $checkoutBtn = $("checkoutBtn");
 
 const $receiptModal = $("receiptModal");
-
-/* =====================================================
-   Receipt Modal open / close + backdrop click close
-===================================================== */
-function setReceiptModalOpen(open){
-  if(!$receiptModal) return;
-  if(open){
-    $receiptModal.classList.add("show");
-    $receiptModal.setAttribute("aria-hidden","false");
-  }else{
-    $receiptModal.classList.remove("show");
-    $receiptModal.setAttribute("aria-hidden","true");
-  }
-}
-
-// Backdrop tap/click to close (only when clicking the overlay itself)
-if($receiptModal){
-  $receiptModal.addEventListener("click",(e)=>{
-    if(e.target === $receiptModal){
-      setReceiptModalOpen(false);
-    }
-  });
-}
-
 const $receiptMeta  = $("receiptMeta");
 const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
 const $orderDateInput = $("orderDateInput");
-const $kindSelect = $("kindSelect");
+const $kindSelect = $("receiptKindSelect");
 const $urgentWrap = $("urgentWrap");
 const $urgentSelect = $("urgentSelect");
 const $receiptChannelSelect = $("receiptChannelSelect");
@@ -853,6 +829,28 @@ const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
 
 const $toast = $("toast");
+
+/* =====================================================
+   Receipt Modal open / close
+===================================================== */
+function setReceiptModalOpen(open){
+  if(!$receiptModal) return;
+  if(open){
+    $receiptModal.classList.add("show");
+    $receiptModal.setAttribute("aria-hidden","false");
+  }else{
+    $receiptModal.classList.remove("show");
+    $receiptModal.setAttribute("aria-hidden","true");
+  }
+}
+
+// 背景（オーバーレイ）タップで閉じる
+if($receiptModal){
+  $receiptModal.addEventListener("click", (e)=>{
+    if(e.target === $receiptModal) setReceiptModalOpen(false);
+  });
+}
+
 
 /* =====================================================
    Firebase init
@@ -1704,6 +1702,12 @@ $checkoutBtn.onclick = ()=>{
   const showVenue = ($channelSelect.value === "marche");
   if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
 
+  // kind 初期値：stock（ルール）
+  if($kindSelect){
+    const hasStock = [...$kindSelect.options].some(o=>o.value==="stock");
+    if(!($kindSelect.value||"") && hasStock) $kindSelect.value = "stock";
+    else if(hasStock) $kindSelect.value = ($kindSelect.value||"stock");
+  }
   toggleUrgentUI();
   setReceiptMetaText();
 
