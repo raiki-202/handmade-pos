@@ -504,6 +504,13 @@ select {
             <input id="orderDateInput" type="date" />
           </span>
         </div>
+        <div style="margin-top:10px;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            kind
+            <select id="kindSelect"></select>
+          </span>
+        </div>
+
         <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -629,6 +636,7 @@ const $receiptMeta  = $("receiptMeta");
 const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
 const $orderDateInput = $("orderDateInput");
+const $kindSelect = $("kindSelect");
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
@@ -768,6 +776,72 @@ async function loadProductsWithPatch(){
   return { products: ordered, updatesCount, addsCount };
 }
 
+
+/* =====================================================
+   kindマスタ（bundle + patch）
+===================================================== */
+const KIND_BUNDLE_URL = "./kinds_bundle.json";
+let kindMaster = [];
+
+const COL_KIND_PATCH_UPDATES = "kinds_patch_updates";
+const COL_KIND_PATCH_ADDS    = "kinds_patch_adds";
+
+async function loadKindsFromBundle(){
+  const res = await fetch(KIND_BUNDLE_URL, { cache: "no-store" });
+  if(!res.ok) throw new Error("kinds bundle fetch failed");
+  const json = await res.json();
+  return (json.kinds || []);
+}
+
+async function loadKindsWithPatch(){
+  const base = await loadKindsFromBundle();
+  const map = new Map(base.map(k => [k.id, { ...k }]));
+
+  // updates
+  try{
+    const snapU = await getDocs(collection(db, COL_KIND_PATCH_UPDATES));
+    snapU.forEach(d=>{
+      const id = d.id;
+      const patch = d.data() || {};
+      const cur = map.get(id) || { id };
+      map.set(id, { ...cur, ...patch, id });
+    });
+  }catch(e){
+    console.warn("kinds_patch_updates read failed", e);
+  }
+
+  // adds
+  try{
+    const snapA = await getDocs(collection(db, COL_KIND_PATCH_ADDS));
+    snapA.forEach(d=>{
+      const id = d.id;
+      const patch = d.data() || {};
+      if(!map.has(id)) map.set(id, { id, ...patch });
+    });
+  }catch(e){
+    console.warn("kinds_patch_adds read failed", e);
+  }
+
+  kindMaster = Array.from(map.values()).filter(k => k.active !== false);
+}
+
+function renderKindSelect(){
+  if(!$kindSelect) return;
+  $kindSelect.innerHTML = "";
+  kindMaster.forEach(k=>{
+    const o = document.createElement("option");
+    o.value = k.id;
+    o.textContent = k.label ?? k.id;
+    $kindSelect.appendChild(o);
+  });
+}
+
+async function initKindMaster(){
+  await loadKindsWithPatch();
+  renderKindSelect();
+}
+
+
 /* =====================================================
    UI render
 ===================================================== */
@@ -829,6 +903,7 @@ function renderProducts(){
     const qty = document.createElement("div");
     qty.className = "qty";
     const sel = document.createElement("select");
+    sel.className = "qtySelect";
     sel.disabled = true;
     for(let i=1;i<=10;i++){
       const o=document.createElement("option");
@@ -906,6 +981,8 @@ async function writeSale(){
   // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
   const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
 
+  const kind = ($kindSelect?.value || "-").trim();
+
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
@@ -914,6 +991,7 @@ async function writeSale(){
     channel: settings.currentChannel,
     venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
     paymentMethod: $paymentSelect.value,
+    kind,
     total,
     items
   });
@@ -946,7 +1024,8 @@ $confirmBtn.onclick = async ()=>{
     $receiptModal.classList.remove("show");
     showToast("保存しました");
     document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
-    document.querySelectorAll("select").forEach(s=>{s.disabled=true;s.value=1});
+    document.querySelectorAll(".qtySelect").forEach(s=>{s.disabled=true; s.value=1});
+    // kindは次回も使うので維持（必要ならここで初期化）
     updateTotal();
   }catch(e){
     alert("保存に失敗しました");
@@ -968,7 +1047,7 @@ function showToast(msg){
 
 function setReceiptMetaText(){
   const d = ($orderDateInput?.value || todayYMD());
-  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
+  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value} / kind：${$kindSelect?.value || "-"}`;
 }
 
 /* =====================================================
@@ -1165,6 +1244,9 @@ $pmToggleBtn.addEventListener("click", ()=>{
 
 const loaded = await loadProductsWithPatch();
 products = loaded.products;
+
+// kindマスタ読み込み
+try{ await initKindMaster(); }catch(e){ console.warn("kind master init failed", e); }
 
 // 表示用（右上ピルがあれば）
 const $masterPill = document.getElementById('masterPill');
