@@ -650,7 +650,7 @@ select {
 /* =====================================================
    Firebase imports
 ===================================================== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
 import {
   getFirestore,
   collection,
@@ -659,8 +659,8 @@ import {
   serverTimestamp,
   doc,
   setDoc
-} from "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
 /* =====================================================
    Firebase config（あなたの dev）
@@ -728,11 +728,12 @@ function setStatus(ok, text){
   $checkoutBtn.disabled = !ok;
 }
 
-function bootFirebase(){
+async function bootFirebase(){
   try{
     const app = initializeApp(firebaseConfig);
 
     const auth = getAuth(app);
+    await setPersistence(auth, browserLocalPersistence);
     // ログインしてなければログイン画面へ（ログイン後はこのPOSへ戻す）
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
@@ -1180,7 +1181,7 @@ function setReceiptMetaText(){
 /* =====================================================
    INIT
 ===================================================== */
-bootFirebase();
+await bootFirebase();
 
 // load simple masters (bundle + patch)
 try{
