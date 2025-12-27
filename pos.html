@@ -842,7 +842,7 @@ const LS_SETTINGS_KEY = "pos_settings_v2";
 const defaultSettings = {
   channels: ["マルシェ", "インスタグラム", "onlinestore"],
   venues: ["cafe1400"],
-  currentChannel: "マルシェ",
+  currentChannel: "marche",
   currentVenue: "cafe1400",
   paymentMethod: "cash",
   paymentMethods: ["cash","paypay","credit","other"],
@@ -943,34 +943,34 @@ async function loadProductsWithPatch(){
    UI render
 ===================================================== */
 function renderSettingsUI(){
-  $channelSelect.innerHTML = "";
-  settings.channels.forEach(v=>{
-    const o = document.createElement("option");
-    o.value = v; o.textContent = v;
-    if(v === settings.currentChannel) o.selected = true;
-    $channelSelect.appendChild(o);
-  });
+  // チャンネル（販売方法）
+  fillSelect($channelSelect, masters.channels, settings.currentChannel);
+  if(!$channelSelect.value && $channelSelect.options.length){
+    $channelSelect.selectedIndex = 0;
+    settings.currentChannel = $channelSelect.value;
+  }else{
+    settings.currentChannel = $channelSelect.value;
+  }
 
-  $venueSelect.innerHTML = "";
-  settings.venues.forEach(v=>{
-    const o = document.createElement("option");
-    o.value = v; o.textContent = v;
-    if(v === settings.currentVenue) o.selected = true;
-    $venueSelect.appendChild(o);
-  });
+  // 開催場所（マルシェの時だけ表示）
+  fillSelect($venueSelect, masters.venues, settings.currentVenue);
+  if(!$venueSelect.value && $venueSelect.options.length){
+    $venueSelect.selectedIndex = 0;
+    settings.currentVenue = $venueSelect.value;
+  }else{
+    settings.currentVenue = $venueSelect.value;
+  }
 
-  $paymentSelect.innerHTML = "";
-  const payLabelMap = { cash:"現金", paypay:"PayPay", credit:"クレカ", other:"その他" };
-  (settings.paymentMethods || ["cash","paypay","credit","other"]).forEach(v=>{
-    const o = document.createElement("option");
-    o.value = v;
-    o.textContent = payLabelMap[v] || v;
-    if(v === settings.paymentMethod) o.selected = true;
-    $paymentSelect.appendChild(o);
-  });
+  // 決済方法
+  fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
+  if(!$paymentSelect.value && $paymentSelect.options.length){
+    $paymentSelect.selectedIndex = 0;
+    settings.paymentMethod = $paymentSelect.value;
+  }else{
+    settings.paymentMethod = $paymentSelect.value;
+  }
 
-  $paymentSelect.value = settings.paymentMethod;
-  $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
+  $venueWrap.style.display = (settings.currentChannel === "marche") ? "inline-flex" : "none";
 }
 
 function renderProducts(){
@@ -1085,11 +1085,19 @@ const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new 
 
 async function loadSimpleBundle(key){
   const def = MASTER_DEFS[key];
-  const res = await fetch(def.bundleUrl, { cache: "no-store" });
-  if(!res.ok) throw new Error(`${def.bundleUrl} not found`);
-  const json = await res.json();
-  const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
-  return arr;
+  try{
+    const res = await fetch(def.bundleUrl, { cache: "no-store" });
+    if(!res.ok){
+      console.warn(`[masters] bundle missing: ${def.bundleUrl} (${res.status}) -> empty bundle used for ${key}`);
+      return [];
+    }
+    const json = await res.json();
+    const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
+    return Array.isArray(arr) ? arr : [];
+  }catch(e){
+    console.warn(`[masters] bundle load failed: ${def.bundleUrl} -> empty bundle used for ${key}`, e);
+    return [];
+  }
 }
 
 async function loadSimplePatch(key){
@@ -1342,6 +1350,29 @@ try{
   console.warn("masters init failed", e);
 }
 
+// migrate legacy settings (label -> id)
+(function migrateLegacySettings(){
+  // channel
+  const chIds = masters.channels.map(x=>x.id);
+  if(settings.currentChannel && !chIds.includes(settings.currentChannel)){
+    const hit = masters.channels.find(x => (x.label ?? x.name ?? x.id) === settings.currentChannel);
+    if(hit) settings.currentChannel = hit.id;
+  }
+  // venue
+  const vIds = masters.venues.map(x=>x.id);
+  if(settings.currentVenue && !vIds.includes(settings.currentVenue)){
+    const hitV = masters.venues.find(x => (x.label ?? x.name ?? x.id) === settings.currentVenue);
+    if(hitV) settings.currentVenue = hitV.id;
+  }
+  // payment
+  const pIds = masters.payments.map(x=>x.id);
+  if(settings.paymentMethod && !pIds.includes(settings.paymentMethod)){
+    const hitP = masters.payments.find(x => (x.label ?? x.name ?? x.id) === settings.paymentMethod);
+    if(hitP) settings.paymentMethod = hitP.id;
+  }
+  saveSettings();
+})();
+
 renderSettingsUI();
 
 // kinds -> kindSelect（UI配線）
@@ -1353,7 +1384,7 @@ if($kindSelect && masters.kinds?.length){
 // settings change handlers
 $channelSelect.addEventListener("change", ()=>{
   settings.currentChannel = $channelSelect.value;
-  $venueWrap.style.display = (settings.currentChannel === "マルシェ") ? "inline-flex" : "none";
+  $venueWrap.style.display = (settings.currentChannel === "marche") ? "inline-flex" : "none";
   saveSettings();
 });
 $venueSelect.addEventListener("change", ()=>{
