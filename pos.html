@@ -767,6 +767,30 @@ const $totalText  = $("totalText");
 const $checkoutBtn = $("checkoutBtn");
 
 const $receiptModal = $("receiptModal");
+
+/* =====================================================
+   Receipt Modal open / close + backdrop click close
+===================================================== */
+function setReceiptModalOpen(open){
+  if(!$receiptModal) return;
+  if(open){
+    $receiptModal.classList.add("show");
+    $receiptModal.setAttribute("aria-hidden","false");
+  }else{
+    $receiptModal.classList.remove("show");
+    $receiptModal.setAttribute("aria-hidden","true");
+  }
+}
+
+// Backdrop tap/click to close (only when clicking the overlay itself)
+if($receiptModal){
+  $receiptModal.addEventListener("click",(e)=>{
+    if(e.target === $receiptModal){
+      setReceiptModalOpen(false);
+    }
+  });
+}
+
 const $receiptMeta  = $("receiptMeta");
 const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
