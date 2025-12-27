@@ -144,7 +144,14 @@ await setPersistence(auth, browserLocalPersistence);
 
     // すでにログイン済みなら index.html へ
     const params = new URLSearchParams(location.search);
-    const redirect = params.get("redirect") || "index.html";
+    const rawRedirect = params.get("redirect") || "index.html";
+
+    // リスト無し：相対パスのみ許可（外部URL/スキーム/// を拒否）
+    // 例) OK: "pos.html", "pages/other.html?x=1"
+    //     NG: "https://example.com", "//example.com", "javascript:..."
+    const redirect = (/^(?!https?:|\/\/|data:|javascript:).+$/i).test(rawRedirect)
+      ? rawRedirect
+      : "index.html";
 
     // すでにログイン済みなら redirect へ
     onAuthStateChanged(auth, (user) => {
