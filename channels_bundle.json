@@ -1,8 +1,29 @@
 {
   "channels": [
-    { "id": "marche", "label": "マルシェ", "active": true },
-    { "id": "instagram", "label": "インスタグラム", "active": true },
-    { "id": "story", "label": "ストーリー販売", "active": true },
-    { "id": "onlinestore", "label": "onlinestore", "active": true }
+    {
+      "id": "marche",
+      "label": "マルシェ",
+      "active": true
+    },
+    {
+      "id": "instagram",
+      "label": "インスタグラム",
+      "active": true
+    },
+    {
+      "id": "story",
+      "label": "ストーリー販売",
+      "active": true
+    },
+    {
+      "id": "onlinestore",
+      "label": "onlinestore",
+      "active": true
+    },
+    {
+      "id": "item",
+      "active": true,
+      "label": "委託販売"
+    }
   ]
 }
