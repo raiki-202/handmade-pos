@@ -463,24 +463,13 @@ select {
           </div>
 
           <div class="posBody">
-            <div class="row2">
-              <span class="label">
-                販売方法
-                <select id="channelSelect"></select>
-              </span>
-
-              <span class="label" id="venueWrap" style="display:none;">
-                開催場所
-                <select id="venueSelect"></select>
-              </span>
-
-              <span class="label">
-                決済方法
-                <select id="paymentSelect"></select>
-              </span>
+            <!-- top quick selectors removed: edit in receipt modal -->
+            <div class="row2" id="topSelectors" style="display:none;">
+              <span class="label">販売方法 <select id="channelSelect"></select></span>
+              <span class="label" id="venueWrap" style="display:none;">開催場所 <select id="venueSelect"></select></span>
+              <span class="label">決済方法 <select id="paymentSelect"></select></span>
             </div>
-
-            <div class="products" id="products"></div>
+<div class="products" id="products"></div>
 
             <button class="primary" id="checkoutBtn" type="button" disabled>決済へ進む</button>
             <div class="total" id="totalText">合計：￥0</div>
@@ -499,6 +488,8 @@ select {
       </div>
       <div class="modalBody">
         <div class="muted" id="receiptMeta"></div>
+
+        <!-- 1) 受注日 -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex;">
             受注日
@@ -506,12 +497,13 @@ select {
           </span>
         </div>
 
+        <!-- 2) 購入者氏名 -->
         <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            kind
-            <select id="kindSelect"></select>
-          </span>
-        
+          <div class="label">購入者氏名</div>
+          <input id="receiptCustomerName" placeholder="例：山田 太郎" />
+        </div>
+
+        <!-- 3) 販売方法（マルシェ時のみ開催場所を表示） -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             販売方法
@@ -519,6 +511,14 @@ select {
           </span>
         </div>
 
+        <div id="receiptVenueWrap" style="margin-top:10px; display:none;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            開催場所
+            <select id="receiptVenueSelect"></select>
+          </span>
+        </div>
+
+        <!-- 4) 決済方法 -->
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             決済方法
@@ -526,12 +526,14 @@ select {
           </span>
         </div>
 
+        <!-- 5) kind -->
         <div style="margin-top:10px;">
-          <div class="label">購入者氏名</div>
-          <input id="receiptCustomerName" placeholder="例：山田 太郎" />
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            kind
+            <select id="kindSelect"></select>
+          </span>
         </div>
-</div>
-        <div id="urgentWrap" style="margin-top:10px; display:none;">
+<div id="urgentWrap" style="margin-top:10px; display:none;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             お急ぎOP
             <select id="urgentSelect"></select>
