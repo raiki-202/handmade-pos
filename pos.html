@@ -512,6 +512,13 @@ select {
             <select id="kindSelect"></select>
           </span>
         </div>
+        <div id="urgentWrap" style="margin-top:10px; display:none;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            お急ぎOP
+            <select id="urgentSelect"></select>
+          </span>
+          <div class="muted" style="margin-top:6px;">※ kind=order のときだけ表示されます</div>
+        </div>
         <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -596,6 +603,7 @@ select {
         <button class="btn" id="menuVenuesMasterBtn" type="button">開催場所マスタ編集</button>
         <button class="btn" id="menuPaymentsMasterBtn" type="button">決済方法マスタ編集</button>
         <button class="btn" id="menuKindsMasterBtn" type="button">kindマスタ編集</button>
+        <button class="btn" id="menuUrgentOptionsMasterBtn" type="button">お急ぎOPマスタ編集</button>
       </div>
       <div class="muted" style="margin-top:10px;">※ 変更は差分（patch）としてFirestoreに保存されます。</div>
     </div>
@@ -734,6 +742,8 @@ const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
 const $orderDateInput = $("orderDateInput");
 const $kindSelect = $("kindSelect");
+const $urgentWrap = $("urgentWrap");
+const $urgentSelect = $("urgentSelect");
 const $mastersToggleBtn = $("mastersToggleBtn");
 const $masterMenuModal = $("masterMenuModal");
 const $masterMenuCloseBtn = $("masterMenuCloseBtn");
@@ -742,6 +752,7 @@ const $menuChannelsMasterBtn = $("menuChannelsMasterBtn");
 const $menuVenuesMasterBtn = $("menuVenuesMasterBtn");
 const $menuPaymentsMasterBtn = $("menuPaymentsMasterBtn");
 const $menuKindsMasterBtn = $("menuKindsMasterBtn");
+const $menuUrgentOptionsMasterBtn = $("menuUrgentOptionsMasterBtn");
 
 const $masterModeModal = $("masterModeModal");
 const $masterModeTitle = $("masterModeTitle");
@@ -1142,11 +1153,12 @@ const MASTER_DEFS = {
   channels: { bundleUrl: "./channels_bundle.json", updates: "channels_patch_updates", adds: "channels_patch_adds" },
   venues:   { bundleUrl: "./venues_bundle.json",   updates: "venues_patch_updates",   adds: "venues_patch_adds" },
   payments: { bundleUrl: "./payments_bundle.json", updates: "payments_patch_updates", adds: "payments_patch_adds" },
-  kinds:    { bundleUrl: "./kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" }
+  kinds:    { bundleUrl: "./kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" },
+  urgentOptions: { bundleUrl: "./urgent_options_bundle.json", updates: "urgent_options_patch_updates", adds: "urgent_options_patch_adds" }
 };
 
-const masters = { channels: [], venues: [], payments: [], kinds: [] };
-const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new Set(), kinds: new Set() };
+const masters = { channels: [], venues: [], payments: [], kinds: [], urgentOptions: [] };
+const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new Set(), kinds: new Set(), urgentOptions: new Set() };
 
 async function loadSimpleBundle(key){
   const def = MASTER_DEFS[key];
@@ -1204,6 +1216,22 @@ function fillSelect(sel, arr, currentValue){
   });
 }
 
+function fillSelectWithPlaceholder(sel, arr, currentValue, placeholder="---"){
+  if(!sel) return;
+  sel.innerHTML = "";
+  const ph = document.createElement("option");
+  ph.value = "";
+  ph.textContent = placeholder;
+  sel.appendChild(ph);
+  arr.forEach(x=>{
+    const opt=document.createElement("option");
+    opt.value = x.id;
+    opt.textContent = x.label ?? x.name ?? x.id;
+    if(currentValue && opt.value === currentValue) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
 function applyKindDefault(){
   if(!$kindSelect) return;
   const hasStock = [...$kindSelect.options].some(o=>o.value==="stock");
@@ -1211,6 +1239,24 @@ function applyKindDefault(){
   else if($kindSelect.options.length) $kindSelect.selectedIndex = 0;
 }
 
+
+function applyUrgentOptions(){
+  if(!$urgentSelect || !$urgentWrap) return;
+  // placeholder付き（未選択OK）
+  fillSelectWithPlaceholder($urgentSelect, masters.urgentOptions || [], $urgentSelect.value || "", "---");
+}
+
+function toggleUrgentUI(){
+  if(!$urgentWrap) return;
+  const kindId = ($kindSelect?.value || "stock");
+  const show = (kindId === "order");
+  $urgentWrap.style.display = show ? "" : "none";
+  if(show){
+    applyUrgentOptions();
+    // 未選択なら先頭（---）
+    if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+  }
+}
 
 /* =====================================================
    Admin: Export all diffs as ONE CSV (admin only)
@@ -1261,7 +1307,8 @@ async function exportAllDiffsOneCsv(){
     { key:"channels",  label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
     { key:"venues",    label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates,   adds:MASTER_DEFS.venues.adds },
     { key:"payments",  label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
-    { key:"kinds",     label:"kindマスタ",     updates:MASTER_DEFS.kinds.updates,    adds:MASTER_DEFS.kinds.adds }
+    { key:"kinds",     label:"kindマスタ",     updates:MASTER_DEFS.kinds.updates,    adds:MASTER_DEFS.kinds.adds },
+    { key:"urgentOptions", label:"お急ぎOPマスタ", updates:MASTER_DEFS.urgentOptions.updates, adds:MASTER_DEFS.urgentOptions.adds }
   ];
 
   const rows = [];
@@ -1374,7 +1421,8 @@ async function refreshPatchSummary(){
     { key:"channels", label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
     { key:"venues", label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates, adds:MASTER_DEFS.venues.adds },
     { key:"payments", label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
-    { key:"kinds", label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds }
+    { key:"kinds", label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds },
+    { key:"urgentOptions", label:"お急ぎOPマスタ", updates:MASTER_DEFS.urgentOptions.updates, adds:MASTER_DEFS.urgentOptions.adds }
   ];
 
   // まずは「0件でも出す」を保証（読めなくても表示される）
@@ -1467,6 +1515,9 @@ async function writeSale(){
   const paymentId = $paymentSelect.value;
   const paymentLabel = getSelectedLabel($paymentSelect);
 
+  const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
+  const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
+
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
@@ -1478,6 +1529,8 @@ async function writeSale(){
     venue: settings.currentChannel==="marche" ? settings.currentVenue : "",
     paymentId,
     paymentLabel,
+    urgentOptionId,
+    urgentOptionLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
     paymentMethod: paymentId,
     total,
@@ -1498,6 +1551,7 @@ $checkoutBtn.onclick = ()=>{
     $orderDateInput.value = todayYMD();
   }
   setReceiptMetaText();
+  toggleUrgentUI();
   $receiptList.innerHTML = items.map(
     i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
   ).join("<br>");
@@ -1512,7 +1566,7 @@ $confirmBtn.onclick = async ()=>{
     $receiptModal.classList.remove("show");
     showToast("決済完了🌟");
     document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
-    document.querySelectorAll("select").forEach(s=>{s.disabled=true;s.value=1});
+    document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true; s.value=1});
     updateTotal();
   }catch(e){
     alert("保存に失敗しました");
@@ -1524,7 +1578,12 @@ $closeReceiptBtn.onclick = $cancelBtn.onclick =
 
 if($orderDateInput){
   $orderDateInput.addEventListener("change", setReceiptMetaText);
-  if($kindSelect) $kindSelect.addEventListener("change", ()=>{ settings.kind = $kindSelect.value; saveSettings(); });
+  if($kindSelect) $kindSelect.addEventListener("change", ()=>{
+    settings.kind = $kindSelect.value;
+    toggleUrgentUI();
+    setReceiptMetaText();
+    saveSettings();
+  });
 }
 
 
@@ -1541,7 +1600,10 @@ function showToast(msg){
 function setReceiptMetaText(){
   const d = ($orderDateInput?.value || todayYMD());
   const payLabel = getSelectedLabel($paymentSelect);
-  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${payLabel}`;
+  const kindId = ($kindSelect?.value || "stock");
+  const urgentLabel = (kindId === "order") ? (getSelectedLabel($urgentSelect) || "") : "";
+  const urgentText = (kindId === "order") ? ` / お急ぎOP：${urgentLabel || "-"}` : "";
+  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${payLabel}${urgentText}`;
 }
 
 /* =====================================================
@@ -1555,6 +1617,7 @@ try{
   await initSimpleMaster("venues");
   await initSimpleMaster("payments");
   await initSimpleMaster("kinds");
+  await initSimpleMaster("urgentOptions");
 }catch(e){
   console.warn("masters init failed", e);
 }
@@ -1606,6 +1669,12 @@ applyChannelRules({ forcePayment:true });
 if($kindSelect && masters.kinds?.length){
   fillSelect($kindSelect, masters.kinds);
   applyKindDefault();
+}
+
+// urgentOptions -> urgentSelect（UI配線）
+if($urgentSelect){
+  applyUrgentOptions();
+  toggleUrgentUI();
 }
 
 // settings change handlers
@@ -1848,7 +1917,7 @@ function mastersOpen(key, mode){
 
   // title
   if($mastersTitle){
-    const labelMap = { channels:"販売方法マスタ編集", venues:"開催場所マスタ編集", payments:"決済方法マスタ編集", kinds:"kindマスタ編集" };
+    const labelMap = { channels:"販売方法マスタ編集", venues:"開催場所マスタ編集", payments:"決済方法マスタ編集", kinds:"kindマスタ編集", urgentOptions:"お急ぎOPマスタ編集" };
     $mastersTitle.textContent = labelMap[currentMasterKey] || "マスタ編集";
   }
 
@@ -2033,6 +2102,7 @@ if($menuChannelsMasterBtn) $menuChannelsMasterBtn.onclick = ()=> goMaster("chann
 if($menuVenuesMasterBtn)   $menuVenuesMasterBtn.onclick   = ()=> goMaster("venues","開催場所マスタ編集");
 if($menuPaymentsMasterBtn) $menuPaymentsMasterBtn.onclick = ()=> goMaster("payments","決済方法マスタ編集");
 if($menuKindsMasterBtn)    $menuKindsMasterBtn.onclick    = ()=> goMaster("kinds","kindマスタ編集");
+if($menuUrgentOptionsMasterBtn) $menuUrgentOptionsMasterBtn.onclick = ()=> goMaster("urgentOptions","お急ぎOPマスタ編集");
 
 if($masterModeCloseBtn) $masterModeCloseBtn.onclick = closeModeModal;
 if($masterModeModal){
