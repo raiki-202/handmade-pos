@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>e.nue POS</title>
+  <title>e.nue POS (COMPLETE build 2025-12-27)</title>
 
   <style>
     :root{
@@ -327,40 +327,6 @@
     }
     .toast.show{ display:block; }
 
-    /* success pop */
-    .successPop{
-      position: fixed;
-      left: 50%;
-      top: 50%;
-      transform: translate(-50%,-50%) scale(.85);
-      opacity: 0;
-      pointer-events: none;
-      background: rgba(255,255,255,.94);
-      border: 1px solid rgba(0,0,0,.12);
-      border-radius: 18px;
-      padding: 14px 18px;
-      box-shadow: 0 18px 45px rgba(0,0,0,.18);
-      font-weight: 900;
-      letter-spacing: .04em;
-      z-index: 3000;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      font-size: 18px;
-      text-align: center;
-      min-width: 180px;
-    }
-    .successPop.show{
-      animation: successPop 1.15s ease forwards;
-    }
-    @keyframes successPop{
-      0%   { opacity:0; transform: translate(-50%,-50%) scale(.78); }
-      15%  { opacity:1; transform: translate(-50%,-50%) scale(1.06); }
-      30%  { opacity:1; transform: translate(-50%,-50%) scale(1.00); }
-      80%  { opacity:1; transform: translate(-50%,-50%) scale(1.00); }
-      100% { opacity:0; transform: translate(-50%,-50%) scale(.98); }
-    }
-
-
     @media (max-width: 600px){
       body{ padding: 10px; }
       .brand-main{ font-size: 18px; }
@@ -493,6 +459,7 @@ select {
             </div>
             <span class="pill" id="masterPill">商品マスタ：読込中</span>
             <button class="titleIcon" id="pmToggleBtn" type="button" aria-label="商品マスタ編集" title="商品マスタ編集">✎</button>
+            <button class="titleIcon" id="mastersToggleBtn" aria-label="マスタ編集" title="マスタ編集">⚙︎</button>
           </div>
 
           <div class="posBody">
@@ -538,13 +505,13 @@ select {
             <input id="orderDateInput" type="date" />
           </span>
         </div>
+
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             kind
             <select id="kindSelect"></select>
           </span>
         </div>
-
         <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -621,9 +588,55 @@ select {
   </div>
 
   <div class="toast" id="toast">保存しました</div>
-  <div class="successPop" id="successPop">決済完了🌟</div>
 
+
+  <!-- Masters Modal (simple masters: channels/venues/payments/kinds) -->
+  <div class="modal" id="mastersModal" aria-hidden="true">
+    <div class="modalInner">
+      <div class="modalHead">
+        <h3>マスタ編集</h3>
+        <button class="iconBtn" id="mastersCloseBtn" type="button">ⓧ</button>
+      </div>
+      <div class="modalBody">
+        <div class="muted" style="margin-bottom:10px;">
+          ※ ここでの変更は「差分（patch）」としてFirestoreに保存されます。bundle(JSON)はGitHub側。
+        </div>
+
+        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            対象
+            <select id="masterTypeSelect">
+              <option value="channels">販売方法マスタ</option>
+              <option value="venues">開催場所マスタ</option>
+              <option value="payments">決済方法マスタ</option>
+              <option value="kinds">kindマスタ</option>
+            </select>
+          </span>
+
+          <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
+
+          <button class="btn primaryBtn" id="masterSaveBtn" type="button">保存（差分として登録）</button>
+        </div>
+
+        <div id="masterRows" style="margin-top:12px; display:grid; gap:10px;"></div>
+
+        <div class="muted" style="margin-top:10px;">
+          ルール：bundleに存在するID → updates、bundleに無いID → adds
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin patch summary -->
+  <div id="patchPill" class="pill" style="display:none; position:fixed; right:18px; bottom:18px; z-index:50; cursor:pointer;">
+    差分：0
+  </div>
+  <div id="patchPop" style="display:none; position:fixed; right:18px; bottom:62px; z-index:51; background:rgba(255,255,255,.95); border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:12px 14px; box-shadow:0 18px 45px rgba(0,0,0,.14); min-width:220px;">
+    <div style="font-weight:800; margin-bottom:6px;">差分内訳</div>
+    <div id="patchBreakdown" class="muted"></div>
+  </div>
 <script type="module">
+  console.log("POS COMPLETE build 2025-12-27");
 /* =====================================================
    Firebase imports
 ===================================================== */
@@ -672,12 +685,21 @@ const $receiptList  = $("receiptList");
 const $receiptTotal = $("receiptTotal");
 const $orderDateInput = $("orderDateInput");
 const $kindSelect = $("kindSelect");
+const $mastersToggleBtn = $("mastersToggleBtn");
+const $mastersModal = $("mastersModal");
+const $mastersCloseBtn = $("mastersCloseBtn");
+const $masterTypeSelect = $("masterTypeSelect");
+const $masterRows = $("masterRows");
+const $masterAddRowBtn = $("masterAddRowBtn");
+const $masterSaveBtn = $("masterSaveBtn");
+const $patchPill = $("patchPill");
+const $patchPop = $("patchPop");
+const $patchBreakdown = $("patchBreakdown");
 const $closeReceiptBtn = $("closeReceiptBtn");
 const $cancelBtn = $("cancelBtn");
 const $confirmBtn = $("confirmBtn");
 
 const $toast = $("toast");
-const $successPop = $("successPop");
 
 /* =====================================================
    Firebase init
@@ -701,6 +723,8 @@ function bootFirebase(){
     // ログインしてなければログイン画面へ（ログイン後はこのPOSへ戻す）
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
+      currentUserEmail = user?.email || null;
+      refreshPatchSummary().catch(()=>{});
       if (!user) {
         location.href = 'login.html?redirect=' + encodeURIComponent('pos.html');
       }
@@ -812,76 +836,6 @@ async function loadProductsWithPatch(){
   return { products: ordered, updatesCount, addsCount };
 }
 
-
-/* =====================================================
-   kindマスタ（bundle + patch）
-===================================================== */
-const KIND_BUNDLE_URL = "./kinds_bundle.json";
-let kindMaster = [];
-
-const COL_KIND_PATCH_UPDATES = "kinds_patch_updates";
-const COL_KIND_PATCH_ADDS    = "kinds_patch_adds";
-
-async function loadKindsFromBundle(){
-  const res = await fetch(KIND_BUNDLE_URL, { cache: "no-store" });
-  if(!res.ok) throw new Error("kinds bundle fetch failed");
-  const json = await res.json();
-  return (json.kinds || []);
-}
-
-async function loadKindsWithPatch(){
-  const base = await loadKindsFromBundle();
-  const map = new Map(base.map(k => [k.id, { ...k }]));
-
-  // updates
-  try{
-    const snapU = await getDocs(collection(db, COL_KIND_PATCH_UPDATES));
-    snapU.forEach(d=>{
-      const id = d.id;
-      const patch = d.data() || {};
-      const cur = map.get(id) || { id };
-      map.set(id, { ...cur, ...patch, id });
-    });
-  }catch(e){
-    console.warn("kinds_patch_updates read failed", e);
-  }
-
-  // adds
-  try{
-    const snapA = await getDocs(collection(db, COL_KIND_PATCH_ADDS));
-    snapA.forEach(d=>{
-      const id = d.id;
-      const patch = d.data() || {};
-      if(!map.has(id)) map.set(id, { id, ...patch });
-    });
-  }catch(e){
-    console.warn("kinds_patch_adds read failed", e);
-  }
-
-  kindMaster = Array.from(map.values()).filter(k => k.active !== false);
-}
-
-function renderKindSelect(){
-  if(!$kindSelect) return;
-  $kindSelect.innerHTML = "";
-  kindMaster.forEach(k=>{
-    const o = document.createElement("option");
-    o.value = k.id;
-    o.textContent = k.label ?? k.id;
-    $kindSelect.appendChild(o);
-  });
-
-  // 初期値：stock（なければ先頭）
-  if ([...$kindSelect.options].some(o=>o.value==="stock")) $kindSelect.value = "stock";
-  else if ($kindSelect.options.length) $kindSelect.selectedIndex = 0;
-}
-
-async function initKindMaster(){
-  await loadKindsWithPatch();
-  renderKindSelect();
-}
-
-
 /* =====================================================
    UI render
 ===================================================== */
@@ -943,7 +897,6 @@ function renderProducts(){
     const qty = document.createElement("div");
     qty.className = "qty";
     const sel = document.createElement("select");
-    sel.className = "qtySelect";
     sel.disabled = true;
     for(let i=1;i<=10;i++){
       const o=document.createElement("option");
@@ -1012,6 +965,112 @@ function todayYMD(){
 /* =====================================================
    Firestore write
 ===================================================== */
+/* =====================================================
+   Simple masters (bundle + patch): channels / venues / payments / kinds
+===================================================== */
+const MASTER_DEFS = {
+  channels: { bundleUrl: "./channels_bundle.json", updates: "channels_patch_updates", adds: "channels_patch_adds" },
+  venues:   { bundleUrl: "./venues_bundle.json",   updates: "venues_patch_updates",   adds: "venues_patch_adds" },
+  payments: { bundleUrl: "./payments_bundle.json", updates: "payments_patch_updates", adds: "payments_patch_adds" },
+  kinds:    { bundleUrl: "./kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" }
+};
+
+const masters = { channels: [], venues: [], payments: [], kinds: [] };
+const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new Set(), kinds: new Set() };
+
+async function loadSimpleBundle(key){
+  const def = MASTER_DEFS[key];
+  const res = await fetch(def.bundleUrl);
+  if(!res.ok) throw new Error(`${def.bundleUrl} not found`);
+  const json = await res.json();
+  const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
+  return arr;
+}
+
+async function loadSimplePatch(key){
+  const def = MASTER_DEFS[key];
+  const updatesSnap = await getDocs(collection(db, def.updates));
+  const addsSnap    = await getDocs(collection(db, def.adds));
+
+  const updates = {};
+  updatesSnap.forEach(d=> updates[d.id] = d.data());
+
+  const adds = [];
+  addsSnap.forEach(d=> adds.push({ id: d.id, ...d.data() }));
+
+  return { updates, adds, updatesCount: updatesSnap.size, addsCount: addsSnap.size };
+}
+
+async function initSimpleMaster(key){
+  const bundle = await loadSimpleBundle(key);
+  masterBundleIds[key] = new Set(bundle.map(x=>x.id));
+
+  const patch = await loadSimplePatch(key);
+
+  const merged = bundle.map(x => patch.updates[x.id] ? ({ ...x, ...patch.updates[x.id] }) : x);
+  patch.adds.forEach(a => { if(!merged.find(m=>m.id===a.id)) merged.push(a); });
+
+  masters[key] = merged.filter(x => x.active !== false);
+  return patch;
+}
+
+function fillSelect(sel, arr, currentValue){
+  if(!sel) return;
+  sel.innerHTML = "";
+  arr.forEach(x=>{
+    const opt=document.createElement("option");
+    opt.value = x.id;
+    opt.textContent = x.label ?? x.name ?? x.id;
+    if(currentValue && opt.value === currentValue) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function applyKindDefault(){
+  if(!$kindSelect) return;
+  const hasStock = [...$kindSelect.options].some(o=>o.value==="stock");
+  if(hasStock) $kindSelect.value = "stock";
+  else if($kindSelect.options.length) $kindSelect.selectedIndex = 0;
+}
+
+/* Admin: patch summary */
+const ADMIN_EMAIL = "enue_staff03@management.com";
+let currentUserEmail = null;
+
+async function refreshPatchSummary(){
+  if(currentUserEmail !== ADMIN_EMAIL) {
+    if($patchPill) $patchPill.style.display = "none";
+    if($patchPop) $patchPop.style.display = "none";
+    return;
+  }
+
+  const targets = [
+    { label:"商品マスタ", updates:"products_patch_updates", adds:"products_patch_adds" },
+    { label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
+    { label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates, adds:MASTER_DEFS.venues.adds },
+    { label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
+    { label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds }
+  ];
+
+  let total=0;
+  const lines=[];
+  for(const t of targets){
+    const u = (await getDocs(collection(db, t.updates))).size;
+    const a = (await getDocs(collection(db, t.adds))).size;
+    const n = u+a;
+    total += n;
+    lines.push(`${t.label} ${n}件`);
+  }
+
+  if($patchPill){
+    $patchPill.textContent = `差分：${total}`;
+    $patchPill.style.display = "block";
+  }
+  if($patchBreakdown){
+    $patchBreakdown.innerHTML = lines.map(s=>`<div>${s}</div>`).join("");
+  }
+}
+
 async function writeSale(){
   const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
@@ -1021,17 +1080,15 @@ async function writeSale(){
   // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
   const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
 
-  const kind = ($kindSelect?.value || "-").trim();
-
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
     orderDate: orderDate || todayYMD(),
+    kind: ($kindSelect?.value || "stock"),
     orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
     channel: settings.currentChannel,
     venue: settings.currentChannel==="マルシェ" ? settings.currentVenue : "",
     paymentMethod: $paymentSelect.value,
-    kind,
     total,
     items
   });
@@ -1062,10 +1119,9 @@ $confirmBtn.onclick = async ()=>{
   try{
     await writeSale();
     $receiptModal.classList.remove("show");
-    showSuccessPop("決済完了🌟");
+    showToast("決済完了🌟");
     document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
-    document.querySelectorAll(".qtySelect").forEach(s=>{s.disabled=true; s.value=1});
-    // kindは次回も使うので維持（必要ならここで初期化）
+    document.querySelectorAll("select").forEach(s=>{s.disabled=true;s.value=1});
     updateTotal();
   }catch(e){
     alert("保存に失敗しました");
@@ -1077,6 +1133,7 @@ $closeReceiptBtn.onclick = $cancelBtn.onclick =
 
 if($orderDateInput){
   $orderDateInput.addEventListener("change", setReceiptMetaText);
+  if($kindSelect) $kindSelect.addEventListener("change", ()=>{ settings.kind = $kindSelect.value; saveSettings(); });
 }
 
 function showToast(msg){
@@ -1085,26 +1142,26 @@ function showToast(msg){
   setTimeout(()=> $toast.classList.remove("show"),1200);
 }
 
-
-function showSuccessPop(msg="決済完了🌟"){
-  if(!$successPop) return;
-  $successPop.textContent = msg;
-  $successPop.classList.remove("show");
-  // reflow for restart animation
-  void $successPop.offsetWidth;
-  $successPop.classList.add("show");
-  setTimeout(()=> $successPop.classList.remove("show"), 1200);
-}
-
 function setReceiptMetaText(){
   const d = ($orderDateInput?.value || todayYMD());
-  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value} / kind：${$kindSelect?.value || "-"}`;
+  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${$paymentSelect.value}`;
 }
 
 /* =====================================================
    INIT
 ===================================================== */
 bootFirebase();
+
+// load simple masters (bundle + patch)
+try{
+  await initSimpleMaster("channels");
+  await initSimpleMaster("venues");
+  await initSimpleMaster("payments");
+  await initSimpleMaster("kinds");
+}catch(e){
+  console.warn("masters init failed", e);
+}
+
 renderSettingsUI();
 
 // settings change handlers
@@ -1268,7 +1325,7 @@ async function pmSave(closeAfter){
       updatedBy: currentUser?.email || ""
     }, { merge: true });
 
-    showSuccessPop("決済完了🌟");
+    showToast("保存しました");
 
     // ローカル表示も更新（次回ロードでpatchが反映されるが、体感のため即反映）
     const idx = products.findIndex(p => p.id === id);
@@ -1296,9 +1353,6 @@ $pmToggleBtn.addEventListener("click", ()=>{
 const loaded = await loadProductsWithPatch();
 products = loaded.products;
 
-// kindマスタ読み込み
-try{ await initKindMaster(); }catch(e){ console.warn("kind master init failed", e); }
-
 // 表示用（右上ピルがあれば）
 const $masterPill = document.getElementById('masterPill');
 if($masterPill){
@@ -1306,6 +1360,116 @@ if($masterPill){
 }
 
 renderProducts();
+
+
+/* =====================================================
+   Override top selects with masters (if loaded)
+===================================================== */
+function applyMastersToTopSelects(){
+  if(masters.channels?.length) fillSelect($channelSelect, masters.channels, settings.currentChannel);
+  if(masters.venues?.length)   fillSelect($venueSelect, masters.venues, settings.currentVenue);
+  if(masters.payments?.length) fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
+
+  if($venueWrap) $venueWrap.style.display = ($channelSelect.value === "マルシェ") ? "inline-flex" : "none";
+}
+applyMastersToTopSelects();
+
+/* =====================================================
+   Masters modal (patch writer)
+===================================================== */
+function mastersOpen(){
+  if(!$mastersModal) return;
+  $mastersModal.classList.add("show");
+  $mastersModal.setAttribute("aria-hidden","false");
+  buildMasterRows();
+}
+function mastersClose(){
+  if(!$mastersModal) return;
+  $mastersModal.classList.remove("show");
+  $mastersModal.setAttribute("aria-hidden","true");
+}
+
+function buildMasterRows(){
+  const key = $masterTypeSelect.value;
+  const arr = masters[key] || [];
+  $masterRows.innerHTML = "";
+  arr.forEach(x => addRow(x.id, (x.label ?? x.name ?? ""), x.active !== false));
+}
+
+function addRow(id="", label="", active=true){
+  const row = document.createElement("div");
+  row.className = "card";
+  row.style.padding = "12px";
+  row.innerHTML = `
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+        id <input class="m_id" style="width:180px" value="${escapeHtml(id)}" placeholder="例: marche" />
+      </span>
+      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+        表示 <input class="m_label" style="width:220px" value="${escapeHtml(label)}" placeholder="例: マルシェ" />
+      </span>
+      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+        有効 <input class="m_active" type="checkbox" ${active ? "checked":""} />
+      </span>
+      <button class="btn m_del" type="button">行を削除</button>
+    </div>
+    <div class="muted" style="margin-top:8px;">※ 基本はactive=falseで非表示運用がおすすめ</div>
+  `;
+  row.querySelector(".m_del").onclick = ()=> row.remove();
+  $masterRows.appendChild(row);
+}
+
+function escapeHtml(str){
+  return (str ?? "").toString()
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+
+async function saveMasterRows(){
+  const key = $masterTypeSelect.value;
+  const def = MASTER_DEFS[key];
+  const bundleIds = masterBundleIds[key] || new Set();
+
+  const rows = [...$masterRows.querySelectorAll(".card")].map(card=>{
+    const id = card.querySelector(".m_id").value.trim();
+    const label = card.querySelector(".m_label").value.trim();
+    const active = card.querySelector(".m_active").checked;
+    return { id, label, active };
+  }).filter(r=>r.id);
+
+  for(const r of rows){
+    const collName = bundleIds.has(r.id) ? def.updates : def.adds;
+    await setDoc(doc(db, collName, r.id), { label: r.label, active: r.active }, { merge:true });
+  }
+
+  await initSimpleMaster(key);
+  applyMastersToTopSelects();
+  await refreshPatchSummary();
+  showToast("マスタ保存OK");
+}
+
+if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", mastersOpen);
+if($mastersCloseBtn)  $mastersCloseBtn.addEventListener("click", mastersClose);
+if($masterTypeSelect) $masterTypeSelect.addEventListener("change", buildMasterRows);
+if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
+if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
+  try{ await saveMasterRows(); }
+  catch(e){ console.error(e); alert("保存に失敗しました"); }
+});
+
+// admin pill popover
+if($patchPill){
+  $patchPill.addEventListener("click", ()=>{
+    const show = $patchPop.style.display === "none";
+    $patchPop.style.display = show ? "block" : "none";
+  });
+}
+document.addEventListener("click", (e)=>{
+  if(!$patchPop || !$patchPill) return;
+  if(e.target === $patchPill || $patchPill.contains(e.target)) return;
+  if($patchPop.contains(e.target)) return;
+  $patchPop.style.display = "none";
+});
 </script>
 </body>
 </html>
