@@ -764,6 +764,8 @@ const $kindSelect = $("kindSelect");
 const $urgentWrap = $("urgentWrap");
 const $urgentSelect = $("urgentSelect");
 const $receiptChannelSelect = $("receiptChannelSelect");
+const $receiptVenueWrap = $("receiptVenueWrap");
+const $receiptVenueSelect = $("receiptVenueSelect");
 const $receiptPaymentSelect = $("receiptPaymentSelect");
 const $receiptCustomerName  = $("receiptCustomerName");
 
@@ -896,16 +898,88 @@ async function bootFirebase(){
 ===================================================== */
 const LS_SETTINGS_KEY = "pos_settings_v2";
 
+const POS_PREFS_URL = "./pos_prefs_bundle.json";
+let posPrefs = { defaults: { channelId: null, venueId: null, paymentByChannel: {} } };
+
+async function loadPosPrefs(){
+  try{
+    const res = await fetch(POS_PREFS_URL, { cache: "no-store" });
+    if(!res.ok){
+      console.warn(`[prefs] missing: ${POS_PREFS_URL} (${res.status}) -> fallback to localStorage/masters`);
+      return;
+    }
+    const json = await res.json();
+    const d = json.defaults || json.default || json || {};
+    posPrefs = {
+      defaults: {
+        channelId: d.channelId ?? d.defaultChannelId ?? null,
+        venueId: d.venueId ?? d.defaultVenueId ?? null,
+        paymentByChannel: d.paymentByChannel ?? d.defaultPaymentByChannel ?? {}
+      }
+    };
+  }catch(e){
+    console.warn("[prefs] load failed -> fallback", e);
+  }
+}
+
+function detectPaymentIdByLabelIncludes(keyword){
+  const k = String(keyword || "").toLowerCase();
+  const hit = (masters.payments || []).find(x=>{
+    const id = String(x.id || "").toLowerCase();
+    const label = String(x.label ?? x.name ?? "").toLowerCase();
+    return id.includes(k) || label.includes(k);
+  });
+  return hit?.id || null;
+}
+
+function resolveDefaultChannelId(){
+  // 1) localStorage settings
+  if(settings.currentChannel) return settings.currentChannel;
+
+  // 2) prefs
+  if(posPrefs?.defaults?.channelId) return posPrefs.defaults.channelId;
+
+  // 3) auto-detect instagram
+  if(INSTAGRAM_CHANNEL_ID) return INSTAGRAM_CHANNEL_ID;
+
+  // 4) first master
+  return masters.channels?.[0]?.id || "";
+}
+
+function resolveDefaultVenueId(){
+  if(settings.currentVenue) return settings.currentVenue;
+  if(posPrefs?.defaults?.venueId) return posPrefs.defaults.venueId;
+  return masters.venues?.[0]?.id || "";
+}
+
+function resolveDefaultPaymentId(channelId){
+  // 1) user last choice by channel
+  if(settings.lastPaymentByChannel && settings.lastPaymentByChannel[channelId]){
+    return settings.lastPaymentByChannel[channelId];
+  }
+
+  // 2) prefs mapping
+  const mapped = posPrefs?.defaults?.paymentByChannel?.[channelId];
+  if(mapped) return mapped;
+
+  // 3) heuristic fallback (not hardcode by id, detect by label)
+  if(channelId === "marche"){
+    return detectPaymentIdByLabelIncludes("cash") || detectPaymentIdByLabelIncludes("現金") || masters.payments?.[0]?.id || "";
+  }
+  if(channelId === INSTAGRAM_CHANNEL_ID){
+    return detectPaymentIdByLabelIncludes("paypay") || detectPaymentIdByLabelIncludes("PayPay") || masters.payments?.[0]?.id || "";
+  }
+  return masters.payments?.[0]?.id || "";
+}
+
+
 const defaultSettings = {
-  // ※ ここは「初回起動時の初期値」。
-  // 既にlocalStorageに保存がある場合はそちらが優先されます（下で1回だけマイグレーションも入れてます）
-  channels: ["instagram","marche","onlinestore"],
-  venues: ["cafe1400"],
-  currentChannel: "instagram",
-  currentVenue: "cafe1400",
-  // インスタ既定 → PayPay
-  paymentMethod: "paypay",
-  paymentMethods: ["cash","paypay","credit","other"],
+  currentChannel: "",
+  currentVenue: "",
+  paymentMethod: "",
+  paymentMethods: [],
+  kind: "",
+  lastPaymentByChannel: {},
 };
 
 
@@ -1061,13 +1135,13 @@ function setPaymentIfExists(paymentId){
 function applyChannelRules(opts={ forcePayment:false }){
   const ch = settings.currentChannel;
 
-  // venue visibility (idで判定)
+  // venue visibility（マルシェのときだけ）
   if($venueWrap) $venueWrap.style.display = (ch === "marche") ? "inline-flex" : "none";
 
-  // payment default
+  // payment default（チャンネルごと：prefs → last choice → fallback）
   if(opts.forcePayment){
-    if(ch === "marche") setPaymentIfExists("cash");
-    else if(ch === INSTAGRAM_CHANNEL_ID) setPaymentIfExists("paypay");
+    const p = resolveDefaultPaymentId(ch);
+    if(p) setPaymentIfExists(p);
   }
 }
 
@@ -1579,19 +1653,25 @@ $checkoutBtn.onclick = ()=>{
     // 初期値は本日（タップで変更OK）
     $orderDateInput.value = todayYMD();
   }
-  setReceiptMetaText();
+
+  // レシート側の編集UIへ現在値を反映
+  if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
+  if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
+  if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
+  if($receiptCustomerName) $receiptCustomerName.value = "";
+
+  const showVenue = ($channelSelect.value === "marche");
+  if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
+
   toggleUrgentUI();
+  setReceiptMetaText();
+
   $receiptList.innerHTML = items.map(
     i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
   ).join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
-  
-  // レシート側の編集UIへ現在値を反映
-  if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
-  if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
-  if($receiptCustomerName) $receiptCustomerName.value = "";
-$receiptModal.classList.add("show");
+  $receiptModal.classList.add("show");
 };
 
 $confirmBtn.onclick = async ()=>{
@@ -1633,11 +1713,14 @@ function showToast(msg){
 
 function setReceiptMetaText(){
   const d = ($orderDateInput?.value || todayYMD());
-  const payLabel = getSelectedLabel($paymentSelect);
-  const kindId = ($kindSelect?.value || "stock");
-  const urgentLabel = (kindId === "order") ? (getSelectedLabel($urgentSelect) || "") : "";
-  const urgentText = (kindId === "order") ? ` / お急ぎOP：${urgentLabel || "-"}` : "";
-  $receiptMeta.textContent = `受注日：${d} / 販売方法：${settings.currentChannel} / 決済：${payLabel}${urgentText}`;
+  const chLabel = getSelectedLabel($receiptChannelSelect) || settings.currentChannel || "-";
+  const payLabel = getSelectedLabel($receiptPaymentSelect) || getSelectedLabel($paymentSelect) || "-";
+  const kindLabel = getSelectedLabel($kindSelect) || ($kindSelect?.value || "-");
+  const name = ($receiptCustomerName?.value || "").trim();
+  const nameText = name ? ` / 購入者：${name}` : "";
+  const urgentLabel = ($kindSelect?.value === "order") ? (getSelectedLabel($urgentSelect) || "-") : "";
+  const urgentText = ($kindSelect?.value === "order") ? ` / お急ぎOP：${urgentLabel}` : "";
+  $receiptMeta.textContent = `受注日：${d}${nameText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}`;
 }
 
 /* =====================================================
@@ -1660,13 +1743,16 @@ try{
 // masters読込後：インスタのIDを自動検出（idが instagram / insta_... などでもOK）
 detectInstagramChannelId();
 
-// 1回だけ：初期値の方針変更（販売方法=インスタ、決済=PayPay）を反映
-// ※ 既に運用している端末でも「一度だけ」効きます（以後はユーザーの選択を尊重）
-const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v3";
+// 1回だけ：初期値（prefs → localStorageへ確定）
+// - 販売方法 初期値：インスタ（prefsで変更可）
+// - 販売方法=マルシェ → 決済初期値=現金（prefsで変更可）
+// - 販売方法=インスタ → 決済初期値=PayPay（prefsで変更可）
+const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v4";
+await loadPosPrefs();
 if(!localStorage.getItem(MIG_DEFAULTS_KEY)){
-  settings.currentChannel = INSTAGRAM_CHANNEL_ID || settings.currentChannel;
-  // チャンネルに応じた決済初期値
-  settings.paymentMethod = (settings.currentChannel === "marche") ? "cash" : "paypay";
+  settings.currentChannel = resolveDefaultChannelId();
+  settings.currentVenue   = resolveDefaultVenueId();
+  settings.paymentMethod  = resolveDefaultPaymentId(settings.currentChannel);
   localStorage.setItem(MIG_DEFAULTS_KEY, "1");
   saveSettings();
 }
@@ -1712,31 +1798,59 @@ if($urgentSelect){
 }
 
 // settings change handlers
-$channelSelect.addEventListener("change", ()=>{
-  settings.currentChannel = $channelSelect.value;
+if($channelSelect){
+  $channelSelect.addEventListener("change", ()=>{
+    settings.currentChannel = $channelSelect.value;
 
-  // チャンネル変更時：開催場所の表示と決済初期値を自動で合わせる
-  applyChannelRules({ forcePayment:true });
+    // チャンネル変更時：開催場所の表示＆決済初期値
+    applyChannelRules({ forcePayment:true });
 
-  saveSettings();
-});
-$venueSelect.addEventListener("change", ()=>{
-  settings.currentVenue = $venueSelect.value;
-  saveSettings();
-});
-$paymentSelect.addEventListener("change", ()=>{
-  settings.paymentMethod = $paymentSelect.value;
-  saveSettings();
+    // receipt側へ同期
+    if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
+    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect?.value || "";
+    if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect?.value || "";
 
-// receipt modal change handlers (決済確認画面で編集)
+    // venue wrap（receiptも同じ）
+    const showVenue = (settings.currentChannel === "marche");
+    if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
+
+    saveSettings();
+    setReceiptMetaText();
+  });
+}
+
+if($venueSelect){
+  $venueSelect.addEventListener("change", ()=>{
+    settings.currentVenue = $venueSelect.value;
+    if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
+    saveSettings();
+    setReceiptMetaText();
+  });
+}
+
+if($paymentSelect){
+  $paymentSelect.addEventListener("change", ()=>{
+    settings.paymentMethod = $paymentSelect.value;
+    settings.lastPaymentByChannel = settings.lastPaymentByChannel || {};
+    if(settings.currentChannel) settings.lastPaymentByChannel[settings.currentChannel] = settings.paymentMethod;
+
+    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
+    saveSettings();
+    setReceiptMetaText();
+  });
+}
+
+// receipt modal change handlers（決済確認画面で編集）
 if($receiptChannelSelect){
   $receiptChannelSelect.addEventListener("change", ()=>{
-    // 上部セレクトと設定へ反映（次回以降の初期値も揃える）
     $channelSelect.value = $receiptChannelSelect.value;
     $channelSelect.dispatchEvent(new Event("change"));
-
-    // applyChannelRules() により payment が変わる場合があるので同期
-    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
+  });
+}
+if($receiptVenueSelect){
+  $receiptVenueSelect.addEventListener("change", ()=>{
+    $venueSelect.value = $receiptVenueSelect.value;
+    $venueSelect.dispatchEvent(new Event("change"));
   });
 }
 if($receiptPaymentSelect){
@@ -1745,7 +1859,11 @@ if($receiptPaymentSelect){
     $paymentSelect.dispatchEvent(new Event("change"));
   });
 }
-});
+if($receiptCustomerName){
+  $receiptCustomerName.addEventListener("input", ()=>{
+    setReceiptMetaText();
+  });
+}
 
 /* =====================================================
    商品マスタ編集（updates/adds patchへ差分保存）
@@ -1947,9 +2065,12 @@ function applyMastersToTopSelects(){
   if(masters.payments?.length) fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
 
   if(masters.channels?.length) fillSelect($receiptChannelSelect, masters.channels, settings.currentChannel);
+  if(masters.venues?.length)   fillSelect($receiptVenueSelect, masters.venues, settings.currentVenue);
   if(masters.payments?.length) fillSelect($receiptPaymentSelect, masters.payments, settings.paymentMethod);
 
-  if($venueWrap) $venueWrap.style.display = ($channelSelect.value === "marche") ? "inline-flex" : "none";
+  const showVenue = ($channelSelect.value === "marche");
+  if($venueWrap) $venueWrap.style.display = showVenue ? "inline-flex" : "none";
+  if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
 }
 applyMastersToTopSelects();
 // bundle/patch読込後のselect再描画でもルールを維持
