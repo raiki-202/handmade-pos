@@ -511,7 +511,26 @@ select {
             kind
             <select id="kindSelect"></select>
           </span>
+        
+        <div style="margin-top:10px;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            販売方法
+            <select id="receiptChannelSelect"></select>
+          </span>
         </div>
+
+        <div style="margin-top:10px;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            決済方法
+            <select id="receiptPaymentSelect"></select>
+          </span>
+        </div>
+
+        <div style="margin-top:10px;">
+          <div class="label">購入者氏名</div>
+          <input id="receiptCustomerName" placeholder="例：山田 太郎" />
+        </div>
+</div>
         <div id="urgentWrap" style="margin-top:10px; display:none;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             お急ぎOP
@@ -744,6 +763,10 @@ const $orderDateInput = $("orderDateInput");
 const $kindSelect = $("kindSelect");
 const $urgentWrap = $("urgentWrap");
 const $urgentSelect = $("urgentSelect");
+const $receiptChannelSelect = $("receiptChannelSelect");
+const $receiptPaymentSelect = $("receiptPaymentSelect");
+const $receiptCustomerName  = $("receiptCustomerName");
+
 const $mastersToggleBtn = $("mastersToggleBtn");
 const $masterMenuModal = $("masterMenuModal");
 const $masterMenuCloseBtn = $("masterMenuCloseBtn");
@@ -1512,8 +1535,13 @@ async function writeSale(){
   const kindId = ($kindSelect?.value || "stock");
   const kindLabel = getSelectedLabel($kindSelect);
 
-  const paymentId = $paymentSelect.value;
-  const paymentLabel = getSelectedLabel($paymentSelect);
+  const channelId = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect.value);
+  const paymentId = ($receiptPaymentSelect?.value || $paymentSelect.value);
+  const paymentLabel = getSelectedLabel($receiptPaymentSelect || $paymentSelect);
+  const customerName = (($receiptCustomerName?.value || "").trim());
+
+  // チャンネルに応じて開催場所（マルシェ以外は空）
+  const venueId = (channelId === "marche") ? settings.currentVenue : "";
 
   const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
   const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
@@ -1525,8 +1553,9 @@ async function writeSale(){
     kindId,
     kindLabel,
     orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
-    channel: settings.currentChannel,
-    venue: settings.currentChannel==="marche" ? settings.currentVenue : "",
+    channel: channelId,
+    venue: venueId,
+    customerName,
     paymentId,
     paymentLabel,
     urgentOptionId,
@@ -1557,7 +1586,12 @@ $checkoutBtn.onclick = ()=>{
   ).join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
-  $receiptModal.classList.add("show");
+  
+  // レシート側の編集UIへ現在値を反映
+  if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
+  if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
+  if($receiptCustomerName) $receiptCustomerName.value = "";
+$receiptModal.classList.add("show");
 };
 
 $confirmBtn.onclick = async ()=>{
@@ -1693,6 +1727,24 @@ $venueSelect.addEventListener("change", ()=>{
 $paymentSelect.addEventListener("change", ()=>{
   settings.paymentMethod = $paymentSelect.value;
   saveSettings();
+
+// receipt modal change handlers (決済確認画面で編集)
+if($receiptChannelSelect){
+  $receiptChannelSelect.addEventListener("change", ()=>{
+    // 上部セレクトと設定へ反映（次回以降の初期値も揃える）
+    $channelSelect.value = $receiptChannelSelect.value;
+    $channelSelect.dispatchEvent(new Event("change"));
+
+    // applyChannelRules() により payment が変わる場合があるので同期
+    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
+  });
+}
+if($receiptPaymentSelect){
+  $receiptPaymentSelect.addEventListener("change", ()=>{
+    $paymentSelect.value = $receiptPaymentSelect.value;
+    $paymentSelect.dispatchEvent(new Event("change"));
+  });
+}
 });
 
 /* =====================================================
@@ -1893,6 +1945,9 @@ function applyMastersToTopSelects(){
   if(masters.channels?.length) fillSelect($channelSelect, masters.channels, settings.currentChannel);
   if(masters.venues?.length)   fillSelect($venueSelect, masters.venues, settings.currentVenue);
   if(masters.payments?.length) fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
+
+  if(masters.channels?.length) fillSelect($receiptChannelSelect, masters.channels, settings.currentChannel);
+  if(masters.payments?.length) fillSelect($receiptPaymentSelect, masters.payments, settings.paymentMethod);
 
   if($venueWrap) $venueWrap.style.display = ($channelSelect.value === "marche") ? "inline-flex" : "none";
 }
