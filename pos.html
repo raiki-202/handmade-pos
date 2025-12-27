@@ -645,9 +645,6 @@ select {
           </span>
 
           <button class="btn btnDanger" id="masterDeleteRowBtn" type="button">行を削除</button>
-
-          <button class="btn primaryBtn" id="masterSaveBtn" type="button">保存（差分として登録）</button>
-
           <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
         </div>
 
@@ -655,6 +652,13 @@ select {
 
         <div class="muted" style="margin-top:10px;">
           ルール：bundleに存在するID → updates、bundleに無いID → adds
+        </div>
+
+        <!-- Save button at bottom -->
+        <div style="margin-top:14px; display:flex;">
+          <button class="btn primaryBtn" id="masterSaveBtn" type="button" style="width:100%; justify-content:center;">
+            保存（差分として登録）
+          </button>
         </div>
       </div>
     </div>
