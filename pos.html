@@ -783,6 +783,9 @@ function closeMasterMenu(){
   if(!$masterMenuModal) return;
   $masterMenuModal.classList.remove("show");
 }
+
+// ⚙ マスタメニューを開く
+if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", openMasterMenu);
 function openModeModal(key, label){
   pendingMasterKey = key;
   pendingMasterLabel = label;
