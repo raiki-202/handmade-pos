@@ -644,9 +644,9 @@ select {
             </select>
           </span>
 
-          <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
-
           <button class="btn primaryBtn" id="masterSaveBtn" type="button">保存（差分として登録）</button>
+
+          <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
         </div>
 
         <div id="masterRows" style="margin-top:12px; display:grid; gap:10px;"></div>
@@ -1572,23 +1572,34 @@ applyMastersToTopSelects();
    Masters modal (patch writer)
 ===================================================== */
 let currentMasterKey = "channels";
+let currentMasterMode = "edit"; // "add" | "edit"
+
 function mastersOpen(key, mode){
   if(key) currentMasterKey = key;
+  currentMasterMode = mode || "edit";
   if(!$mastersModal) return;
-  $mastersModal.classList.add("show");
-  $mastersModal.setAttribute("aria-hidden","false");
-  if($masterTypeSelect) $masterTypeSelect.value = currentMasterKey;
+
+  // title
   if($mastersTitle){
     const labelMap = { channels:"販売方法マスタ編集", venues:"開催場所マスタ編集", payments:"決済方法マスタ編集", kinds:"kindマスタ編集" };
     $mastersTitle.textContent = labelMap[currentMasterKey] || "マスタ編集";
   }
-  if(mode === "add"){
-    $masterRows.innerHTML = "";
-    addRow();
+
+  // mode UI
+  if($masterAddRowBtn) $masterAddRowBtn.style.display = (currentMasterMode === "add") ? "" : "none";
+
+  $mastersModal.classList.add("show");
+  $mastersModal.setAttribute("aria-hidden","false");
+
+  // rows
+  $masterRows.innerHTML = "";
+  if(currentMasterMode === "add"){
+    addRow("", "", true); // 1行だけ
   }else{
     buildMasterRows();
   }
 }
+
 function mastersClose(){
   if(!$mastersModal) return;
   $mastersModal.classList.remove("show");
@@ -1602,14 +1613,47 @@ function buildMasterRows(){
   arr.forEach(x => addRow(x.id, (x.label ?? x.name ?? ""), x.active !== false));
 }
 
+function slugifyId(text){
+  const base = (text || "")
+    .toString()
+    .trim()
+    .toLowerCase()
+    .replace(/[　\s]+/g, "_")
+    .replace(/[^a-z0-9_]/g, "")
+    .replace(/^_+|_+$/g, "");
+  return base || "item";
+}
+
+function ensureUniqueId(desired){
+  const existing = new Set(
+    [...$masterRows.querySelectorAll(".m_id")]
+      .map(i => (i.value || "").trim())
+      .filter(Boolean)
+  );
+  let id = desired;
+  let n = 2;
+  while(existing.has(id)){
+    id = `${desired}_${n++}`;
+  }
+  return id;
+}
+
 function addRow(id="", label="", active=true){
+  const isAddMode = (currentMasterMode === "add");
+
   const row = document.createElement("div");
   row.className = "card";
   row.style.padding = "12px";
+
+  // delete button only in add mode
+  const delHtml = isAddMode
+    ? `<button class="btn m_del" type="button">行を削除</button>`
+    : ``;
+
   row.innerHTML = `
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-        id <input class="m_id" style="width:180px" value="${escapeHtml(id)}" placeholder="例: marche" />
+        id <input class="m_id" style="width:180px" value="${escapeHtml(id)}" placeholder="例: marche" ${isAddMode ? "" : "disabled"} />
       </span>
       <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
         表示 <input class="m_label" style="width:220px" value="${escapeHtml(label)}" placeholder="例: マルシェ" />
@@ -1617,11 +1661,32 @@ function addRow(id="", label="", active=true){
       <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
         有効 <input class="m_active" type="checkbox" ${active ? "checked":""} />
       </span>
-      <button class="btn m_del" type="button">行を削除</button>
+      ${delHtml}
     </div>
     <div class="muted" style="margin-top:8px;">※ 基本はactive=falseで非表示運用がおすすめ</div>
   `;
-  row.querySelector(".m_del").onclick = ()=> row.remove();
+
+  const $id = row.querySelector(".m_id");
+  const $label = row.querySelector(".m_label");
+
+  // 追加モード：表示名からID自動生成（IDが空のときだけ）
+  if(isAddMode){
+    const autoFill = ()=>{
+      if(!$id) return;
+      const cur = ($id.value || "").trim();
+      if(cur) return; // 既に入ってるなら触らない
+      const base = slugifyId(($label?.value || "").trim());
+      $id.value = ensureUniqueId(base);
+    };
+    if($label){
+      $label.addEventListener("blur", autoFill);
+      $label.addEventListener("change", autoFill);
+    }
+  }
+
+  const delBtn = row.querySelector(".m_del");
+  if(delBtn) delBtn.onclick = ()=> row.remove();
+
   $masterRows.appendChild(row);
 }
 
@@ -1644,6 +1709,7 @@ async function saveMasterRows(){
   }).filter(r=>r.id);
 
   for(const r of rows){
+    // 修正モードは「既存IDのみ」想定。ID変更をdisabledにしてるので基本ここは安全。
     const collName = bundleIds.has(r.id) ? def.updates : def.adds;
     await setDoc(doc(db, collName, r.id), { label: r.label, active: r.active }, { merge:true });
   }
@@ -1654,9 +1720,7 @@ async function saveMasterRows(){
   showToast("マスタ保存OK");
 }
 
-if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", openMasterMenu);
 if($mastersCloseBtn)  $mastersCloseBtn.addEventListener("click", mastersClose);
-if($masterTypeSelect) $masterTypeSelect.addEventListener("change", buildMasterRows);
 if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
 if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
   try{ await saveMasterRows(); }
