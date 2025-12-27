@@ -644,6 +644,8 @@ select {
             </select>
           </span>
 
+          <button class="btn btnDanger" id="masterDeleteRowBtn" type="button">行を削除</button>
+
           <button class="btn primaryBtn" id="masterSaveBtn" type="button">保存（差分として登録）</button>
 
           <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
@@ -750,6 +752,7 @@ const $mastersTitle = $("mastersTitle");
 const $masterTypeSelect = $("masterTypeSelect");
 const $masterRows = $("masterRows");
 const $masterAddRowBtn = $("masterAddRowBtn");
+const $masterDeleteRowBtn = $("masterDeleteRowBtn");
 const $masterSaveBtn = $("masterSaveBtn");
 const $patchPill = $("patchPill");
 const $patchPop = $("patchPop");
@@ -1621,6 +1624,7 @@ function mastersOpen(key, mode){
 
   // mode UI
   if($masterAddRowBtn) $masterAddRowBtn.style.display = (currentMasterMode === "add") ? "" : "none";
+  if($masterDeleteRowBtn) $masterDeleteRowBtn.style.display = (currentMasterMode === "add") ? "" : "none";
 
   $mastersModal.classList.add("show");
   $mastersModal.setAttribute("aria-hidden","false");
@@ -1679,12 +1683,10 @@ function addRow(id="", label="", active=true){
   row.className = "card";
   row.style.padding = "12px";
 
-  // delete button only in add mode
-  const delHtml = isAddMode
-    ? `<button class="btn m_del" type="button">行を削除</button>`
-    : ``;
+  // delete button removed (use top "行を削除")
+  const delHtml = ``;
 
-  row.innerHTML = `
+row.innerHTML = `
     <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
       <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
         id <input class="m_id" style="width:180px" value="${escapeHtml(id)}" placeholder="例: marche" ${isAddMode ? "" : "disabled"} />
@@ -1717,11 +1719,7 @@ function addRow(id="", label="", active=true){
       $label.addEventListener("change", autoFill);
     }
   }
-
-  const delBtn = row.querySelector(".m_del");
-  if(delBtn) delBtn.onclick = ()=> row.remove();
-
-  $masterRows.appendChild(row);
+$masterRows.appendChild(row);
 }
 
 function escapeHtml(str){
@@ -1756,6 +1754,23 @@ async function saveMasterRows(){
 
 if($mastersCloseBtn)  $mastersCloseBtn.addEventListener("click", mastersClose);
 if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
+if($masterDeleteRowBtn) $masterDeleteRowBtn.addEventListener("click", ()=>{
+  if(currentMasterMode !== "add") return;
+  const rows = $masterRows ? Array.from($masterRows.children) : [];
+  if(rows.length === 0) return;
+
+  if(rows.length === 1){
+    const only = rows[0];
+    const idI = only.querySelector(".m_id");
+    const labI = only.querySelector(".m_label");
+    const actI = only.querySelector(".m_active");
+    if(idI) idI.value = "";
+    if(labI) labI.value = "";
+    if(actI) actI.checked = true;
+    return;
+  }
+  rows[rows.length - 1].remove();
+});
 if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
   try{ await saveMasterRows(); }
   catch(e){ console.error(e); alert("保存に失敗しました"); }
