@@ -1688,13 +1688,13 @@ $checkoutBtn.onclick = ()=>{
   ).join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
-  $receiptModal.classList.add("show");
+  setReceiptModalOpen(true);
 };
 
 $confirmBtn.onclick = async ()=>{
   try{
     await writeSale();
-    $receiptModal.classList.remove("show");
+    setReceiptModalOpen(false);
     showToast("決済完了🌟");
     document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
     document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true; s.value=1});
@@ -1705,7 +1705,7 @@ $confirmBtn.onclick = async ()=>{
 };
 
 $closeReceiptBtn.onclick = $cancelBtn.onclick =
-  ()=> $receiptModal.classList.remove("show");
+  ()=> setReceiptModalOpen(false);
 
 if($orderDateInput){
   $orderDateInput.addEventListener("change", setReceiptMetaText);
@@ -1764,16 +1764,43 @@ detectInstagramChannelId();
 // - 販売方法 初期値：インスタ（prefsで変更可）
 // - 販売方法=マルシェ → 決済初期値=現金（prefsで変更可）
 // - 販売方法=インスタ → 決済初期値=PayPay（prefsで変更可）
-const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v4";
+const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v5";
 await loadPosPrefs();
-if(!localStorage.getItem(MIG_DEFAULTS_KEY)){
-  settings.currentChannel = resolveDefaultChannelId();
-  settings.currentVenue   = resolveDefaultVenueId();
-  settings.paymentMethod  = resolveDefaultPaymentId(settings.currentChannel);
-  localStorage.setItem(MIG_DEFAULTS_KEY, "1");
-  saveSettings();
+
+/**
+ * Root fix for defaults:
+ * - Channel default should come from prefs (instagram) unless schedule override exists.
+ * - Do NOT let old localStorage "marche" stick forever.
+ * - Payment default is applied when channel is changed by this resolver or when current payment is invalid.
+ */
+const resolvedChannel = resolveDefaultChannelId();
+const resolvedPayment = resolveDefaultPaymentId(resolvedChannel);
+
+// If user has never saved settings before, or if prefs/schedule says a different channel, adopt it.
+if(!settings.currentChannel || settings.currentChannel !== resolvedChannel){
+  settings.currentChannel = resolvedChannel;
+  // when channel changes, reset payment to channel default
+  settings.paymentMethod = resolvedPayment;
 }
 
+// Venue: keep user's previous choice; if empty, pick first venue.
+if(!settings.currentVenue){
+  settings.currentVenue = resolveDefaultVenueId();
+}
+
+// If payment is missing/invalid, set it.
+{
+  const payIds = masters.payments?.map(x=>x.id) || [];
+  if(!settings.paymentMethod || !payIds.includes(settings.paymentMethod)){
+    settings.paymentMethod = resolvedPayment;
+  }
+}
+
+// One-time migration flag (kept for future migrations)
+if(!localStorage.getItem(MIG_DEFAULTS_KEY)){
+  localStorage.setItem(MIG_DEFAULTS_KEY, "1");
+}
+saveSettings();
 
 // migrate legacy settings (label -> id)
 (function migrateLegacySettings(){
