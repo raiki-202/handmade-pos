@@ -116,7 +116,9 @@
     import {
       getAuth,
       signInWithEmailAndPassword,
-      onAuthStateChanged
+      onAuthStateChanged,
+      setPersistence,
+      browserLocalPersistence
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
     // ★ あなたのFirebaseプロジェクト（公開されてOKな情報）
@@ -131,6 +133,9 @@
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
+
+// ログイン状態を端末に保持（ページを跨いでも引き継ぐ）
+await setPersistence(auth, browserLocalPersistence);
 
     const $email = document.getElementById("email");
     const $password = document.getElementById("password");
