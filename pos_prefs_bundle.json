@@ -1,11 +1,6 @@
 {
   "defaults": {
     "channelId": "instagram",
-
-    "venueByChannel": {
-      "marche": "cafe1400"
-    },
-
     "paymentByChannel": {
       "marche": "cash",
       "instagram": "paypay"
