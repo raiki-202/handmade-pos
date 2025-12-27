@@ -3,7 +3,10 @@
     "channelId": "instagram",
     "paymentByChannel": {
       "marche": "cash",
-      "instagram": "paypay"
+      "instagram": "paypay",
+      "story": "paypay",
+      "onlinestore": "paypay",
+      "item": "paypay"
     }
   },
   "overrides": {
