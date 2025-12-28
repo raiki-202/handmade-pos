@@ -1425,7 +1425,7 @@ async function loadSimpleBundle(candidates, pickFn){
   return [];
 }
 
-function activeEntries(arr, labelKey="label"){
+function __dup_activeEntries(arr, labelKey="label"){
   return uniqSorted((arr||[])
     .filter(x=> x && x.active !== false)
     .map(x=> safeStr(x[labelKey] ?? x.label ?? x.name ?? x.id).trim())
