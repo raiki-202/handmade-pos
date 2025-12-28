@@ -1961,6 +1961,7 @@ async function renderFixSummary(){
   // =========================
   let drawerEl = null;
   let drawerBackdropEl = null;
+  let currentDrawerSale = null;
 
   function ensureDrawer(){
     if(drawerEl && drawerBackdropEl) return;
@@ -1971,6 +1972,23 @@ async function renderFixSummary(){
 
     drawerEl = document.createElement("div");
     drawerEl.className = "drawer";
+
+    // delegated actions (fix/claim) - prevents lost listeners on re-render
+    drawerEl.addEventListener("click", (e)=>{
+      const fix = e.target.closest("#drawerFixBtn");
+      if(fix){
+        e.preventDefault(); e.stopPropagation();
+        console.log("[ui] fix button clicked");
+        try{ openFixEditor(currentDrawerSale); }catch(err){ console.error(err); toast("修正画面の表示に失敗"); }
+        return;
+      }
+      const claim = e.target.closest("#drawerClaimBtn");
+      if(claim){
+        e.preventDefault(); e.stopPropagation();
+        try{ openClaimRefund(currentDrawerSale); }catch(err){ console.error(err); toast("返金画面の表示に失敗"); }
+        return;
+      }
+    });
     drawerEl.innerHTML = `
       <div class="drawerHeader">
         <div class="drawerTitle">
@@ -1998,6 +2016,7 @@ async function renderFixSummary(){
 
   function openSaleDrawer(sale){
     ensureDrawer();
+    currentDrawerSale = sale;
 
     // 背景スクロール抑止
     document.documentElement.style.overflow = "hidden";
@@ -2090,28 +2109,6 @@ async function renderFixSummary(){
     }
 
     body.innerHTML = html;
-
-    // actions wiring
-    const fixBtn = body.querySelector("#drawerFixBtn");
-    if(fixBtn){
-      fixBtn.addEventListener("click", (e)=>{
-        e.preventDefault(); e.stopPropagation();
-        try{ openFixEditor(sale); }catch(err){ console.error(err); toast("修正画面の表示に失敗"); }
-      });
-    }
-    const claimBtn = body.querySelector("#drawerClaimBtn");
-    if(claimBtn){
-      // refund の sales には返金処理を重ねない
-      if(sale.isRefund){
-        claimBtn.disabled = true;
-        claimBtn.style.opacity = "0.45";
-        claimBtn.style.pointerEvents = "none";
-      }else{
-        claimBtn.addEventListener("click",(e)=>{
-          e.preventDefault(); e.stopPropagation();
-          try{ openClaimEditor(sale); }catch(err){ console.error(err); toast("返金画面の表示に失敗"); }
-        });
-      }
     }
 
     // 修正履歴件数
