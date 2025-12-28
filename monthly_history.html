@@ -935,7 +935,11 @@
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   import {
     getFirestore,
-    collection, doc, query, where, orderBy, limit, getDocs, addDoc, updateDoc, serverTimestamp, Timestamp
+    collection, doc,
+    query, where, orderBy, limit,
+    getDocs, getDoc,
+    addDoc, setDoc, updateDoc, deleteDoc,
+    serverTimestamp, Timestamp
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   // ✅ 本番（既存ファイルと同じ）
@@ -1150,6 +1154,11 @@
 
   // ---- source counts
   let lastSourceCounts = { json: 0, firebase: 0 };
+
+  // ---- 修正依頼（sales_sub）キャッシュ
+  // key: saleId, value: {status, diffKeys, doneKeys, snapshot, proposed, createdAt, updatedAt, createdByEmail}
+  let fixReqBySaleId = new Map();
+  let fixReqSummary = { pending: 0, done: 0 };
 
   // ---- option lists (JSON bundle から読む)
   let optPaymentMethods = [];   // payments_bundle.json (label)
@@ -1657,29 +1666,37 @@ function renderSourceSummary(){
   sumEl.textContent = `sales：json ${lastSourceCounts.json.toLocaleString("ja-JP")} 件 / firebase ${lastSourceCounts.firebase.toLocaleString("ja-JP")} 件`;
 }
 
-async function renderFixSummary(){
-  // sales_fix_requests の全体件数（依頼中/完了）を上部に表示
+async function loadFixRequests(){
+  // sales_sub を読み込み、(1) サマリー表示 (2) saleId->依頼のMap を更新
+  // ※件数が増えてきたら、期間指定やページングを検討
+  fixReqBySaleId = new Map();
+  fixReqSummary = { pending: 0, done: 0 };
+
   try{
     const q = query(
-      collection(db, "sales_fix_requests"),
-      orderBy("createdAt", "desc"),
+      collection(db, "sales_sub"),
+      orderBy("updatedAt", "desc"),
       limit(2000)
     );
     const snap = await getDocs(q);
-    let pending = 0, done = 0;
+
     snap.forEach(d=>{
-      const st = safeStr(d.data()?.status || "").trim();
-      if(st === "依頼中") pending += 1;
-      else if(st === "完了") done += 1;
+      const data = d.data() || {};
+      const saleId = String(data.saleId || d.id || "").trim();
+      if(!saleId) return;
+
+      const status = safeStr(data.status || "依頼中").trim() || "依頼中";
+      if(status === "修正済み") fixReqSummary.done += 1;
+      else fixReqSummary.pending += 1;
+
+      fixReqBySaleId.set(saleId, { id: d.id, ...data, saleId, status });
     });
 
-    fixSumPendingEl.textContent = `修正依頼：依頼中 ${pending.toLocaleString("ja-JP")} 件`;
-    fixSumDoneEl.textContent    = `完了 ${done.toLocaleString("ja-JP")} 件`;
-
-    // 枠外に常時表示（0件でも）
+    fixSumPendingEl.textContent = `修正依頼：依頼中 ${fixReqSummary.pending.toLocaleString("ja-JP")} 件`;
+    fixSumDoneEl.textContent    = `修正済み ${fixReqSummary.done.toLocaleString("ja-JP")} 件`;
     fixSummaryBar.style.display = "flex";
   }catch(e){
-    // 失敗してもページ自体は動かす
+    console.warn("loadFixRequests failed", e);
     fixSummaryBar.style.display = "none";
   }
 }
@@ -1693,7 +1710,7 @@ async function renderFixSummary(){
       await loadProductsBundle();
       await loadMastersBundles();
       await loadSales();
-      await renderFixSummary();
+      await loadFixRequests();
 
       authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
       render();
@@ -1837,6 +1854,15 @@ async function renderFixSummary(){
           const b = document.createElement("span");
           b.className = "badge";
           b.textContent = "バンドル修正待ち";
+          top.appendChild(b);
+        }
+
+        // 修正依頼ステータス（sales_sub）
+        const fr = fixReqBySaleId.get(s.id);
+        if(fr){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = (fr.status === "修正済み") ? "修正済み" : "修正依頼";
           top.appendChild(b);
         }
 
@@ -2097,6 +2123,23 @@ async function renderFixSummary(){
       `;
     }
 
+
+    // fix request status
+    const fr = fixReqBySaleId.get(sale.id);
+    if(fr){
+      const st = safeStr(fr.status || "依頼中");
+      html += `
+        <div class="sectionTitle" style="margin-top:14px;">修正依頼</div>
+        <div class="claimCard">
+          <div class="claimHead">
+            <div class="claimTitle">ステータス：${escapeHtml(st)}</div>
+            <div class="claimMeta">${escapeHtml(String(fr.createdByEmail||fr.createdBy||""))}</div>
+          </div>
+          <div class="claimReason">※この明細は「修正依頼」が出ています。管理者はFirebase側でsalesを修正後、完了チェックを入れてください。</div>
+        </div>
+      `;
+    }
+
     // actions (詳細から直接 修正/返金)
     if(sale && sale.id){
       html += `
@@ -2114,7 +2157,7 @@ async function renderFixSummary(){
     // 修正履歴件数
     if(sale.id){
 }
-
+  {
     drawerBackdropEl.classList.add("open");
     drawerEl.classList.add("open");
   }
@@ -2173,52 +2216,64 @@ async function renderFixSummary(){
     };
   }
 
+
 async function openFixEditor(sale){
-  let currentFixReq = null;
-  // load existing fix request (one doc per saleId)
-  const reqId = String(sale?.id || sale?.docId || "");
-  const reqRef = doc(db, "sales_fix_requests", reqId);
-  getDoc(reqRef).then(snap=>{ if(snap.exists()) currentFixReq = snap.data(); }).catch(()=>{});
-  // 「明細詳細」と同じDrawerの見た目で、編集入力を常時表示する版（タップで消える問題を根本回避）
+  // 誰でも「修正依頼」を作れる。sales自体はこの画面では変更しない（管理者はFirebaseで直接修正）。
   ensureDrawer();
 
-  const body = drawerEl.querySelector("#drawerBody");
-  const admin = isAdminEmail(currentUser?.email);
-  const bundled = !!sale.isBundled;
+  const saleId = String(sale?.id || "").trim();
+  if(!saleId){ toast("saleIdがありません"); return; }
 
-  const kvRow = (label, inputHtml) => `
-    <div class="kv">
-      <div class="k">${label}</div>
-      <div class="v">${inputHtml}</div>
+  // 既存依頼取得（docId = saleId）
+  const reqRef = doc(db, "sales_sub", saleId);
+  let reqSnap = null;
+  try{ reqSnap = await getDoc(reqRef); }catch(e){}
+
+  const existing = (reqSnap && reqSnap.exists()) ? (reqSnap.data()||{}) : null;
+  const admin = isAdminEmail(currentUser?.email);
+
+  // snapshot（旧）
+  const snapshot = {
+    buyerName: sale?.buyerName ?? "",
+    orderDate: sale?.orderDate ?? (sale?.date ? fmtYMD(sale.date) : ""),
+    channel: sale?.channelLabel || sale?.channel || "",
+    paymentMethod: sale?.paymentLabel || sale?.paymentMethod || "",
+    venue: sale?.venueLabel || sale?.venue || "",
+    kind: sale?.kindLabel || sale?.kind || "",
+    memo: sale?.memo || "",
+    items: Array.isArray(sale?.items) ? sale.items.map(it=>({
+      name: it?.name ?? "",
+      qty: Number(it?.qty ?? 0),
+      price: Number(it?.unitPrice ?? it?.price ?? 0),
+      subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.unitPrice ?? it?.price ?? 0))) || 0
+    })) : [],
+    total: Number(sale?.total ?? 0)
+  };
+
+  // proposed（新）…既存依頼があればそれを初期値に
+  const proposed0 = existing?.proposed ? existing.proposed : snapshot;
+
+  const body = drawerEl.querySelector("#drawerBody");
+  drawerEl.querySelector("#drawerBig").textContent = "修正依頼";
+  drawerEl.querySelector("#drawerSub").textContent = `${snapshot.orderDate}${snapshot.buyerName ? " / "+snapshot.buyerName : ""}`;
+
+  // staff: 入力欄＋保存ボタン / admin: チェックリストのみ
+  const kvRow = (label, html)=>`
+    <div class="kv editKv">
+      <div class="k">${escapeHtml(label)}</div>
+      <div class="v">${html}</div>
     </div>
   `;
+  const inp = (id, v, ph="")=>`<input class="editInput always" id="${id}" value="${escapeAttr(v??"")}" placeholder="${escapeAttr(ph)}" />`;
+  const dateInp = (id, v)=>`<input class="editInput always" id="${id}" type="date" value="${escapeAttr(/^\d{4}-\d{2}-\d{2}$/.test(String(v||"")) ? v : "")}" />`;
+  const area = (id, v, ph="")=>`<textarea class="editInput always" id="${id}" rows="3" placeholder="${escapeAttr(ph)}">${escapeHtml(v??"")}</textarea>`;
 
-  const esc = (s)=>escapeHtml(String(s ?? ""));
-  const __dup_sel = (id, list, value, placeholder="-")=>{
-    const v = (value==null? "" : String(value));
-    const opts = [`<option value="">${placeholder}</option>`]
-      .concat((list||[]).map(x=>{
-        const t = String(x);
-        const selected = (t===v) ? " selected" : "";
-        return `<option value="${escapeAttr(t)}"${selected}>${esc(t)}</option>`;
-      }));
-    return `<select class="in" id="${id}">${opts.join("")}</select>`;
-  };
-  const inp = (id, value, ph="")=>`<input class="in" id="${id}" value="${escapeAttr(value??"")}" placeholder="${escapeAttr(ph)}" />`;
-  const dateInp = (id, value)=>{
-    const v = String(value||"").trim();
-    // 期待形式: YYYY-MM-DD（違う場合は空にしてユーザーが選び直せるように）
-    const ok = /^\d{4}-\d{2}-\d{2}$/.test(v);
-    return `<input class="in" id="${id}" type="date" value="${escapeAttr(ok? v : "")}" />`;
-  };
-  const area = (id, value, ph="")=>`<textarea class="in" id="${id}" rows="3" placeholder="${escapeAttr(ph)}">${esc(value??"")}</textarea>`;
-
-  // editable draft（salesのコピー）
-  let items = Array.isArray(sale.items) ? sale.items.map(it=>({
+  // itemsはスタッフだけ編集可（管理者はFirebaseで修正する運用）
+  let items = Array.isArray(proposed0?.items) ? proposed0.items.map(it=>({
     name: it?.name ?? "",
     qty: Number(it?.qty ?? 0),
-    price: Number(it?.price ?? 0),
-    subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.price??0))) || 0
+    price: Number(it?.price ?? it?.unitPrice ?? 0),
+    subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.price ?? it?.unitPrice ?? 0))) || 0
   })) : [];
 
   function recalc(){
@@ -2228,24 +2283,22 @@ async function openFixEditor(sale){
       it.subtotal = Math.round(it.qty * it.price);
     });
     const total = items.reduce((a,it)=>a+Number(it.subtotal||0),0);
-    const totalEl = body.querySelector("#fix_total");
-    if(totalEl) totalEl.textContent = fmtMoney(total);
+    const t = body.querySelector("#req_total");
+    if(t) t.textContent = fmtMoney(total);
+    return total;
   }
 
   function renderItems(){
-    const wrap = body.querySelector("#fix_items");
+    const wrap = body.querySelector("#req_items");
     if(!wrap) return;
 
-    const buildProductOptions = (currentName)=>{
-      const cur = safeStr(currentName).trim();
-      const list = (optProductNames && optProductNames.length) ? optProductNames : [];
+    const list = (optProductNames && optProductNames.length) ? optProductNames : [];
+    const buildOpts = (cur)=>{
+      const c = safeStr(cur).trim();
       const opts = [];
-      if(cur && !list.includes(cur)){
-        opts.push(`<option value="${escapeAttr(cur)}" selected>${esc(cur)}</option>`);
-      }
+      if(c && !list.includes(c)) opts.push(`<option value="${escapeAttr(c)}" selected>${escapeHtml(c)}</option>`);
       for(const n of list){
-        const __dup_sel = (n===cur) ? " selected" : "";
-        opts.push(`<option value="${escapeAttr(n)}"${__dup_sel}>${esc(n)}</option>`);
+        opts.push(`<option value="${escapeAttr(n)}"${n===c?" selected":""}>${escapeHtml(n)}</option>`);
       }
       return opts.join("");
     };
@@ -2256,284 +2309,200 @@ async function openFixEditor(sale){
       return;
     }
 
-    let html = `
-      <table class="itemsTable">
-        <thead><tr><th>商品</th><th style="width:120px;">数量</th><th style="width:140px;">単価</th><th style="width:140px;">小計</th></tr></thead>
+    wrap.innerHTML = `
+      <table class="drawerTable">
+        <thead>
+          <tr><th>商品</th><th class="right">数量</th><th class="right">単価</th><th class="right">小計</th></tr>
+        </thead>
         <tbody>
           ${items.map((it,i)=>`
             <tr>
-              <td><select class="cellIn cellSel" data-i="${i}" data-f="name">${buildProductOptions(it.name)}</select></td>
-              <td><input class="cellIn" data-i="${i}" data-f="qty" type="number" inputmode="numeric" value="${escapeAttr(it.qty)}" /></td>
-              <td><input class="cellIn" data-i="${i}" data-f="price" type="number" inputmode="numeric" value="${escapeAttr(it.price)}" /></td>
-              <td><input class="cellIn" data-i="${i}" data-f="subtotal" type="number" inputmode="numeric" value="${escapeAttr(it.subtotal)}" /></td>
+              <td>${admin ? escapeHtml(it.name) : `<select class="cellSel" data-i="${i}">${buildOpts(it.name)}</select>`}</td>
+              <td class="right">${admin ? escapeHtml(String(it.qty)) : `<input class="cellIn right" data-i="${i}" data-f="qty" type="number" value="${escapeAttr(it.qty)}" />`}</td>
+              <td class="right">${admin ? escapeHtml(String(it.price)) : `<input class="cellIn right" data-i="${i}" data-f="price" type="number" value="${escapeAttr(it.price)}" />`}</td>
+              <td class="right">${escapeHtml(fmtMoney(it.subtotal))}</td>
             </tr>
           `).join("")}
         </tbody>
       </table>
     `;
-    wrap.innerHTML = html;
 
-    wrap.querySelectorAll(".cellIn").forEach(el=>{
-      el.addEventListener("input", ()=>{
-        const i = Number(el.getAttribute("data-i"));
-        const f = el.getAttribute("data-f");
+    if(admin) return;
+
+    wrap.querySelectorAll(".cellIn").forEach(el2=>{
+      el2.addEventListener("input", ()=>{
+        const i = Number(el2.getAttribute("data-i"));
+        const f = el2.getAttribute("data-f");
         if(!items[i]) return;
-        if(f==="name") items[i].name = el.value;
-        else items[i][f] = Number(el.value||0);
-
-        if(f==="qty" || f==="price"){
-          items[i].subtotal = Math.round(Number(items[i].qty||0)*Number(items[i].price||0));
-          const subEl = wrap.querySelector(`.cellIn[data-f="subtotal"][data-i="${i}"]`);
-          if(subEl) subEl.value = String(items[i].subtotal);
-        }
+        items[i][f] = Number(el2.value||0);
         recalc();
+        renderItems();
       });
     });
-
-    // 商品名（select）
-    wrap.querySelectorAll(".cellSel").forEach(el=>{
-      el.addEventListener("change", ()=>{
-        const i = Number(el.getAttribute("data-i"));
+    wrap.querySelectorAll(".cellSel").forEach(sel2=>{
+      sel2.addEventListener("change", ()=>{
+        const i = Number(sel2.getAttribute("data-i"));
         if(!items[i]) return;
-        const name = el.value;
+        const name = sel2.value;
         items[i].name = name;
-
-        // price が未入力/0 のときだけ、マスタの価格を自動入力（上書きしない）
-        const p0 = Number(items[i].price||0);
         const mp = Number(productPriceByName?.[name] ?? 0);
-        if((!p0 || p0===0) && mp>0){
-          items[i].price = mp;
-          const priceEl = wrap.querySelector(`.cellIn[data-f="price"][data-i="${i}"]`);
-          if(priceEl) priceEl.value = String(mp);
-          items[i].subtotal = Math.round(Number(items[i].qty||0) * Number(items[i].price||0));
-          const subEl = wrap.querySelector(`.cellIn[data-f="subtotal"][data-i="${i}"]`);
-          if(subEl) subEl.value = String(items[i].subtotal);
-        }
+        if((!items[i].price || items[i].price===0) && mp>0) items[i].price = mp;
         recalc();
+        renderItems();
       });
     });
 
     recalc();
   }
 
-  // build UI (drawer look)
-  const orderDate = sale.orderDate ?? (sale.date ? fmtYMD(sale.date) : "");
-  const memo = sale.memo ?? "";
-  const buyer = sale.buyerName ?? "";
+  // ---- UI描画
+  if(!admin){
+    body.innerHTML = `
+      <div class="sectionTitle">修正依頼の作成</div>
+      <div class="muted" style="margin-bottom:10px;">保存すると <b>sales_sub</b> に依頼が作成されます（salesは変更しません）。</div>
 
-  // Drawer header should stay as-is; update subtitle
-  drawerEl.querySelector("#drawerBig").textContent = fmtMoney(sale.total ?? 0);
-  drawerEl.querySelector("#drawerSub").textContent = `${orderDate}${buyer? " / "+buyer:""}`;
-
-  body.innerHTML = `
-    <div class="drawerSection">
-      <div class="sectionTitle">打ち間違い修正（明細と同一UI）</div>
-      <div class="muted" style="margin-bottom:10px;">
-        ${admin ? "※管理者ログイン＆バンドル外データのみ、この画面で編集→保存で sales を上書きできます。" : "スタッフ：この画面で修正案を作成 → 依頼送信します（salesは変更しません）。"}
-        ${bundled ? "<br><b>※バンドル由来のため修正不可（バンドル更新待ち）</b>" : ""}
-      </div>
-
-      <div class="kvBox">
-        ${kvRow("購入者", inp("fix_buyer", buyer, "例：山田 太郎"))}
-        ${kvRow("購入日付", dateInp("fix_date", orderDate))}
-        ${kvRow("販売方法", sel("fix_channel", optChannels, sale.channelLabel || sale.channel || ""))}
-        ${kvRow("決済方法", sel("fix_payment", optPaymentMethods, sale.paymentLabel || sale.paymentMethod || sale.paymentMethodId || ""))}
-        ${kvRow("開催場所", sel("fix_venue", optVenues, sale.venueId || sale.venue || sale.venueLabel || ""))}
-        ${kvRow("販売種別", sel("fix_kind", optKinds, sale.kindId || sale.kind || sale.kindLabel || ""))}
-                ${kvRow("メモ", area("fix_memo", memo, "メモ"))}
-      </div>
+      ${kvRow("購入者", inp("req_buyer", proposed0?.buyerName ?? snapshot.buyerName, "例：山田 太郎"))}
+      ${kvRow("購入日付", dateInp("req_date", proposed0?.orderDate ?? snapshot.orderDate))}
+      ${kvRow("販売方法", sel("req_channel", optChannels, proposed0?.channel ?? snapshot.channel))}
+      ${kvRow("決済方法", sel("req_payment", optPaymentMethods, proposed0?.paymentMethod ?? snapshot.paymentMethod))}
+      ${kvRow("開催場所", sel("req_venue", optVenues, proposed0?.venue ?? snapshot.venue))}
+      ${kvRow("販売種別", sel("req_kind", optKinds, proposed0?.kind ?? snapshot.kind))}
+      ${kvRow("メモ", area("req_memo", proposed0?.memo ?? snapshot.memo, "修正理由や補足"))}
 
       <div class="sectionTitle" style="margin-top:14px;">商品明細</div>
-      <div id="fix_items"></div>
+      <div id="req_items"></div>
 
       <div class="sectionTitle" style="margin-top:14px;">合計</div>
-      <div class="kvBox">
-        <div class="kv"><div class="k">合計</div><div class="v"><b id="fix_total">${fmtMoney(sale.total ?? 0)}</b></div></div>
-      </div>
+      <div class="kv"><div class="k">合計</div><div class="v"><b id="req_total">${fmtMoney(proposed0?.total ?? snapshot.total)}</b></div></div>
 
       <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="modalBtn" id="fix_close"><span>閉じる</span></button>
-        <button class="modalBtn primary" id="fix_save">
-          <span>${admin ? "保存して閉じる（sales上書き）" : "保存（依頼送信）"}</span>
-        </button>
+        <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
+        <button class="modalBtn primary" id="req_save" type="button"><span>保存（修正依頼）</span></button>
       </div>
-    </div>
-  `;
 
-  renderItems();
+      <div class="smallNote">※管理者がFirebase側で sales を修正します。修正後「完了」にチェックが入ると、この明細に「修正済み」が表示されます。</div>
+    `;
+    renderItems();
+    recalc();
 
-  body.querySelector("#fix_close").onclick = ()=>openSaleDrawer(sale);
+    body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
 
-  body.querySelector("#fix_save").onclick = async ()=>{
-    try{
-      if(bundled){
-        toast("バンドル由来は修正不可（バンドル修正待ち）");
+    body.querySelector("#req_save").onclick = async ()=>{
+      const proposed = {
+        buyerName: body.querySelector("#req_buyer").value.trim(),
+        orderDate: body.querySelector("#req_date").value.trim(),
+        channel: body.querySelector("#req_channel").value || "",
+        paymentMethod: body.querySelector("#req_payment").value || "",
+        venue: body.querySelector("#req_venue").value || "",
+        kind: body.querySelector("#req_kind").value || "",
+        memo: body.querySelector("#req_memo").value || "",
+        items: items.map(it=>({ name:String(it.name||"").trim(), qty:Number(it.qty||0), price:Number(it.price||0), subtotal:Math.round(Number(it.qty||0)*Number(it.price||0)) })),
+        total: recalc()
+      };
+
+      const diffKeys = computeDiffKeys(snapshot, proposed);
+      const payload = {
+        saleId,
+        status: diffKeys.length ? "依頼中" : "依頼中",
+        diffKeys,
+        doneKeys: [],
+        snapshot,
+        proposed,
+        createdAt: existing?.createdAt || new Date(),
+        updatedAt: new Date(),
+        createdByUid: (auth?.currentUser?.uid || ""),
+        createdByEmail: (auth?.currentUser?.email || "")
+      };
+
+      if(diffKeys.length === 0){
+        toast("変更がありません");
         return;
       }
 
-      const draft = {
-        buyerName: body.querySelector("#fix_buyer").value.trim(),
-        orderDate: body.querySelector("#fix_date").value.trim(),
-        channel: body.querySelector("#fix_channel").value || "",
-        paymentMethod: body.querySelector("#fix_payment").value || "",
-        venue: body.querySelector("#fix_venue").value || "",
-      urgentOption: "",
-        kind: body.querySelector("#fix_kind").value || "",
-        memo: body.querySelector("#fix_memo").value
-      };
-          // --- Build/Upsert fix request (staff only)
-          const snapshot = {
-            buyerName: sale?.buyerName ?? sale?.buyer ?? "",
-            orderDate: sale?.orderDate ?? sale?.date ?? "",
-            channel: sale?.channel ?? "",
-            paymentMethod: sale?.paymentMethod ?? "",
-            venue: sale?.venue ?? "",
-            kind: sale?.kind ?? "",
-            urgentOption: sale?.urgentOption ?? "",
-            memo: sale?.memo ?? "",
-            items: sale?.items ?? [],
-            total: sale?.total ?? sale?.amount ?? 0,
-          };
-
-          const proposed = {
-            buyerName: draft.buyerName,
-            orderDate: draft.orderDate,
-            channel: draft.channel,
-            paymentMethod: draft.paymentMethod,
-            venue: draft.venue,
-            kind: draft.kind,
-            urgentOption: draft.urgentOption,
-            memo: draft.memo,
-            items: draft.items,
-            total: draft.total,
-          };
-
-          const diffKeys = computeDiffKeys(snapshot, proposed);
-          const prevDone = (currentFixReq && currentFixReq.doneKeys) ? currentFixReq.doneKeys : [];
-          const doneKeys = normalizeDone(diffKeys, prevDone);
-          const status = statusFrom(diffKeys, doneKeys);
-
-          const reqPayload = {
-            saleId: String(sale?.id || sale?.docId || ""),
-            status,
-            updatedAt: new Date(),
-            diffKeys,
-            doneKeys,
-            snapshot,
-            proposed,
-            createdAt: (currentFixReq && currentFixReq.createdAt) ? currentFixReq.createdAt : new Date(),
-            createdByUid: (auth?.currentUser?.uid || ""),
-            createdByEmail: (auth?.currentUser?.email || ""),
-          };
-
-          if(diffKeys.length === 0){
-            toast("変更がありません");
-            // still render checklist (empty)
-          } else {
-            // upsert: one request per saleId (doc id = saleId)
-            const reqId = reqPayload.saleId;
-            const reqRef = doc(db, "sales_fix_requests", reqId);
-            try{
-              await setDoc(reqRef, reqPayload, { merge: true });
-              currentFixReq = reqPayload;
-              toast("修正依頼を保存しました");
-            }catch(err){
-              console.error("fix request save failed", err);
-              toast(`保存失敗（${err?.code||"error"}）`);
-              return;
-            }
-          }
-
-          // render checklist and wire updates
-          try{
-            const box = document.getElementById("fix_checklist");
-            if(box){
-              box.innerHTML = `
-                <h3 style="margin:18px 0 10px;">修正チェック（旧→新　□完了）</h3>
-                <div class="diffbox" style="border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:14px 14px 6px; background:rgba(255,255,255,.72)"></div>
-              `;
-              const inner = box.querySelector(".diffbox");
-              const doneSet = new Set(doneKeys||[]);
-              inner.innerHTML = diffKeys.map(k=>renderDiffRow(k, snapshot[k], proposed[k], doneSet.has(k))).join("") 
-                + `<div style="padding:10px 0; text-align:right; font-weight:800;">ステータス：<span id="fix_status_badge">${escapeHtml(status)}</span></div>`;
-              const reqId2 = String(reqPayload.saleId||"");
-              const reqRef2 = doc(db, "sales_fix_requests", reqId2);
-
-              inner.querySelectorAll(".diffrow").forEach(row=>{
-                const key = row.getAttribute("data-key");
-                const chk = row.querySelector(".doneChk");
-                chk.addEventListener("change", async ()=>{
-                  const cur = currentFixReq || reqPayload;
-                  const dk = computeDiffKeys(cur.snapshot || snapshot, cur.proposed || proposed);
-                  const set = new Set(cur.doneKeys || []);
-                  if(chk.checked) set.add(key); else set.delete(key);
-                  const nextDone = normalizeDone(dk, Array.from(set));
-                  const nextStatus = statusFrom(dk, nextDone);
-                  try{
-                    await updateDoc(reqRef2, { doneKeys: nextDone, status: nextStatus, updatedAt: new Date() });
-                    currentFixReq = { ...(cur||{}), doneKeys: nextDone, status: nextStatus };
-                    const badge = document.getElementById("fix_status_badge");
-                    if(badge) badge.textContent = nextStatus;
-                    // refresh top counters if exists
-                    if(typeof refreshFixBadges === "function") refreshFixBadges();
-                  }catch(err){
-                    console.error("done toggle failed", err);
-                    chk.checked = !chk.checked;
-                    toast(`更新失敗（${err?.code||"error"}）`);
-                  }
-                });
-              });
-            }
-          }catch(e){ console.warn(e); }
-
-
-
-      // normalize items
-      const cleanItems = items.map(it=>({
-        name: String(it.name||"").trim(),
-        qty: Number(it.qty||0),
-        price: Number(it.price||0),
-        subtotal: Math.round(Number(it.qty||0)*Number(it.price||0))
-      })).filter(it=>it.name || it.qty || it.price);
-
-      const newTotal = cleanItems.reduce((a,it)=>a+Number(it.subtotal||0),0);
-
-      if(admin){
-        // 管理者：salesを上書き
-        // direct sales update disabled (admin edits in Firebase)
-toast("保存しました（salesを更新）");
-        await loadAll();
-      if(typeof refreshFixBadges==='function') refreshFixBadges();
-// 再表示
-        const latest = rawSales.find(x=>x.id===sale.id) || sale;
-        openSaleDrawer(latest);
-      }else{
-        // スタッフ：依頼送信（salesは変更しない）
-        await addDoc(collection(db,"sales_fix_requests"),{
-          saleId: sale.id,
-          status: "依頼中",
-          requestText: (draft.memo||"").slice(0,1000),
-          createdAt: new Date(),
-          createdBy: currentUser?.email || "unknown",
-          snapshot: sale,
-          proposed: {
-            ...draft,
-            items: cleanItems,
-            total: newTotal
-          }
-        });
-        toast("修正依頼を送信しました");
+      try{
+        await setDoc(reqRef, payload, { merge: true });
+        toast("修正依頼を保存しました");
+        await loadFixRequests();
         openSaleDrawer(sale);
+      }catch(err){
+        console.error(err);
+        toast(`保存失敗（${err?.code||"error"}）`);
       }
-    }catch(err){
-      console.error(err);
-      toast(`保存失敗（${err?.code||"error"}）: 管理者/バンドル判定 or ルール確認`);
-          console.error("save failed", err);
-    }
-  };
+    };
+
+    return;
+  }
+
+  // ---- admin view
+  const fr = existing || fixReqBySaleId.get(saleId);
+  if(!fr){
+    body.innerHTML = `
+      <div class="sectionTitle">修正依頼</div>
+      <div class="empty">この明細には修正依頼がありません。</div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
+      </div>
+    `;
+    body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
+    return;
+  }
+
+  const diffKeys = Array.isArray(fr.diffKeys) ? fr.diffKeys : computeDiffKeys(fr.snapshot||snapshot, fr.proposed||proposed0);
+  const doneKeys = Array.isArray(fr.doneKeys) ? fr.doneKeys : [];
+
+  body.innerHTML = `
+    <div class="sectionTitle">修正依頼（管理者）</div>
+    <div class="muted" style="margin-bottom:10px;">管理者は <b>Firebaseで sales を修正</b> → この画面で「完了」にチェックを入れてください。</div>
+
+    <div class="approveBox">
+      <div class="approveHead">旧 → 新　☑完了</div>
+      <div class="approveNote">完了を全てONにするとステータスが「修正済み」になります。</div>
+      <div id="req_diff"></div>
+      <div style="padding-top:10px; text-align:right; font-weight:900;">ステータス：<span id="req_status">${escapeHtml(fr.status||"依頼中")}</span></div>
+    </div>
+
+    <div style="display:flex; gap:10px; margin-top:14px;">
+      <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
+    </div>
+  `;
+
+  const diffWrap = body.querySelector("#req_diff");
+  const doneSet = new Set(doneKeys);
+  diffWrap.innerHTML = diffKeys.map(k=>renderDiffRow(k, (fr.snapshot||snapshot)[k], (fr.proposed||proposed0)[k], doneSet.has(k))).join("");
+
+  body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
+
+  diffWrap.querySelectorAll(".diffrow").forEach(row=>{
+    const key = row.getAttribute("data-key");
+    const chk = row.querySelector(".doneChk");
+    chk.addEventListener("change", async ()=>{
+      const cur = (await getDoc(reqRef)).data() || fr;
+      const dk = Array.isArray(cur.diffKeys) ? cur.diffKeys : computeDiffKeys(cur.snapshot||snapshot, cur.proposed||proposed0);
+      const set = new Set(Array.isArray(cur.doneKeys) ? cur.doneKeys : []);
+      if(chk.checked) set.add(key); else set.delete(key);
+      const nextDone = Array.from(set).filter(k=> dk.includes(k));
+      const nextStatus = (dk.length>0 && dk.every(k=> nextDone.includes(k))) ? "修正済み" : "修正中";
+      try{
+        await updateDoc(reqRef, { doneKeys: nextDone, status: nextStatus, updatedAt: new Date() });
+        const stEl = body.querySelector("#req_status");
+        if(stEl) stEl.textContent = nextStatus;
+        await loadFixRequests();
+
+        // すべて完了になった瞬間のトースト
+        if(nextStatus === "修正済み"){
+          toast("sales_sub を削除してください（運用）");
+        }
+      }catch(err){
+        console.error(err);
+        chk.checked = !chk.checked;
+        toast(`更新失敗（${err?.code||"error"}）`);
+      }
+    });
+  });
 }
 
- // ---- クレーム返金処理（未実装：必要なら実装します）
+
+// ---- クレーム返金処理（未実装：必要なら実装します）
   function openClaimEditor(sale){
     toast("クレーム返金処理はこの版では未実装です（必要なら追加します）");
   }
