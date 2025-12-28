@@ -1100,7 +1100,7 @@
   let optShippingOptions = [];  // sales から自動収集（bundle無し）
   let optProductNames = [];     // products_bundle.json (name)
   let productPriceByName = {};
-  function norm(s){ return String(s??"").trim().toLowerCase(); }
+  function __dup_norm(s){ return String(s??"").trim().toLowerCase(); }
 
   function activeEntries(arr){
     const out = [];
@@ -1116,7 +1116,7 @@
     return Object.values(map).sort((a,b)=> a.label.localeCompare(b.label, "ja"));
   }
 
-  function resolveId(options, current){
+  function __dup_resolveId(options, current){
     const c = String(current??"").trim();
     if(!c) return "";
     if((options||[]).some(o=>o.id === c)) return c;
@@ -1139,7 +1139,7 @@
       opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)}</option>`);
     }
     for(const v of list){
-      const sel = (v===cur) ? " selected" : "";
+      const __dup_sel = (v===cur) ? " selected" : "";
       opts.push(`<option value="${escapeHtml(v)}"${sel}>${escapeHtml(v)}</option>`);
     }
     // 自由入力
@@ -2131,7 +2131,7 @@ async function openFixEditor(sale){
   `;
 
   const esc = (s)=>escapeHtml(String(s ?? ""));
-  const sel = (id, list, value, placeholder="-")=>{
+  const __dup_sel = (id, list, value, placeholder="-")=>{
     const v = (value==null? "" : String(value));
     const opts = [`<option value="">${placeholder}</option>`]
       .concat((list||[]).map(x=>{
@@ -2181,7 +2181,7 @@ async function openFixEditor(sale){
         opts.push(`<option value="${escapeAttr(cur)}" selected>${esc(cur)}</option>`);
       }
       for(const n of list){
-        const sel = (n===cur) ? " selected" : "";
+        const __dup_sel = (n===cur) ? " selected" : "";
         opts.push(`<option value="${escapeAttr(n)}"${sel}>${esc(n)}</option>`);
       }
       return opts.join("");
