@@ -1053,6 +1053,32 @@
   let optShippingOptions = [];  // sales から自動収集（bundle無し）
   let optProductNames = [];     // products_bundle.json (name)
   let productPriceByName = {};
+  function norm(s){ return String(s??"").trim().toLowerCase(); }
+
+  function activeEntries(arr){
+    const out = [];
+    for(const x of (arr||[])){
+      if(!x || x.active === false) continue;
+      const id = (x.id ?? x.value ?? x.key ?? x.label ?? x.name ?? "").toString().trim();
+      const label = (x.label ?? x.name ?? x.id ?? "").toString().trim();
+      if(!id && !label) continue;
+      out.push({ id, label: label || id });
+    }
+    const map = {};
+    out.forEach(o=>{ map[o.id] = o; });
+    return Object.values(map).sort((a,b)=> a.label.localeCompare(b.label, "ja"));
+  }
+
+  function resolveId(options, current){
+    const c = String(current??"").trim();
+    if(!c) return "";
+    if((options||[]).some(o=>o.id === c)) return c;
+    const n = norm(c);
+    const hit = (options||[]).find(o=> norm(o.label) == n) || (options||[]).find(o=> norm(o.id) == n);
+    return hit ? hit.id : c;
+  }
+
+
 
   function uniqSorted(arr){
     const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
@@ -1399,7 +1425,7 @@ async function loadSimpleBundle(candidates, pickFn){
   return [];
 }
 
-function activeLabels(arr, labelKey="label"){
+function activeEntries(arr, labelKey="label"){
   return uniqSorted((arr||[])
     .filter(x=> x && x.active !== false)
     .map(x=> safeStr(x[labelKey] ?? x.label ?? x.name ?? x.id).trim())
