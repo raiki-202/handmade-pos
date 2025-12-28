@@ -1070,9 +1070,6 @@ function uniqSorted(arr){
   
   // ---- fix editor helpers (self-contained)
   function escapeAttr(s){ return escapeHtml(s); }
-
-  function pad2(n){ return String(n).padStart(2,'0'); }
-
   function toLocalDateTimeInputValue(d){
     try{
       const dt = (d instanceof Date) ? d : new Date(d);
