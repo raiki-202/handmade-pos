@@ -1079,6 +1079,19 @@
   let lastBuilt = null;              // { list, groups }
   let currentUser = null;
 
+  function getUserEmail(){
+    try{ return String(currentUser?.email || auth?.currentUser?.email || ""); }catch(e){ return ""; }
+  }
+  function getUserUid(){
+    try{ return String(currentUser?.uid || auth?.currentUser?.uid || ""); }catch(e){ return ""; }
+  }
+  function isAdminClient(){
+    const email = getUserEmail();
+    const uid = getUserUid();
+    return (email === "enue_staff03@management.com" || uid === "Zs33k2rRFJXEUPxMU09ILRBXOpk1");
+  }
+
+
   // ---- admin
   const ADMIN_EMAILS = ["enue_staff03@management.com"]; // 管理者のみ（必要なら追加）
   function isAdminEmail(email){
@@ -2266,7 +2279,7 @@ async function openFixEditor(sale){
     <div class="drawerSection">
       <div class="sectionTitle">打ち間違い修正（明細と同一UI）</div>
       <div class="muted" style="margin-bottom:10px;">
-        ${admin ? "管理者：この画面で編集 → 保存で sales を上書きします。" : "スタッフ：この画面で修正案を作成 → 依頼送信します（salesは変更しません）。"}
+        ${admin ? "※管理者ログイン＆バンドル外データのみ、この画面で編集→保存で sales を上書きできます。" : "スタッフ：この画面で修正案を作成 → 依頼送信します（salesは変更しません）。"}
         ${bundled ? "<br><b>※バンドル由来のため修正不可（バンドル更新待ち）</b>" : ""}
       </div>
 
@@ -2368,7 +2381,7 @@ async function openFixEditor(sale){
       }
     }catch(err){
       console.error(err);
-      toast(`保存失敗（${err?.code||"error"}）`);
+      toast(`保存失敗（${err?.code||"error"}）: 管理者/バンドル判定 or ルール確認`);
           console.error("save failed", err);
     }
   };
