@@ -691,6 +691,51 @@
     }
     .k{ font-size: 12px; color: rgba(34,34,34,.70); }
     .v{ font-size: 13px; word-break: break-word; }
+
+    .kvGrid2{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px 12px;
+    }
+    @media (max-width:560px){
+      .kvGrid2{ grid-template-columns: 1fr; }
+    }
+    .kvRow{
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      padding: 12px 12px;
+      background: rgba(255,255,255,.62);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 14px;
+    }
+    .kvRow .k{
+      width: 96px;
+      flex: 0 0 auto;
+      font-size: 12px;
+      color: rgba(34,34,34,.70);
+      font-weight: 900;
+    }
+    .kvRow .v{ min-width:0; }
+    .kvRow .vv{
+      font-size: 13px;
+      font-weight: 900;
+      color: rgba(34,34,34,.92);
+      word-break: break-word;
+    }
+    .kvRow .vh{
+      margin-top: 4px;
+      font-size: 11px;
+      color: rgba(34,34,34,.55);
+      font-weight: 800;
+    }
+    .tappable{
+      cursor:pointer;
+    }
+    .tappable:active{
+      transform: translateY(1px);
+    }
+
     .sectionTitle{
       margin: 12px 0 6px;
       font-weight: 1000;
@@ -926,7 +971,40 @@
   let lastBuilt = null;              // { list, groups }
   let currentUser = null;
 
-  // ---- option lists (自動収集)
+  
+  // ---- fix request cache
+  let fixReqList = [];               // raw fix requests (recent)
+  let fixReqBySale = new Map();      // saleId -> {pending:[], done:[]}
+
+  function rebuildFixReqIndex(){
+    fixReqBySale = new Map();
+    for(const r of fixReqList){
+      const sid = safeStr(r.saleId);
+      if(!sid) continue;
+      if(!fixReqBySale.has(sid)) fixReqBySale.set(sid, { pending: [], done: [] });
+      const bucket = fixReqBySale.get(sid);
+      const st = safeStr(r.status);
+      if(st === "完了") bucket.done.push(r);
+      else bucket.pending.push(r); // 依頼中 or unknown
+    }
+    // sort newest first (createdAtMs desc)
+    for(const b of fixReqBySale.values()){
+      b.pending.sort((a,b)=> (b.createdAtMs||0)-(a.createdAtMs||0));
+      b.done.sort((a,b)=> (b.createdAtMs||0)-(a.createdAtMs||0));
+    }
+  }
+
+  function getFixCountsCached(saleId){
+    const b = fixReqBySale.get(saleId);
+    return { pending: b ? b.pending.length : 0, done: b ? b.done.length : 0 };
+  }
+
+  function getLatestPending(saleId){
+    const b = fixReqBySale.get(saleId);
+    return (b && b.pending.length) ? b.pending[0] : null;
+  }
+
+// ---- option lists (自動収集)
   let optPaymentMethods = [];
   let optChannels = [];
 
@@ -1083,6 +1161,40 @@
     }
   }
 
+
+  async function loadFixRequests(){
+    // 修正依頼は多くてもそこまで増えない想定：最新5000件まで
+    try{
+      const q = query(
+        collection(db, "sales_fix_requests"),
+        orderBy("createdAt", "desc"),
+        limit(5000)
+      );
+      const snap = await getDocs(q);
+      const list = [];
+      snap.forEach(d=>{
+        const data = d.data() || {};
+        const createdAt = data.createdAt;
+        const createdAtMs =
+          (createdAt?.toDate ? createdAt.toDate().getTime()
+            : (createdAt?.seconds ? createdAt.seconds*1000
+              : (typeof createdAt === "number" ? createdAt : 0)));
+        list.push({
+          id: d.id,
+          ...data,
+          createdAtMs
+        });
+      });
+      fixReqList = list;
+      rebuildFixReqIndex();
+    }catch(err){
+      console.warn("loadFixRequests failed", err);
+      fixReqList = [];
+      rebuildFixReqIndex();
+    }
+  }
+
+
   async function loadAll(force=false){
     authStateEl.textContent = "読み込み中…";
     monthsEl.innerHTML = "";
@@ -1090,8 +1202,9 @@
 
     try{
       await loadSales();
+      await loadFixRequests();
 
-      authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
+      authStateEl.textContent = `OK（sales: ${rawSales.length} 件 / 修正依頼: ${fixReqList.length} 件）`;
       render();
     }catch(err){
       console.error(err);
@@ -1229,7 +1342,22 @@
           top.appendChild(b);
         }
 
-        const bottom = document.createElement("div");
+        
+        // 修正依頼バッジ（依頼中/完了）
+        const fc = getFixCountsCached(s.id);
+        if((fc.pending||0) > 0){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = `依頼中 ${fc.pending}`;
+          top.appendChild(b);
+        }
+        if((fc.done||0) > 0){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = `完了 ${fc.done}`;
+          top.appendChild(b);
+        }
+const bottom = document.createElement("div");
         bottom.className = "saleBottom";
 
         const bn = document.createElement("div");
@@ -1473,13 +1601,13 @@
 
     // 修正履歴件数
     if(sale.id){
-      fetchFixRequestCounts(sale.id).then(cnt=>{
-        const pEl = drawerEl.querySelector("#fixPending");
-        const dEl = drawerEl.querySelector("#fixDone");
-        if(pEl) pEl.textContent = String(cnt?.pending ?? 0);
-        if(dEl) dEl.textContent = String(cnt?.done ?? 0);
-      });
-}
+      {
+      const cnt = getFixCountsCached(sale.id);
+      const pEl = drawerEl.querySelector("#fixPending");
+      const dEl = drawerEl.querySelector("#fixDone");
+      if(pEl) pEl.textContent = String(cnt?.pending ?? 0);
+      if(dEl) dEl.textContent = String(cnt?.done ?? 0);
+    }
 
     drawerBackdropEl.classList.add("open");
     drawerEl.classList.add("open");
@@ -1529,9 +1657,453 @@
 
     modal.querySelector("#btnFix").onclick = ()=>{
       closeModal(modal);
-      openFullEditEditor(sale);
+      openFixRequestDrawer(sale);
     };
   }
+
+  // =========================
+  // 打ち間違い修正：詳細と同じ構成でタップ編集 → 修正依頼作成 / 管理者は承認反映
+  // =========================
+  function openFixRequestDrawer(sale){
+    ensureDrawer();
+    const admin = isAdminUser();
+    const pending = admin ? getLatestPending(sale.id) : null;
+
+    // draft = 現在値コピー（staffがタップで変更）
+    const draft = {
+      buyerName: sale.buyerName ?? "",
+      orderDate: sale.orderDate ?? "",
+      paymentId: sale.paymentId ?? "",
+      paymentLabel: sale.paymentLabel ?? "",
+      paymentMethod: sale.paymentMethod ?? "",
+      channel: sale.channel ?? "",
+      channelLabel: sale.channelLabel ?? "",
+      venue: sale.venue ?? "",
+      venueLabel: sale.venueLabel ?? "",
+      kindId: sale.kindId ?? "",
+      kindLabel: sale.kindLabel ?? "",
+      urgentOptionId: sale.urgentOptionId ?? "",
+      urgentOptionLabel: sale.urgentOptionLabel ?? "",
+      memo: sale.memo ?? "",
+      items: (sale.items || []).map(it=>({
+        id: it.id ?? "",
+        name: it.name ?? "",
+        qty: Number(it.qty ?? 0),
+        unitPrice: Number(it.unitPrice ?? it.price ?? 0),
+        subtotal: Number(it.subtotal ?? (Number(it.qty??0) * Number(it.unitPrice ?? it.price ?? 0)) ?? 0)
+      }))
+    };
+
+    function recalc(){
+      draft.items = (draft.items||[]).map(it=>{
+        const qty = Number(it.qty||0);
+        const unitPrice = Number(it.unitPrice||0);
+        return { ...it, qty, unitPrice, subtotal: qty*unitPrice };
+      });
+      draft.total = draft.items.reduce((a,b)=> a + Number(b.subtotal||0), 0);
+    }
+    recalc();
+
+    const counts = getFixCountsCached(sale.id);
+
+    // drawer header
+    drawerEl.querySelector("#drawerBig").textContent = admin ? "修正依頼の確認" : "打ち間違い修正（依頼）";
+    drawerEl.querySelector("#drawerSub").textContent =
+      `合計 ${fmtMoney(sale.total)} / ${sale.orderDate ? sale.orderDate : fmtYMD(sale.date)} ・ 修正履歴：依頼中 ${counts.pending} / 完了 ${counts.done}`;
+
+    const body = drawerEl.querySelector("#drawerBody");
+
+    const buildKVRow = (label, value, field, hint="タップで変更")=>{
+      const v = (value ?? "");
+      return `
+        <div class="kvRow tappable" data-field="${escapeHtml(field)}" role="button" tabindex="0">
+          <div class="k">${escapeHtml(label)}</div>
+          <div class="v">
+            <div class="vv">${escapeHtml(String(v))}</div>
+            <div class="vh">${escapeHtml(hint)}</div>
+          </div>
+        </div>
+      `;
+    };
+
+    const paymentShow = draft.paymentLabel || draft.paymentMethod || draft.paymentId;
+    const channelShow = draft.channelLabel || draft.channel;
+    const venueShow   = draft.venueLabel || draft.venue;
+    const kindShow    = draft.kindLabel || draft.kindId || sale.kind || "";
+    const urgentShow  = draft.urgentOptionLabel || draft.urgentOptionId;
+
+    let html = `
+      <div class="drawerPills">
+        <div class="pill">依頼中 <span id="fixPending">${counts.pending}</span></div>
+        <div class="pill">完了 <span id="fixDone">${counts.done}</span></div>
+      </div>
+
+      <div class="sectionTitle">基本（タップで変更）</div>
+      <div class="kvGrid2">
+        ${buildKVRow("購入者氏名", draft.buyerName, "buyerName")}
+        ${buildKVRow("購入日付", draft.orderDate || (sale.orderDate || fmtYMD(sale.date)), "orderDate", "YYYY-MM-DD")}
+        ${buildKVRow("販売方法", channelShow, "channel")}
+        ${buildKVRow("決済方法", paymentShow, "payment")}
+        ${buildKVRow("開催場所", venueShow, "venue")}
+        ${buildKVRow("販売種別", kindShow, "kind")}
+        ${urgentShow ? buildKVRow("緊急オプション", urgentShow, "urgent") : ""}
+      </div>
+
+      <div class="sectionTitle">メモ</div>
+      <div class="kvRow tappable" data-field="memo" role="button" tabindex="0">
+        <div class="k">メモ</div>
+        <div class="v">
+          <div class="vv">${escapeHtml(draft.memo || "")}</div>
+          <div class="vh">タップで変更</div>
+        </div>
+      </div>
+
+      <div class="sectionTitle">商品明細（タップで編集）</div>
+      <div class="muted" style="margin:-6px 0 10px;">行をタップで編集／下の「＋追加」で増やせます。</div>
+      <div id="itemsBox"></div>
+      <div class="miniActions">
+        <button class="sbtn" id="addItemBtn" type="button">＋追加</button>
+        <div style="flex:1"></div>
+        <div class="pill">合計（仮）: <b id="draftTotal">${fmtMoney(draft.total||0)}</b></div>
+      </div>
+
+      ${admin && pending ? `
+        <div class="approveBox">
+          <div class="approveHead">管理者：依頼内容の確認</div>
+          <div class="approveNote">依頼コメント：${escapeHtml(pending.requestText || "-")}</div>
+          <div class="approveList" id="approveList"></div>
+          <div class="muted" style="margin-top:8px;">※ チェックした変更だけ sales に反映します。</div>
+        </div>
+      ` : `
+        <div class="sectionTitle">依頼コメント（必須）</div>
+        <textarea id="reqText" placeholder="管理者に伝える内容（例：購入者名をtest1→test2に修正、単価を修正 など）" style="width:100%;min-height:92px;border-radius:14px;border:1px solid var(--glass-border);padding:12px;background:rgba(255,255,255,.82);font-weight:700;"></textarea>
+        <div class="miniActions" style="margin-top:10px;">
+          <button class="sbtn primary" id="sendReqBtn" type="button">保存（修正依頼）</button>
+          <button class="sbtn" id="closeBtn2" type="button">閉じる</button>
+        </div>
+      `}
+    `;
+
+    body.innerHTML = html;
+
+    // items render
+    const itemsBox = body.querySelector("#itemsBox");
+    function renderItems(){
+      const rows = draft.items || [];
+      if(!rows.length){
+        itemsBox.innerHTML = `<div class="empty">商品がありません。</div>`;
+        return;
+      }
+      itemsBox.innerHTML = `
+        <table class="drawerTable">
+          <thead><tr><th>商品</th><th class="right">数量</th><th class="right">単価</th><th class="right">小計</th></tr></thead>
+          <tbody>
+            ${rows.map((it,idx)=>`
+              <tr class="trow tappable" data-item="${idx}">
+                <td>${escapeHtml(it.name || it.id || "")}</td>
+                <td class="right">${escapeHtml(String(it.qty ?? ""))}</td>
+                <td class="right">${escapeHtml(fmtMoney(it.unitPrice ?? 0))}</td>
+                <td class="right">${escapeHtml(fmtMoney(it.subtotal ?? 0))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+      const dt = body.querySelector("#draftTotal");
+      if(dt) dt.textContent = fmtMoney(draft.total||0);
+    }
+    renderItems();
+
+    // tap edit handlers (kv + item row)
+    body.addEventListener("click", async (e)=>{
+      const kv = e.target.closest?.(".kvRow.tappable");
+      if(kv){
+        const f = kv.getAttribute("data-field");
+        if(!f) return;
+        if(admin && pending){
+          // admin mode: editing draft not needed here
+          return;
+        }
+        if(f==="buyerName"){
+          const nv = prompt("購入者氏名", draft.buyerName ?? "");
+          if(nv===null) return;
+          draft.buyerName = nv;
+        }else if(f==="orderDate"){
+          const nv = prompt("購入日付（YYYY-MM-DD）", draft.orderDate || sale.orderDate || fmtYMD(sale.date));
+          if(nv===null) return;
+          draft.orderDate = nv.trim();
+        }else if(f==="channel"){
+          const nv = prompt("販売方法（ID または 表示名）", (draft.channelLabel || draft.channel || ""));
+          if(nv===null) return;
+          draft.channelLabel = nv; // 過渡期：labelとして保持
+          draft.channel = nv;
+        }else if(f==="payment"){
+          const nv = prompt("決済方法（ID または 表示名）", (draft.paymentLabel || draft.paymentMethod || draft.paymentId || ""));
+          if(nv===null) return;
+          draft.paymentLabel = nv;
+          draft.paymentMethod = nv;
+          draft.paymentId = nv;
+        }else if(f==="venue"){
+          const nv = prompt("開催場所（ID または 表示名）", (draft.venueLabel || draft.venue || ""));
+          if(nv===null) return;
+          draft.venueLabel = nv;
+          draft.venue = nv;
+        }else if(f==="kind"){
+          const nv = prompt("販売種別（例：stock / order / -）", (draft.kindId || sale.kind || ""));
+          if(nv===null) return;
+          draft.kindId = nv;
+          draft.kindLabel = nv;
+        }else if(f==="urgent"){
+          const nv = prompt("緊急オプション（空で解除）", (draft.urgentOptionLabel || draft.urgentOptionId || ""));
+          if(nv===null) return;
+          draft.urgentOptionLabel = nv;
+          draft.urgentOptionId = nv;
+        }else if(f==="memo"){
+          const nv = prompt("メモ", draft.memo ?? "");
+          if(nv===null) return;
+          draft.memo = nv;
+        }
+        // refresh kv values by reopening drawer quickly
+        openFixRequestDrawer({ ...sale, ...draft, items: draft.items, total: sale.total });
+        return;
+      }
+
+      const row = e.target.closest?.("tr.trow.tappable");
+      if(row){
+        if(admin && pending) return;
+        const idx = Number(row.getAttribute("data-item"));
+        const it = draft.items[idx];
+        if(!it) return;
+        const name = prompt("商品名", it.name || "");
+        if(name===null) return;
+        const qty = prompt("数量", String(it.qty ?? 0));
+        if(qty===null) return;
+        const up = prompt("単価（円）", String(it.unitPrice ?? 0));
+        if(up===null) return;
+        it.name = name;
+        it.qty = Number(qty||0);
+        it.unitPrice = Number(up||0);
+        recalc();
+        renderItems();
+        return;
+      }
+    });
+
+    // add item
+    const addBtn = body.querySelector("#addItemBtn");
+    if(addBtn){
+      addBtn.addEventListener("click", ()=>{
+        if(admin && pending) return;
+        draft.items.push({ id:"", name:"", qty:1, unitPrice:0, subtotal:0 });
+        recalc();
+        renderItems();
+      });
+    }
+
+    // staff: send request
+    const sendBtn = body.querySelector("#sendReqBtn");
+    if(sendBtn){
+      sendBtn.addEventListener("click", async ()=>{
+        try{
+          const reqText = safeStr(body.querySelector("#reqText")?.value || "").trim();
+          if(!reqText){
+            toast("依頼コメントを入れてね");
+            return;
+          }
+          // proposed: keep minimal but include items and key fields
+          const proposed = {
+            buyerName: draft.buyerName ?? "",
+            orderDate: draft.orderDate || sale.orderDate || fmtYMD(sale.date),
+            channel: draft.channel ?? "",
+            channelLabel: draft.channelLabel ?? "",
+            paymentId: draft.paymentId ?? "",
+            paymentLabel: draft.paymentLabel ?? "",
+            paymentMethod: draft.paymentMethod ?? "",
+            venue: draft.venue ?? "",
+            venueLabel: draft.venueLabel ?? "",
+            kindId: draft.kindId ?? "",
+            kindLabel: draft.kindLabel ?? "",
+            urgentOptionId: draft.urgentOptionId ?? "",
+            urgentOptionLabel: draft.urgentOptionLabel ?? "",
+            memo: draft.memo ?? "",
+            items: (draft.items||[]).map(it=>({
+              id: it.id ?? "",
+              name: it.name ?? "",
+              qty: Number(it.qty||0),
+              unitPrice: Number(it.unitPrice||0),
+              price: Number(it.unitPrice||0), // 互換
+              subtotal: Number(it.subtotal||0)
+            }))
+          };
+          const snapshot = {
+            buyerName: sale.buyerName ?? "",
+            orderDate: sale.orderDate ?? "",
+            channel: sale.channel ?? "",
+            channelLabel: sale.channelLabel ?? "",
+            paymentId: sale.paymentId ?? "",
+            paymentLabel: sale.paymentLabel ?? "",
+            paymentMethod: sale.paymentMethod ?? "",
+            venue: sale.venue ?? "",
+            venueLabel: sale.venueLabel ?? "",
+            kindId: sale.kindId ?? "",
+            kindLabel: sale.kindLabel ?? "",
+            urgentOptionId: sale.urgentOptionId ?? "",
+            urgentOptionLabel: sale.urgentOptionLabel ?? "",
+            memo: sale.memo ?? "",
+            items: (sale.items||[]).map(it=>({
+              id: it.id ?? "",
+              name: it.name ?? "",
+              qty: Number(it.qty ?? 0),
+              unitPrice: Number(it.unitPrice ?? it.price ?? 0),
+              price: Number(it.unitPrice ?? it.price ?? 0),
+              subtotal: Number(it.subtotal ?? 0)
+            }))
+          };
+
+          await addDoc(collection(db,"sales_fix_requests"),{
+            saleId: sale.id,
+            status: "依頼中",
+            requestText: reqText,
+            createdAt: serverTimestamp(),
+            createdBy: (currentUser?.email || currentUser?.uid || ""),
+            snapshot,
+            proposed
+          });
+
+          toast("保存しました。管理者へ確認依頼の連絡をお願いします");
+
+          await loadFixRequests();
+          render(); // list badges update
+          openSaleDrawer(sale); // back to detail
+        }catch(err){
+          console.error(err);
+          toast("保存失敗");
+        }
+      });
+    }
+    const closeBtn2 = body.querySelector("#closeBtn2");
+    if(closeBtn2) closeBtn2.addEventListener("click", ()=> closeSaleDrawer());
+
+    // admin approve list (latest pending only)
+    if(admin && pending){
+      const listEl = body.querySelector("#approveList");
+      if(listEl){
+        const snap = pending.snapshot || {};
+        const prop = pending.proposed || {};
+        const fields = [
+          ["buyerName","購入者氏名"],
+          ["orderDate","購入日付"],
+          ["channelLabel","販売方法"],
+          ["paymentLabel","決済方法"],
+          ["venueLabel","開催場所"],
+          ["kindLabel","販売種別"],
+          ["urgentOptionLabel","緊急オプション"],
+          ["memo","メモ"],
+          ["items","商品明細"]
+        ];
+
+        function fmtVal(v){
+          if(v==null) return "";
+          if(Array.isArray(v)) return `${v.length}件`;
+          return String(v);
+        }
+
+        listEl.innerHTML = fields.map(([k,lab])=>{
+          const before = fmtVal((k in snap)? snap[k] : "");
+          const after  = fmtVal((k in prop)? prop[k] : "");
+          if(before === after) return "";
+          return `
+            <label class="approveItem">
+              <span class="approveMain">${escapeHtml(lab)}：${escapeHtml(before || "（空）")} → ${escapeHtml(after || "（空）")}</span>
+              <span class="approveChk"><input type="checkbox" data-appr="${escapeHtml(k)}" checked> 許可</span>
+            </label>
+          `;
+        }).filter(Boolean).join("");
+
+        // add action buttons
+        const actions = document.createElement("div");
+        actions.className = "miniActions";
+        actions.innerHTML = `
+          <button class="sbtn primary" id="applyBtn" type="button">保存して閉じる（反映）</button>
+          <button class="sbtn" id="closeBtnA" type="button">閉じる</button>
+        `;
+        body.appendChild(actions);
+
+        body.querySelector("#closeBtnA").addEventListener("click", ()=> closeSaleDrawer());
+
+        body.querySelector("#applyBtn").addEventListener("click", async ()=>{
+          try{
+            // build update payload based on approved checks
+            const approved = new Set([...body.querySelectorAll("input[type=checkbox][data-appr]")].filter(x=>x.checked).map(x=>x.getAttribute("data-appr")));
+            const updateData = {};
+
+            // apply approved fields
+            if(approved.has("buyerName")) updateData.buyerName = prop.buyerName ?? snap.buyerName ?? "";
+            if(approved.has("orderDate")) updateData.orderDate = prop.orderDate ?? snap.orderDate ?? "";
+            if(approved.has("channelLabel")){
+              if("channel" in prop) updateData.channel = prop.channel;
+              if("channelLabel" in prop) updateData.channelLabel = prop.channelLabel;
+            }
+            if(approved.has("paymentLabel")){
+              if("paymentId" in prop) updateData.paymentId = prop.paymentId;
+              if("paymentLabel" in prop) updateData.paymentLabel = prop.paymentLabel;
+              if("paymentMethod" in prop) updateData.paymentMethod = prop.paymentMethod;
+            }
+            if(approved.has("venueLabel")){
+              if("venue" in prop) updateData.venue = prop.venue;
+              if("venueLabel" in prop) updateData.venueLabel = prop.venueLabel;
+            }
+            if(approved.has("kindLabel")){
+              if("kindId" in prop) updateData.kindId = prop.kindId;
+              if("kindLabel" in prop) updateData.kindLabel = prop.kindLabel;
+            }
+            if(approved.has("urgentOptionLabel")){
+              if("urgentOptionId" in prop) updateData.urgentOptionId = prop.urgentOptionId;
+              if("urgentOptionLabel" in prop) updateData.urgentOptionLabel = prop.urgentOptionLabel;
+            }
+            if(approved.has("memo")) updateData.memo = prop.memo ?? "";
+            if(approved.has("items")){
+              const items = (prop.items || []).map(it=>({
+                id: it.id ?? "",
+                name: it.name ?? "",
+                qty: Number(it.qty||0),
+                unitPrice: Number(it.unitPrice ?? it.price ?? 0),
+                price: Number(it.unitPrice ?? it.price ?? 0),
+                subtotal: Number(it.subtotal ?? (Number(it.qty||0)*Number(it.unitPrice ?? it.price ?? 0)) ?? 0)
+              }));
+              updateData.items = items;
+              updateData.total = items.reduce((a,b)=> a + Number(b.subtotal||0), 0);
+            }
+
+            if(Object.keys(updateData).length){
+              await updateDoc(doc(db,"sales", sale.id), updateData);
+            }
+
+            // mark request done
+            await updateDoc(doc(db,"sales_fix_requests", pending.id), {
+              status: "完了",
+              resolvedAt: serverTimestamp(),
+              resolvedBy: (currentUser?.email || currentUser?.uid || "")
+            });
+
+            toast("完了にしました");
+            await loadAll(true); // refresh sales + requests
+            closeSaleDrawer();
+          }catch(err){
+            console.error(err);
+            toast("保存失敗（管理者）");
+          }
+        });
+      }
+    }
+
+    drawerBackdropEl.classList.add("open");
+    drawerEl.classList.add("open");
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+  }
+
+
 function openClaimEditor(sale){
   const modal = document.createElement("div");
   modal.className = "modal";
@@ -1708,7 +2280,7 @@ function openClaimEditor(sale){
     return x.getTime();
   }
 
-  async async function openFullEditEditor(sale){
+  async function openFullEditEditor(sale){
     const modal = document.createElement("div");
     modal.className = "modal";
 
