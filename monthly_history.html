@@ -1173,55 +1173,86 @@
     return sale;
   }
 
-  async function loadBundleSales(){
-  // バンドル（json）を優先読み込み。存在しない場合はスキップ。
-  const candidates = ["bundle/sales_bundle.json","sales_bundle.json"];
+  
+async function loadBundleSales(){
+  // ✅ GitHub直下に置いてある sales_bundle.json を基本として読む
+  // 404でも落とさず、次候補へフォールバック
+  const candidates = [
+    "./sales_bundle.json",
+    "sales_bundle.json",
+    "./bundle/sales_bundle.json",
+    "bundle/sales_bundle.json"
+  ];
+
   for(const url of candidates){
     try{
       const res = await fetch(url, { cache: "no-store" });
       if(!res.ok) continue;
       const json = await res.json();
       const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
-      if(!arr.length) return [];
-      return arr.map((d, idx)=>{
-        // id が無い場合は連番（重複回避）
+      if(!arr.length) return { list: [], throughMs: 0 };
+
+      const list = arr.map((d, idx)=>{
         const id = safeStr(d.id || d.saleId || "").trim() || `bundle_${idx}`;
         const data = { ...d, id, isBundled: true, source: "bundle" };
         return normalizeSale({ id, data: ()=>data });
       });
+
+      // bundleの「ここまで入ってる（最新）」を作る（createdAt優先、無ければdate）
+      let throughMs = 0;
+      for(const s of list){
+        const t = Math.max(
+          Number(s.clientCreatedAt||0),
+          Number(s.orderDateMs||0),
+          Number(s.date?.getTime ? s.date.getTime() : 0)
+        );
+        if(t > throughMs) throughMs = t;
+      }
+
+      return { list, throughMs };
     }catch(e){
       // ignore and try next
     }
   }
-  return [];
+  return { list: [], throughMs: 0 };
 }
 
 async function loadSales(){
-  // 1) バンドルを先に読む
-  const bundleList = await loadBundleSales();
+  // 1) バンドル(JSON)を先に読む（read節約の主役）
+  const bundle = await loadBundleSales();
+  const bundleList = bundle.list || [];
+  const bundleThroughMs = Number(bundle.throughMs || 0);
 
-  // 2) Firestore（差分/最新）を読む
-  // 基本はバンドル（json）を正とし、Firestore は「差分」を読む想定。
-  // まず isBundled==false を差分として読み、失敗したら全件読みへフォールバック。
+  // 2) Firestoreは「バンドルに入っていない新規分だけ」読む
+  //    createdAt が Timestamp でも比較できるよう Timestamp.fromMillis を使う
   let fbList = [];
   try{
-    const qDiff = query(
+    const since = Timestamp.fromMillis(bundleThroughMs || 0);
+    const q = query(
       collection(db, "sales"),
-      where("isBundled", "==", false),
-      orderBy("createdAt", "desc"),
-      limit(2000)
+      where("createdAt", ">", since),
+      orderBy("createdAt", "asc"),
+      limit(5000)
     );
-    const snap = await getDocs(qDiff);
+    const snap = await getDocs(q);
     snap.forEach(d=> fbList.push(normalizeSale(d)));
   }catch(e){
-    // インデックス未作成等で落ちたら、従来どおり全件読み（※最終手段）
-    const qAll = query(
-      collection(db, "sales"),
-      orderBy("createdAt", "desc"),
-      limit(2000)
-    );
-    const snap2 = await getDocs(qAll);
-    snap2.forEach(d=> fbList.push(normalizeSale(d)));
+    // createdAt の型/インデックス都合で失敗した場合は、
+    // 「最新だけ薄く読む」フォールバック（ページが死なないように）
+    try{
+      const q2 = query(
+        collection(db, "sales"),
+        orderBy("createdAt", "desc"),
+        limit(200)
+      );
+      const snap2 = await getDocs(q2);
+      const tmp = [];
+      snap2.forEach(d=> tmp.push(normalizeSale(d)));
+      // bundleより新しそうなものだけ残す（比較はdateで）
+      fbList = tmp.filter(s=> (s.date?.getTime?.()||0) > bundleThroughMs);
+    }catch(_e){
+      fbList = [];
+    }
   }
 
   // 3) マージ（同じ id は Firestore を優先）
@@ -1230,23 +1261,26 @@ async function loadSales(){
     s._source = "json";
     map.set(s.id, s);
   }
+
+  let firebaseOnlyCount = 0;
   for(const s of fbList){
     s._source = "firebase";
+    if(!map.has(s.id)) firebaseOnlyCount += 1;
     map.set(s.id, s);
   }
 
   rawSales = [...map.values()];
 
-  // 4) 件数保持（読み取り件数：merge前）
-  lastSourceCounts = { json: bundleList.length, firebase: fbList.length };
+  // 4) 件数（管理者表示用）
+  lastSourceCounts = { json: bundleList.length, firebase: firebaseOnlyCount };
 
   // option lists を sales から自動収集
   optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
   optChannels       = uniqSorted(rawSales.map(x=>x.channel));
 
   fillYearOptions(rawSales);
-  const latest = rawSales.find(s=> s.date.getTime()>0);
-  if(latest){
+  const latest = rawSales.reduce((a,b)=> (a && a.date>b.date) ? a : b, null);
+  if(latest && latest.date?.getTime?.()>0){
     yearSel.value = String(latest.date.getFullYear());
   }
 
@@ -1254,12 +1288,15 @@ async function loadSales(){
 }
 
 function renderSourceSummary(){
-  const el = document.getElementById("sourceSum");
-  if(!el) return;
+  const sumEl = document.getElementById("sourceSum");
+  if(!sumEl) return;
+
   if(!isAdminUser){
-    el.style.display = "none";
+    sumEl.style.display = "none";
     return;
   }
+  sumEl.style.display = "";
+  sumEl.textContent = `sales：json ${lastSourceCounts.json.toLocaleString("ja-JP")} 件 / firebase ${lastSourceCounts.firebase.toLocaleString("ja-JP")} 件`;
 }
 
 async function renderFixSummary(){
@@ -1281,15 +1318,12 @@ async function renderFixSummary(){
     fixSumPendingEl.textContent = `修正依頼：依頼中 ${pending.toLocaleString("ja-JP")} 件`;
     fixSumDoneEl.textContent    = `完了 ${done.toLocaleString("ja-JP")} 件`;
 
-    // 0件でも“枠外”に置いておきたいので常に表示（不要ならここを pending+done>0 に）
+    // 枠外に常時表示（0件でも）
     fixSummaryBar.style.display = "flex";
   }catch(e){
     // 失敗してもページ自体は動かす
     fixSummaryBar.style.display = "none";
   }
-}
-  el.style.display = "";
-  el.textContent = `sales：json ${lastSourceCounts.json.toLocaleString("ja-JP")} 件 / firebase ${lastSourceCounts.firebase.toLocaleString("ja-JP")} 件`;
 }
 
   async function loadAll(force=false){
