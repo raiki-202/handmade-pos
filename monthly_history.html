@@ -1004,6 +1004,11 @@
     return (b && b.pending.length) ? b.pending[0] : null;
   }
 
+  function getLatestDone(saleId){
+    const b = fixReqBySale.get(saleId);
+    return (b && b.done.length) ? b.done[0] : null;
+  }
+
 // ---- option lists (自動収集)
   let optPaymentMethods = [];
   let optChannels = [];
@@ -1447,7 +1452,23 @@ async function loadFixRequests(){
         }
 
         
-        // 修正依頼バッジ（依頼中/完了）
+        
+        if(s.isBundled){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "バンドル";
+          top.appendChild(b);
+        }
+
+        const latestDone = getLatestDone(s.id);
+        if(latestDone && safeStr(latestDone.adminMemo || "").includes("バンドルを修正します")){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "バンドル修正";
+          top.appendChild(b);
+        }
+
+// 修正依頼バッジ（依頼中/完了）
         const fc = getFixCountsCached(s.id);
         if((fc.pending||0) > 0){
           const b = document.createElement("span");
@@ -1642,6 +1663,9 @@ const bottom = document.createElement("div");
     const venue = sale.venueLabel || sale.venue || "";
     const urgent = sale.urgentOptionLabel || sale.urgentOptionId || "";
     const memo = sale.memo || "";
+    const latestDone = getLatestDone(sale.id);
+    const bundleFixDone = !!(latestDone && safeStr(latestDone.adminMemo || "").includes("バンドルを修正します"));
+
 
     let html = `
       <div class="kv">
@@ -1657,6 +1681,7 @@ const bottom = document.createElement("div");
                 ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
         ${sale.isRefund ? kv("返金", "はい") : ""}
         ${sale.isBundled ? kv("Bundle", "はい") : ""}
+        ${bundleFixDone ? kv("バンドル修正", "完了（バンドル修正します）") : ""}
       </div>
     `;
 
@@ -2750,6 +2775,20 @@ function openClaimEditor(sale){
         }
 
         if(admin && pending){
+          // ✅ バンドル由来は sales を触らず、依頼を完了にして「バンドル修正します」を付ける
+          if(sale.isBundled === true){
+            await updateDoc(doc(db, "sales_fix_requests", pending.id), {
+              status: "完了",
+              adminMemo: "バンドルを修正します",
+              resolvedAt: serverTimestamp(),
+              resolvedBy: (currentUser?.email || currentUser?.uid || "")
+            });
+            toast("完了にしました（バンドルを修正します）");
+            closeModal(modal);
+            await loadAll(true);
+            return;
+          }
+
           // ---- 管理者：許可チェックされたものだけ sales に反映
           const allowed = new Set(
             Array.from(modal.querySelectorAll('input[type="checkbox"][data-appr]'))
