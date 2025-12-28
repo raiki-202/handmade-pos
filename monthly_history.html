@@ -2354,7 +2354,7 @@ async function openFixEditor(sale){
           memo: draft.memo,
           items: cleanItems,
           total: newTotal,
-          updatedAt: serverTimestamp(),
+          updatedAt: new Date(),
         });
         toast("保存しました（salesを更新）");
         await loadAll();
@@ -2367,7 +2367,7 @@ async function openFixEditor(sale){
           saleId: sale.id,
           status: "依頼中",
           requestText: (draft.memo||"").slice(0,1000),
-          createdAt: serverTimestamp(),
+          createdAt: new Date(),
           createdBy: currentUser?.email || "unknown",
           snapshot: sale,
           proposed: {
