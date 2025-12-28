@@ -916,7 +916,7 @@
 
   // ---- helpers
   const pad2 = (n)=> String(n).padStart(2,"0");
-  const fmtYMD = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtYMD = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   const fmtMoney = (n)=> {
     const v = Number(n||0);
     return "¥" + v.toLocaleString("ja-JP");
@@ -1729,6 +1729,7 @@ const bottom = document.createElement("div");
 
     // 修正履歴件数
     if(sale.id){
+      {
       const cnt = getFixCountsCached(sale.id);
       const pEl = drawerEl.querySelector("#fixPending");
       const dEl = drawerEl.querySelector("#fixDone");
@@ -2400,13 +2401,6 @@ function openClaimEditor(sale){
 
   function isAdminUser(){
     return (currentUser?.email || "") === "enue_staff03@management.com";
-  }
-
-  function fmtYMD(d){
-    const y = d.getFullYear();
-    const m = pad2(d.getMonth()+1);
-    const dd = pad2(d.getDate());
-    return `${y}-${m}-${dd}`;
   }
   function msAtLocalMidnight(d){
     const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
