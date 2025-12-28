@@ -1404,8 +1404,7 @@
         <div class="drawerTitle">
           <div class="big" id="drawerBig">明細</div>
           <div class="sub" id="drawerSub"></div>
-          <div class="statRow" style="margin-top:8px;" id="drawerFixBadges"></div>
-        </div>
+</div>
         <button class="drawerClose" id="drawerCloseBtn" type="button">閉じる</button>
       </div>
       <div class="drawerBody" id="drawerBody"></div>
@@ -1511,21 +1510,6 @@
 
     // 修正履歴件数
     if(sale.id){
-      fetchFixRequestCounts(sale.id).then(cnt=>{
-        const wrap = drawerEl.querySelector("#drawerFixBadges");
-        if(wrap){
-          wrap.innerHTML = "";
-          const p1 = document.createElement("div");
-          p1.className = "pill";
-          p1.textContent = `修正依頼：依頼中 ${String(cnt?.pending ?? 0)} 件`;
-          wrap.appendChild(p1);
-
-          const p2 = document.createElement("div");
-          p2.className = "pill";
-          p2.textContent = `完了 ${String(cnt?.done ?? 0)} 件`;
-          wrap.appendChild(p2);
-        }
-      });
 }
 
     drawerBackdropEl.classList.add("open");
