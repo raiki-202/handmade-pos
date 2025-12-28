@@ -2203,16 +2203,22 @@ const bottom = document.createElement("div");
               updateData.total = items.reduce((a,b)=> a + Number(b.subtotal||0), 0);
             }
 
-            if(Object.keys(updateData).length){
+            const isBundled = sale.isBundled === true;
+
+            if(!isBundled && Object.keys(updateData).length){
               await updateDoc(doc(db,"sales", sale.id), updateData);
             }
 
             // mark request done
-            await updateDoc(doc(db,"sales_fix_requests", pending.id), {
+            const reqUpdate = {
               status: "完了",
               resolvedAt: serverTimestamp(),
               resolvedBy: (currentUser?.email || currentUser?.uid || "")
-            });
+            };
+            if(isBundled){
+              reqUpdate.adminMemo = "バンドルを修正します";
+            }
+            await updateDoc(doc(db,"sales_fix_requests", pending.id), reqUpdate);
 
             toast("完了にしました");
             await loadAll(true); // refresh sales + requests
