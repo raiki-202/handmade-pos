@@ -717,7 +717,79 @@
     .drawerTable .right{ text-align:right; }
 
 
-    /* approve (admin) */
+    
+    /* edit drawer kv */
+    .drawerLike{ max-width: 760px; padding:0; }
+    .drawerLike .drawerBody{ padding: 12px 14px 18px; }
+    .editKv{ border-bottom: none; padding: 6px 0; }
+    .editKv .v{ position: relative; }
+    .editWrap{
+      position: relative;
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.10);
+      background: rgba(255,255,255,.65);
+      box-shadow: 0 10px 18px rgba(0,0,0,.04);
+      cursor: pointer;
+    }
+    .editWrap.alwaysOn{ cursor: default; }
+    .editWrap:active{ transform: translateY(1px); }
+    .editWrap .disp{
+      display:block;
+      font-weight: 900;
+      color: rgba(34,34,34,.90);
+      white-space: pre-wrap;
+      word-break: break-word;
+      min-height: 18px;
+    }
+    .editInput{
+      display:none;
+      width:100%;
+      border:0;
+      outline:none;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 900;
+      color: rgba(34,34,34,.88);
+    }
+    .editWrap.editing .disp{ display:none; }
+    .editWrap.editing .editInput{ display:block; }
+    .editInput.always{ display:block; }
+    .readonlyLine{
+      padding: 10px 10px;
+      border-radius: 14px;
+      border: 1px dashed rgba(0,0,0,.10);
+      background: rgba(255,255,255,.45);
+      font-size: 13px;
+      font-weight: 900;
+      color: rgba(34,34,34,.78);
+    }
+    .diffLine{
+      margin-top: 8px;
+      font-size: 12px;
+      color: rgba(34,34,34,.70);
+      font-weight: 900;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 12px;
+      padding: 8px 10px;
+    }
+    .approveC{
+      font-size: 12px;
+      font-weight: 1000;
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      white-space:nowrap;
+    }
+    .itemsBox{ margin-top: 6px; }
+    .footKv{ padding-top: 10px; border-top: 1px dashed rgba(0,0,0,.10); }
+
+/* approve (admin) */
     .approveBox{
       margin: 10px 0 12px;
       padding: 10px 12px;
@@ -1581,407 +1653,137 @@ function openClaimEditor(sale){
       <div class="modalTitle">クレーム返金処理（マイナス sales 作成）</div>
       <div class="modalSub">元の sales は変更しません。紐づく「返金用の sales（マイナス）」を新規作成します。</div>
 
-      <div class="form">
-        <div class="row">
-          <div class="input">
-            <div class="lab">返金額（円）</div>
-            <input id="refundAmt" inputmode="numeric" type="number" min="1" step="1" placeholder="例：2000" />
-          </div>
-          <div class="input">
-            <div class="lab">対象 sale</div>
-            <input value="${escapeHtml(sale.id)}" disabled />
-          </div>
-        </div>
+      <div class="editKvWrap">
+  <div class="kv editKv">
+    <div class="k">購入者</div>
+    <div class="v">
+      <div class="editWrap" data-edit="buyerName">
+        <span class="disp" id="buyerNameDisp"></span>
+        <input class="editInput" id="buyerName" placeholder="例：山田 太郎" />
+      </div>
+      ${admin && pending && ftBuyer ? `<div class="diffLine">${escapeHtml(ftBuyer)} <label class="approveC"><input type="checkbox" data-appr="buyerName" checked>許可</label></div>` : ``}
+    </div>
 
-        <div class="input">
-          <div class="lab">事由</div>
-          <textarea id="reason" placeholder="例：商品不良 / 破損 / 誤配送 など"></textarea>
-        </div>
+    <div class="k">購入日付</div>
+    <div class="v">
+      <div class="editWrap" data-edit="date">
+        <span class="disp" id="createdAtDisp"></span>
+        <input class="editInput" id="createdAt" type="datetime-local" />
+      </div>
+      ${admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="date" checked>許可</label></div>` : ``}
+    </div>
 
-        <div class="miniActions">
-          <button class="sbtn primary" id="save">保存（返金 sales 作成）</button>
-          <button class="sbtn" id="cancel">キャンセル</button>
-        </div>
+    <div class="k">販売方法</div>
+    <div class="v">
+      <div class="editWrap" data-edit="channel">
+        <span class="disp" id="channelDisp"></span>
+        <select class="editInput" id="channelSel">
+          ${buildOptionsHTML(optChannels, initChannel)}
+        </select>
+        <input class="editInput" id="channelCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：マルシェ / インスタ）" />
+      </div>
+      ${admin && pending && ftChan ? `<div class="diffLine">${escapeHtml(ftChan)} <label class="approveC"><input type="checkbox" data-appr="channel" checked>許可</label></div>` : (admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="channel" checked>許可</label></div>` : ``)}
+    </div>
+
+    <div class="k">決済方法</div>
+    <div class="v">
+      <div class="editWrap" data-edit="paymentMethod">
+        <span class="disp" id="paymentMethodDisp"></span>
+        <select class="editInput" id="paymentMethodSel">
+          ${buildOptionsHTML(optPaymentMethods, initPayment)}
+        </select>
+        <input class="editInput" id="paymentMethodCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：現金 / PayPay）" />
+      </div>
+      ${admin && pending && ftPay ? `<div class="diffLine">${escapeHtml(ftPay)} <label class="approveC"><input type="checkbox" data-appr="paymentMethod" checked>許可</label></div>` : (admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="paymentMethod" checked>許可</label></div>` : ``)}
+    </div>
+
+    <div class="k">開催場所</div>
+    <div class="v">
+      <div class="readonlyLine">${escapeHtml(sale.venueLabel || sale.venue || "")}</div>
+    </div>
+
+    <div class="k">販売種別</div>
+    <div class="v">
+      <div class="editWrap" data-edit="kind">
+        <span class="disp" id="kindDisp"></span>
+        <select class="editInput" id="kindSel">
+          <option value="">-</option>
+          <option value="stock">stock</option>
+          <option value="order">order</option>
+        </select>
+      </div>
+      ${admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="kind" checked>許可</label></div>` : ``}
+    </div>
+
+    <div class="k">配送</div>
+    <div class="v">
+      <div class="editWrap" data-edit="shippingOption">
+        <span class="disp" id="shippingOptionDisp"></span>
+        <input class="editInput" id="shippingOption" placeholder="例：持ち帰り" />
+      </div>
+      ${admin && pending && ftShip ? `<div class="diffLine">${escapeHtml(ftShip)} <label class="approveC"><input type="checkbox" data-appr="shippingOption" checked>許可</label></div>` : (admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="shippingOption" checked>許可</label></div>` : ``)}
+    </div>
+
+    <div class="k">メモ</div>
+    <div class="v">
+      <div class="editWrap" data-edit="memo">
+        <span class="disp" id="memoDisp"></span>
+        <textarea class="editInput" id="memo" placeholder="メモ（任意）"></textarea>
+      </div>
+      ${admin && pending && ftMemo ? `<div class="diffLine">${escapeHtml(ftMemo)} <label class="approveC"><input type="checkbox" data-appr="memo" checked>許可</label></div>` : (admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="memo" checked>許可</label></div>` : ``)}
+    </div>
+
+    ${admin && pending ? `` : `
+    <div class="k">依頼コメント</div>
+    <div class="v">
+      <div class="editWrap alwaysOn">
+        <textarea class="editInput always" id="requestText" placeholder="例：決済方法を現金→PayPayに、日付を12/28→12/27に修正してください"></textarea>
       </div>
     </div>
-  `;
+    `}
 
-  modal.addEventListener("click", (e)=>{
-    if(e.target === modal) closeModal(modal);
-  });
-  document.body.appendChild(modal);
+  </div>
 
-  modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
+  <div class="sectionTitle">商品明細</div>
+  <div class="itemsBox">
+    <table class="drawerTable" id="itemsTbl">
+      <thead>
+        <tr>
+          <th>商品</th>
+          <th class="right">数量</th>
+          <th class="right">単価</th>
+          <th class="right">小計</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
 
-  modal.querySelector("#save").onclick = async ()=>{
-    try{
-      const amt = Number(modal.querySelector("#refundAmt").value || 0);
-      const reason = safeStr(modal.querySelector("#reason").value || "").trim();
-      if(!(amt>0)){
-        toast("返金額を入れてね");
-        return;
-      }
-      if(!reason){
-        toast("事由を入れてね");
-        return;
-      }
+    <div class="miniActions">
+      <button class="sbtn" id="addItem">＋ 行追加</button>
+      <button class="sbtn danger" id="delItem">－ 最終行削除</button>
+      ${admin && pending ? `<label class="approveC" style="margin-left:auto;"><input type="checkbox" data-appr="items" checked>許可</label>` : ``}
+    </div>
+  </div>
 
-      // 返金は「紐づくマイナス sales」を新規作成
-      await addDoc(collection(db,"sales"),{
-        parentSaleId: sale.id,
-        isRefund: true,
+  <div class="kv editKv footKv" style="margin-top:10px;">
+    <div class="k">合計</div>
+    <div class="v">
+      <div class="editWrap" data-edit="total">
+        <span class="disp" id="totalDisp"></span>
+        <input class="editInput" id="total" type="number" step="1" />
+      </div>
+      ${admin && pending && ftTotal ? `<div class="diffLine">${escapeHtml(ftTotal)} <label class="approveC"><input type="checkbox" data-appr="total" checked>許可</label></div>` : (admin && pending ? `<div class="diffLine"><label class="approveC"><input type="checkbox" data-appr="total" checked>許可</label></div>` : ``)}
+    </div>
 
-        createdAt: serverTimestamp(),
+    <div class="k">ID</div>
+    <div class="v"><div class="readonlyLine">${escapeHtml(safeStr(sale.id))}</div></div>
+  </div>
 
-        buyerName: sale.buyerName || "",
-        channel: sale.channel || "refund",
-        paymentMethod: sale.paymentMethod || "",
-        shippingOption: sale.shippingOption || "",
-        kind: "-",
-
-        memo: `返金：${reason}`,
-
-        items: [{
-          name: "クレーム返金",
-          qty: 1,
-          price: -Math.abs(amt),
-          subtotal: -Math.abs(amt)
-        }],
-        total: -Math.abs(amt),
-
-        createdBy: (currentUser?.email || currentUser?.uid || "")
-      });
-
-      toast("返金 sales を作成しました");
-      closeModal(modal);
-
-      await loadAll(true);
-
-    }catch(err){
-      console.error(err);
-      toast("保存失敗");
-    }
-  };
-}
-
-
-  function toLocalInputValue(date){
-    // datetime-local は「YYYY-MM-DDTHH:mm」
-    const d = date instanceof Date ? date : new Date(date);
-    if(isNaN(d.getTime())) return "";
-    const y = d.getFullYear();
-    const m = pad2(d.getMonth()+1);
-    const dd = pad2(d.getDate());
-    const hh = pad2(d.getHours());
-    const mm = pad2(d.getMinutes());
-    return `${y}-${m}-${dd}T${hh}:${mm}`;
-  }
-
-  function parseLocalInputValue(v){
-    // ブラウザによってはローカルタイム扱いで Date 化される
-    const d = new Date(v);
-    return d;
-  }
-
-  function recalcItems(items){
-    return items.map(it=>{
-      const qty = Number(it.qty||0);
-      const price = Number(it.price||0);
-      return { ...it, qty, price, subtotal: qty*price };
-    });
-  }
-
-  
-  async function fetchPendingFixRequest(saleId){
-    try{
-      const q = query(
-        collection(db, "sales_fix_requests"),
-        where("saleId","==", saleId),
-        where("status","==", "依頼中"),
-        orderBy("createdAt","desc"),
-        limit(1)
-      );
-      const snap = await getDocs(q);
-      if(snap.empty) return null;
-      const d = snap.docs[0];
-      return { id: d.id, ...d.data() };
-    }catch(err){
-      console.warn("fetchPendingFixRequest failed", err);
-      return null;
-    }
-  }
-  async function fetchFixRequestCounts(saleId){
-    // returns { pending: number, done: number }
-    try{
-      const qPending = query(
-        collection(db, "sales_fix_requests"),
-        where("saleId","==", saleId),
-        where("status","==","依頼中")
-      );
-      const qDone = query(
-        collection(db, "sales_fix_requests"),
-        where("saleId","==", saleId),
-        where("status","==","完了")
-      );
-      const [sPending, sDone] = await Promise.all([getDocs(qPending), getDocs(qDone)]);
-      return { pending: (sPending.size||0), done: (sDone.size||0) };
-    }catch(err){
-      console.warn("fetchFixRequestCounts failed", err);
-      return { pending: 0, done: 0 };
-    }
-  }
-
-
-
-  async function fetchFixSummaryCounts(){
-    // 全体の修正依頼件数（依頼中/完了）
-    try{
-      const qPending = query(
-        collection(db, "sales_fix_requests"),
-        where("status","==","依頼中")
-      );
-      const qDone = query(
-        collection(db, "sales_fix_requests"),
-        where("status","==","完了")
-      );
-      const [sPending, sDone] = await Promise.all([getDocs(qPending), getDocs(qDone)]);
-      return { pending: (sPending.size||0), done: (sDone.size||0) };
-    }catch(err){
-      console.warn("fetchFixSummaryCounts failed", err);
-      return { pending: 0, done: 0 };
-    }
-  }
-
-  async function renderFixSummary(){
-    if(!fixSummaryBar) return;
-    const cnt = await fetchFixSummaryCounts();
-    fixSumPendingEl.textContent = `修正依頼：依頼中 ${cnt.pending} 件`;
-    fixSumDoneEl.textContent = `完了 ${cnt.done} 件`;
-    fixSummaryBar.style.display = "flex";
-  }
-
-  function isAdminUser(){
-    return (currentUser?.email || "") === "enue_staff03@management.com";
-  }
-
-  function fmtYMDDate(d){
-    const y = d.getFullYear();
-    const m = pad2(d.getMonth()+1);
-    const dd = pad2(d.getDate());
-    return `${y}-${m}-${dd}`;
-  }
-  function msAtLocalMidnight(d){
-    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
-    return x.getTime();
-  }
-
-  async function openFullEditEditor(sale){
-    const modal = document.createElement("div");
-    modal.className = "modal";
-
-    const admin = isAdminUser();
-    const pending = admin ? await fetchPendingFixRequest(sale.id) : null;
-
-    // 基準（現在の sales）
-    const baseItems = recalcItems((sale.items || []).map(it=>({
-      name: safeStr(it.name||""),
-      qty: Number(it.qty||0),
-      price: Number(it.price||0)
-    })));
-    const baseTotal = baseItems.reduce((a,b)=>a+Number(b.subtotal||0),0);
-
-    // proposed（依頼があればそれを優先表示）
-    let p = null;
-    if(pending?.proposed && typeof pending.proposed === "object"){
-      p = pending.proposed;
-    }
-
-    let items = p?.items
-      ? recalcItems((p.items||[]).map(it=>({ name: safeStr(it.name||""), qty: Number(it.qty||0), price: Number(it.price||0) })))
-      : baseItems.map(it=>({ ...it }));
-
-    if(items.length===0) items = [{name:"", qty:1, price:0, subtotal:0}];
-
-    const initBuyer = safeStr(p?.buyerName ?? sale.buyerName ?? "");
-    const initPayment = safeStr(p?.paymentMethod ?? sale.paymentMethod ?? "");
-    const initChannel = safeStr(p?.channel ?? sale.channel ?? "");
-    const initMemo = safeStr(p?.memo ?? sale.memo ?? "");
-    const initShip = safeStr(p?.shippingOption ?? sale.shippingOption ?? "");
-    const initKind = safeStr(p?.kind ?? sale.kind ?? "");
-    const initTotal = (p?.total!=null ? Number(p.total||0) : baseTotal);
-
-    // 変更内容（何→何）表示用：pendingがある時は snapshot→proposed を表示
-    const snap = pending?.snapshot || null;
-    const prop = pending?.proposed || null;
-    const fromTo = (key, fallbackBefore, fallbackAfter)=>{
-      if(!admin || !pending) return "";
-      const before = String((snap && (key in snap)) ? (snap[key] ?? "") : (fallbackBefore ?? ""));
-      const after  = String((prop && (key in prop)) ? (prop[key] ?? "") : (fallbackAfter ?? ""));
-      if(before === after) return "";
-      const b = before === "" ? "（空）" : before;
-      const a = after === "" ? "（空）" : after;
-      return `${b}→${a}`;
-    };
-
-    const ftBuyer  = fromTo("buyerName", sale.buyerName, initBuyer);
-    const ftPay    = fromTo("paymentMethod", sale.paymentMethod, initPayment);
-    const ftChan   = fromTo("channel", sale.channel, initChannel);
-    const ftMemo   = fromTo("memo", sale.memo, initMemo);
-    const ftShip   = fromTo("shippingOption", sale.shippingOption, initShip);
-    const ftKind   = fromTo("kind", sale.kind, initKind);
-    const ftTotal  = fromTo("total", baseTotal, initTotal);
-
-
-
-    const initDate = (p?.createdAtLocal ? new Date(p.createdAtLocal) : sale.date);
-    const initDateVal = toLocalInputValue(initDate);
-
-    const requestTextValue = safeStr(pending?.requestText ?? "");
-
-    modal.innerHTML = `
-      <div class="modalCard drawerLike" role="dialog" aria-modal="true">
-        <div class="drawerHeader">
-          <div class="drawerTitle">
-            <div class="big">${admin && pending ? "修正依頼の反映（管理者）" : "打ち間違い修正（管理者へ依頼）"}</div>
-            <div class="sub">
-              ${admin && pending
-                ? "旧→新 を確認して、反映する項目だけ「許可」にチェック → 保存で sales に反映し、依頼を「完了」にします。"
-                : "明細詳細と同じ画面で編集できます。保存すると「修正依頼」を送信します（salesは変更しません）。"}
-            </div>
-          </div>
-          <button class="drawerClose" id="cancelTop" type="button">閉じる</button>
-        </div>
-        <div class="drawerBody">
-
-        ${admin && pending ? `
-          <div class="approveBox" id="approveBox">
-            <div class="approveHead">反映する変更にチェック</div>
-            <div class="approveNote">依頼コメント：${escapeHtml(requestTextValue || "-")}</div>
-            <div class="approveList" id="approveList"></div>
-          </div>
-        ` : ""}
-
-        <div class="form">
-          <div class="row">
-            <div class="input">
-              <div class="lab">
-                購入者氏名
-                ${admin && pending && ftBuyer ? `<span class="fromTo">${escapeHtml(ftBuyer)}</span>` : ``}
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="buyerName" checked>許可</label>` : ``}
-              </div>
-              <input id="buyerName" value="${escapeHtml(initBuyer)}" placeholder="例：山田 太郎" />
-            </div>
-            <div class="input">
-              <div class="lab">
-                日付
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="date" checked>許可</label>` : ``}
-              </div>
-              <input id="createdAt" type="datetime-local" value="${escapeHtml(initDateVal)}" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="input">
-              <div class="lab">
-                決済方法
-                ${admin && pending && ftPay ? `<span class="fromTo">${escapeHtml(ftPay)}</span>` : ``}
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="paymentMethod" checked>許可</label>` : ``}
-              </div>
-              <select id="paymentMethodSel">
-                ${buildOptionsHTML(optPaymentMethods, initPayment)}
-              </select>
-              <input id="paymentMethodCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：現金 / PayPay）" />
-            </div>
-            <div class="input">
-              <div class="lab">
-                チャンネル
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="channel" checked>許可</label>` : ``}
-              </div>
-              <select id="channelSel">
-                ${buildOptionsHTML(optChannels, initChannel)}
-              </select>
-              <input id="channelCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：マルシェ / インスタ）" />
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="input">
-              <div class="lab">
-                種別 kind
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="kind" checked>許可</label>` : ``}
-              </div>
-              <select id="kindSel">
-                <option value="">-</option>
-                <option value="stock">stock</option>
-                <option value="order">order</option>
-              </select>
-            </div>
-            <div class="input">
-              <div class="lab">
-                配送 shippingOption
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="shippingOption" checked>許可</label>` : ``}
-              </div>
-              <input id="shippingOption" value="${escapeHtml(initShip)}" placeholder="例：持ち帰り" />
-            </div>
-          </div>
-
-          <div class="input">
-            <div class="lab">
-              メモ
-              ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="memo" checked>許可</label>` : ``}
-            </div>
-            <textarea id="memo" placeholder="メモ（任意）">${escapeHtml(initMemo)}</textarea>
-          </div>
-
-          ${admin && pending ? "" : `
-          <div class="input">
-            <div class="lab">管理者への依頼コメント（必須）</div>
-            <textarea id="requestText" placeholder="例：決済方法を現金→PayPayに、日付を12/28→12/27に修正してください"></textarea>
-          </div>
-          `}
-
-          <div class="input">
-            <div class="lab">
-              明細（items）
-              ${admin && pending ? `<label class="okChk" style="margin-left:10px;"><input type="checkbox" data-appr="items" checked>許可</label>` : ``}
-            </div>
-            <table class="miniTable" id="itemsTbl">
-              <thead>
-                <tr>
-                  <th style="width:42%;">商品</th>
-                  <th style="width:18%;">数量</th>
-                  <th style="width:20%;">単価</th>
-                  <th style="width:20%;">小計</th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-
-            <div class="miniActions">
-              <button class="sbtn" id="addItem">＋ 行追加</button>
-              <button class="sbtn danger" id="delItem">－ 最終行削除</button>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="input">
-              <div class="lab">
-                合計（円）
-                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="total" checked>許可</label>` : ``}
-              </div>
-              <input id="total" type="number" step="1" value="${escapeHtml(String(initTotal))}" />
-            </div>
-            <div class="input">
-              <div class="lab">ID（編集不可）</div>
-              <input value="${escapeHtml(safeStr(sale.id))}" disabled />
-            </div>
-          </div>
-
-          <div class="miniActions">
-            <button class="sbtn primary" id="save">${admin && pending ? "保存して反映（完了）" : "保存（依頼送信）"}</button>
-            <button class="sbtn" id="cancel">キャンセル</button>
-          </div>
-        </div>
+  <div class="miniActions" style="margin-top:14px;">
+    <button class="sbtn primary" id="save">${admin && pending ? "保存して反映（完了）" : "保存（依頼送信）"}</button>
+    <button class="sbtn" id="cancel">キャンセル</button>
+  </div>
+</div>
       </div>
     </div>
     `;
@@ -2009,6 +1811,75 @@ function openClaimEditor(sale){
     syncCustomVisibility();
     paySel.onchange = syncCustomVisibility;
     chSel.onchange = syncCustomVisibility;
+
+    // ---- 明細詳細と同じ見た目：表示（disp）↔編集（input/select/textarea）切り替え
+    const setDisp = (id, val)=>{
+      const el = modal.querySelector(id);
+      if(el) el.textContent = (val==null || String(val).trim()==="") ? "-" : String(val);
+    };
+
+    // 初期値を流し込み
+    modal.querySelector("#buyerName").value = initBuyer;
+    modal.querySelector("#createdAt").value = initDateVal;
+    modal.querySelector("#shippingOption").value = initShip;
+    modal.querySelector("#memo").value = initMemo;
+    modal.querySelector("#total").value = String(Math.round(initTotal));
+
+    // select初期
+    paySel.value = initPayment || "";
+    chSel.value = initChannel || "";
+    kindSel.value = initKind || "";
+    syncCustomVisibility();
+
+    const refreshDisp = ()=>{
+      const buyerName = safeStr(modal.querySelector("#buyerName").value||"").trim();
+      const createdAtStr = safeStr(modal.querySelector("#createdAt").value||"");
+      const pm = (paySel.value==="__custom__" ? safeStr(payCus.value||"").trim() : safeStr(paySel.value||"").trim());
+      const ch = (chSel.value==="__custom__" ? safeStr(chCus.value||"").trim() : safeStr(chSel.value||"").trim());
+      const kind = safeStr(kindSel.value||"").trim() || "-";
+      const ship = safeStr(modal.querySelector("#shippingOption").value||"").trim();
+      const memo = safeStr(modal.querySelector("#memo").value||"").trim();
+      const total = Number(modal.querySelector("#total").value||0);
+
+      setDisp("#buyerNameDisp", buyerName);
+      setDisp("#createdAtDisp", createdAtStr ? createdAtStr.replace("T"," ") : "-");
+      setDisp("#paymentMethodDisp", pm || "-");
+      setDisp("#channelDisp", ch || "-");
+      setDisp("#kindDisp", kind);
+      setDisp("#shippingOptionDisp", ship);
+      setDisp("#memoDisp", memo);
+      setDisp("#totalDisp", fmtMoney(Math.round(total||0)));
+    };
+
+    // タップで編集に切替（blurで戻す）
+    Array.from(modal.querySelectorAll(".editWrap")).forEach(w=>{
+      if(w.classList.contains("alwaysOn")) return;
+      w.addEventListener("click", ()=>{
+        w.classList.add("editing");
+        const focusable = w.querySelector("input,select,textarea");
+        if(focusable) setTimeout(()=> focusable.focus(), 0);
+      });
+      w.addEventListener("focusout", (e)=>{
+        // 外に出たら閉じる（セレクトのクリックも考慮して少し遅延）
+        setTimeout(()=>{
+          if(!w.contains(document.activeElement)){
+            w.classList.remove("editing");
+            refreshDisp();
+          }
+        }, 80);
+      });
+    });
+
+    paySel.addEventListener("change", ()=>{ refreshDisp(); });
+    chSel.addEventListener("change", ()=>{ refreshDisp(); });
+    kindSel.addEventListener("change", ()=>{ refreshDisp(); });
+    modal.querySelector("#buyerName").addEventListener("input", refreshDisp);
+    modal.querySelector("#createdAt").addEventListener("input", refreshDisp);
+    modal.querySelector("#shippingOption").addEventListener("input", refreshDisp);
+    modal.querySelector("#memo").addEventListener("input", refreshDisp);
+    modal.querySelector("#total").addEventListener("input", refreshDisp);
+
+    refreshDisp();
 
     function renderItems(){
       items = recalcItems(items);
@@ -2060,56 +1931,6 @@ function openClaimEditor(sale){
     if(cancelTop) cancelTop.onclick = ()=> closeModal(modal);
 
     modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
-
-    // 管理者：差分表示
-    if(admin && pending){
-      const list = modal.querySelector("#approveList");
-      const base = {
-        buyerName: safeStr(sale.buyerName||""),
-        date: toLocalInputValue(sale.date),
-        paymentMethod: safeStr(sale.paymentMethod||""),
-        channel: safeStr(sale.channel||""),
-        kind: safeStr(sale.kind||""),
-        shippingOption: safeStr(sale.shippingOption||""),
-        memo: safeStr(sale.memo||""),
-        items: JSON.stringify(baseItems),
-        total: String(Math.round(baseTotal))
-      };
-      const now = {
-        buyerName: safeStr(modal.querySelector("#buyerName").value||""),
-        date: safeStr(modal.querySelector("#createdAt").value||""),
-        paymentMethod: (paySel.value==="__custom__"? safeStr(payCus.value||"") : safeStr(paySel.value||"")),
-        channel: (chSel.value==="__custom__"? safeStr(chCus.value||"") : safeStr(chSel.value||"")),
-        kind: safeStr(kindSel.value||""),
-        shippingOption: safeStr(modal.querySelector("#shippingOption").value||""),
-        memo: safeStr(modal.querySelector("#memo").value||""),
-        items: JSON.stringify(items),
-        total: safeStr(modal.querySelector("#total").value||"")
-      };
-      const rows = [
-        ["buyerName","購入者氏名"],
-        ["date","日付"],
-        ["paymentMethod","決済方法"],
-        ["channel","チャンネル"],
-        ["kind","種別 kind"],
-        ["shippingOption","配送"],
-        ["memo","メモ"],
-        ["items","明細 items"],
-        ["total","合計"]
-      ].filter(([k])=> base[k]!==now[k]);
-
-      if(rows.length===0){
-        list.innerHTML = `<div class="approveEmpty">差分が見つかりません（そのまま保存で完了にできます）</div>`;
-      }else{
-        list.innerHTML = rows.map(([k,label])=>`
-          <div class="approveRow">
-            <div class="approveL">${escapeHtml(label)}</div>
-            <div class="approveR">${escapeHtml(String(base[k]))} → <b>${escapeHtml(String(now[k]))}</b></div>
-            <label class="approveC"><input type="checkbox" data-appr="${k}" checked>許可</label>
-          </div>
-        `).join("");
-      }
-    }
 
     modal.querySelector("#save").onclick = async ()=>{
       try{
