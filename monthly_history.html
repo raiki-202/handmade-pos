@@ -745,9 +745,11 @@
     .editInput{
       display:none;
       width:100%;
-      border:0;
+      border:1px solid rgba(0,0,0,.12);
       outline:none;
-      background: transparent;
+      background: rgba(255,255,255,.92);
+      padding: 8px 10px;
+      border-radius: 10px;
       font-size: 13px;
       font-weight: 900;
       color: rgba(34,34,34,.88);
@@ -1124,16 +1126,22 @@ function uniqSorted(arr){
 
       disp.style.cursor = "pointer";
       disp.addEventListener("click", ()=>{
+        // show editor without clearing current value
         disp.style.display = "none";
         input.style.display = "";
+        // if input is empty, carry over disp text (except "-")
+        if((input.value == null || String(input.value).length === 0) && disp.textContent && disp.textContent !== "-"){
+          input.value = disp.textContent;
+        }
         if(input.tagName === "SELECT"){
           selectOrCustom(w, input);
+          setTimeout(()=>input.focus(), 0);
         }else{
           input.focus();
+          if(input.select) input.select();
         }
       });
-
-      const close = ()=>{
+const close = ()=>{
         input.style.display = "none";
         if(custom) custom.style.display = "none";
         disp.style.display = "";
