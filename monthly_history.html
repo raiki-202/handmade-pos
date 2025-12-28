@@ -260,6 +260,14 @@
       border-radius: 14px;
       overflow:hidden;
     }
+
+    .saleCard{
+      border: 1px solid rgba(0,0,0,.07);
+      background: rgba(255,255,255,.68);
+      border-radius: 14px;
+      overflow:hidden;
+    }
+    .saleCard:active{ transform: translateY(1px); }
     .saleSum{
       padding: 10px 10px;
       display:flex;
@@ -603,7 +611,112 @@
     @media (min-width: 720px){
       .modal{ align-items:center; }
     }
-  </style>
+  
+    /* =========================
+       Bottom Drawer (Sale Detail)
+       ========================= */
+    .drawerBackdrop{
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .18s ease;
+      z-index: 9998;
+    }
+    .drawer{
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 86vh;
+      background: rgba(255,255,255,.92);
+      border-top-left-radius: 22px;
+      border-top-right-radius: 22px;
+      box-shadow: 0 -18px 45px rgba(0,0,0,.18);
+      transform: translateY(105%);
+      transition: transform .22s ease;
+      z-index: 9999;
+      overflow: hidden;
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .drawer.open{ transform: translateY(0); }
+    .drawerBackdrop.open{
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .drawerHeader{
+      padding: 14px 14px 10px;
+      display:flex;
+      align-items:flex-start;
+      justify-content:space-between;
+      gap:12px;
+      border-bottom: 1px solid rgba(0,0,0,.08);
+    }
+    .drawerTitle{
+      display:flex;
+      flex-direction:column;
+      gap:4px;
+      min-width: 0;
+    }
+    .drawerTitle .big{
+      font-size: 18px;
+      font-weight: 1000;
+      line-height: 1.1;
+    }
+    .drawerTitle .sub{
+      font-size: 12px;
+      color: rgba(34,34,34,.70);
+    }
+    .drawerClose{
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,255,255,.85);
+      border-radius: 12px;
+      padding: 8px 10px;
+      cursor:pointer;
+      font-weight: 800;
+    }
+    .drawerBody{
+      padding: 12px 14px 18px;
+      overflow:auto;
+      max-height: calc(86vh - 62px);
+    }
+    .kv{
+      display:grid;
+      grid-template-columns: 120px 1fr;
+      gap:8px 10px;
+      padding: 10px 0;
+      border-bottom: 1px dashed rgba(0,0,0,.10);
+    }
+    .k{ font-size: 12px; color: rgba(34,34,34,.70); }
+    .v{ font-size: 13px; word-break: break-word; }
+    .sectionTitle{
+      margin: 12px 0 6px;
+      font-weight: 1000;
+    }
+    .drawerTable{
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,.6);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 12px;
+      overflow:hidden;
+    }
+    .drawerTable th, .drawerTable td{
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(0,0,0,.06);
+      font-size: 13px;
+    }
+    .drawerTable th{
+      font-size: 12px;
+      color: rgba(34,34,34,.70);
+      text-align:left;
+      background: rgba(255,255,255,.75);
+    }
+    .drawerTable .right{ text-align:right; }
+
+</style>
 </head>
 
 <body>
@@ -859,9 +972,23 @@
       total,
       items,
 
+      // 表示用
       buyerName: data.buyerName ?? data.customerName ?? data.purchaserName ?? "",
-      channel: data.channel ?? "",
-      paymentMethod: data.paymentMethod ?? data.payment ?? "",
+      orderDate: data.orderDate ?? "",
+      orderDateMs: Number(data.orderDateMs ?? 0) || 0,
+      createdAtText: createdAt?.toDate ? createdAt.toDate().toLocaleString('ja-JP') : (typeof createdAt==='number' ? new Date(createdAt).toLocaleString('ja-JP') : (createdAt?.seconds ? new Date(createdAt.seconds*1000).toLocaleString('ja-JP') : "")),
+      clientCreatedAt: Number(data.clientCreatedAt ?? 0) || 0,
+      channel: data.channel ?? data.channelId ?? "",
+      channelLabel: data.channelLabel ?? "",
+      paymentId: data.paymentId ?? "",
+      paymentLabel: data.paymentLabel ?? "",
+      paymentMethod: data.paymentMethod ?? data.payment ?? data.paymentId ?? "",
+      venue: data.venue ?? data.venueId ?? "",
+      venueLabel: data.venueLabel ?? "",
+      kindId: data.kindId ?? "",
+      kindLabel: data.kindLabel ?? "",
+      urgentOptionId: data.urgentOptionId ?? "",
+      urgentOptionLabel: data.urgentOptionLabel ?? "",
       memo: data.memo ?? data.note ?? "",
       shippingOption: data.shippingOption ?? "",
       kind: data.kind ?? "",
@@ -1010,11 +1137,14 @@
       salesWrap.className = "sales";
 
       for(const s of g.sales){
-        const sDet = document.createElement("details");
-        sDet.className = "sale";
+        const card = document.createElement("div");
+        card.className = "saleCard";
+        card.addEventListener("click", ()=>{
+          openSaleDrawer(s);
+        });
 
-        const sSum = document.createElement("summary");
-        sSum.className = "saleSum";
+        const sRow = document.createElement("div");
+        sRow.className = "saleSum";
 
         const sLeft = document.createElement("div");
         sLeft.className = "saleLeft";
@@ -1024,104 +1154,62 @@
 
         const d = document.createElement("div");
         d.className = "saleDate";
-        d.textContent = fmtYMD(s.date);
+        d.textContent = (s.orderDate ? s.orderDate : fmtYMD(s.date));
 
         top.appendChild(d);
 
-        if(s.channel){
+        // 販売方法（channel）
+        if(s.channelLabel || s.channel){
           const b = document.createElement("span");
           b.className = "badge";
-          b.textContent = s.channel;
-          top.appendChild(b);
-        }
-        if(s.paymentMethod){
-          const b = document.createElement("span");
-          b.className = "badge";
-          b.textContent = s.paymentMethod;
+          b.textContent = (s.channelLabel || s.channel);
           top.appendChild(b);
         }
 
         if(s.isRefund){
           const b = document.createElement("span");
           b.className = "badge";
-          b.textContent = "REFUND";
-          top.appendChild(b);
-        }
-        if(s.parentSaleId){
-          const b = document.createElement("span");
-          b.className = "badge";
-          b.textContent = "↩ " + s.parentSaleId;
-          top.appendChild(b);
-        }
-        if(s.isBundled){
-          const b = document.createElement("span");
-          b.className = "badge";
-          b.textContent = "BUNDLE";
+          b.textContent = "返金";
           top.appendChild(b);
         }
 
-        const meta = document.createElement("div");
-        meta.className = "saleMeta";
-        meta.textContent = [s.buyerName, s.memo].filter(Boolean).join(" / ") || "—";
+        const bottom = document.createElement("div");
+        bottom.className = "saleBottom";
+
+        const bn = document.createElement("div");
+        bn.className = "saleBuyer";
+        bn.textContent = (s.buyerName ?? "");
+
+        const t = document.createElement("div");
+        t.className = "saleTotal";
+        t.textContent = fmtMoney(s.total);
+
+        bottom.appendChild(bn);
+        bottom.appendChild(t);
 
         sLeft.appendChild(top);
-        sLeft.appendChild(meta);
+        sLeft.appendChild(bottom);
 
         const sRight = document.createElement("div");
         sRight.className = "saleRight";
-        sRight.innerHTML = `<div class="saleTotal">${fmtMoney(s.total)}</div><div class="saleId">${escapeHtml(s.id || "")}</div>`;
 
         const editBtn = document.createElement("button");
         editBtn.className = "editBtn";
+        editBtn.type = "button";
         editBtn.textContent = "✎";
         editBtn.title = "編集";
         editBtn.addEventListener("click", (e)=>{
           e.preventDefault();
-          e.stopPropagation(); // detailsの開閉を防ぐ
+          e.stopPropagation();
           openEditChoiceModal(s);
         });
 
-        sSum.appendChild(sLeft);
-        sSum.appendChild(sRight);
-        sSum.appendChild(editBtn);
-        sDet.appendChild(sSum);
+        sRow.appendChild(sLeft);
+        sRow.appendChild(sRight);
+        sRow.appendChild(editBtn);
+        card.appendChild(sRow);
 
-        const items = document.createElement("div");
-        items.className = "items";
-
-        const rows = (s.items?.length ? s.items : []);
-        if(rows.length===0){
-          items.innerHTML = `<div class="empty">明細（items）がありません。</div>`;
-        }else{
-          const table = document.createElement("table");
-          table.innerHTML = `
-            <thead>
-              <tr>
-                <th>商品</th>
-                <th class="right">数量</th>
-                <th class="right">単価</th>
-                <th class="right">小計</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          `;
-          const tb = table.querySelector("tbody");
-          for(const it of rows){
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-              <td>${escapeHtml(it.name || "—")}</td>
-              <td class="right">${Number(it.qty||0).toLocaleString("ja-JP")}</td>
-              <td class="right">${fmtMoney(it.price||0)}</td>
-              <td class="right">${fmtMoney(it.subtotal||0)}</td>
-            `;
-            tb.appendChild(tr);
-          }
-          items.appendChild(table);
-        }
-
-        // 返金は sales（マイナス）として保存されるため、追加の claims 表示は不要
-        sDet.appendChild(items);
-        salesWrap.appendChild(sDet);
+        salesWrap.appendChild(card);
       }
 
       det.appendChild(salesWrap);
@@ -1201,6 +1289,140 @@
   function closeModal(modal){
     if(modal && modal.remove) modal.remove();
   }
+
+  // =========================
+  // Bottom Drawer : Sale Detail
+  // =========================
+  let drawerEl = null;
+  let drawerBackdropEl = null;
+
+  function ensureDrawer(){
+    if(drawerEl && drawerBackdropEl) return;
+
+    drawerBackdropEl = document.createElement("div");
+    drawerBackdropEl.className = "drawerBackdrop";
+    drawerBackdropEl.addEventListener("click", ()=> closeSaleDrawer());
+
+    drawerEl = document.createElement("div");
+    drawerEl.className = "drawer";
+    drawerEl.innerHTML = `
+      <div class="drawerHeader">
+        <div class="drawerTitle">
+          <div class="big" id="drawerBig">明細</div>
+          <div class="sub" id="drawerSub"></div>
+        </div>
+        <button class="drawerClose" id="drawerCloseBtn" type="button">閉じる</button>
+      </div>
+      <div class="drawerBody" id="drawerBody"></div>
+    `;
+    drawerEl.querySelector("#drawerCloseBtn").addEventListener("click", ()=> closeSaleDrawer());
+
+    document.body.appendChild(drawerBackdropEl);
+    document.body.appendChild(drawerEl);
+  }
+
+  function closeSaleDrawer(){
+    if(!drawerEl) return;
+    drawerEl.classList.remove("open");
+    drawerBackdropEl.classList.remove("open");
+    // iOS 背景スクロール復帰
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+  }
+
+  function openSaleDrawer(sale){
+    ensureDrawer();
+
+    // 背景スクロール抑止
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    const dateText = sale.orderDate ? sale.orderDate : fmtYMD(sale.date);
+    const big = `${fmtMoney(sale.total)}`;
+    const sub = `${dateText}${(sale.buyerName? " / " + sale.buyerName : "")}`;
+
+    drawerEl.querySelector("#drawerBig").textContent = big;
+    drawerEl.querySelector("#drawerSub").textContent = sub;
+
+    const body = drawerEl.querySelector("#drawerBody");
+
+    const kv = (k,v)=>`<div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v ?? "")}</div>`;
+
+    const channel = sale.channelLabel || sale.channel || "";
+    const payment = sale.paymentLabel || sale.paymentMethod || sale.paymentId || "";
+    const kind = sale.kindLabel || sale.kindId || "";
+    const venue = sale.venueLabel || sale.venue || "";
+    const urgent = sale.urgentOptionLabel || sale.urgentOptionId || "";
+    const memo = sale.memo || "";
+
+    let html = `
+      <div class="kv">
+        ${kv("購入者", sale.buyerName ?? "")}
+        ${kv("購入日付", dateText)}
+        ${kv("販売方法", channel)}
+        ${kv("決済方法", payment)}
+        ${kv("開催場所", venue)}
+        ${kv("販売種別", kind)}
+        ${urgent ? kv("緊急オプション", urgent) : ""}
+        ${memo ? kv("メモ", memo) : ""}
+        ${sale.id ? kv("Sale ID", sale.id) : ""}
+        ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
+        ${sale.isRefund ? kv("返金", "はい") : ""}
+        ${sale.isBundled ? kv("Bundle", "はい（上書き不可）") : ""}
+      </div>
+    `;
+
+    // items
+    const rows = Array.isArray(sale.items) ? sale.items : [];
+    html += `<div class="sectionTitle">商品明細</div>`;
+    if(!rows.length){
+      html += `<div class="empty">明細（items）がありません。</div>`;
+    }else{
+      html += `
+        <table class="drawerTable">
+          <thead>
+            <tr>
+              <th>商品</th>
+              <th class="right">数量</th>
+              <th class="right">単価</th>
+              <th class="right">小計</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(it=>`
+              <tr>
+                <td>${escapeHtml(it.name || it.id || "")}</td>
+                <td class="right">${escapeHtml(String(it.qty ?? ""))}</td>
+                <td class="right">${escapeHtml(fmtMoney(it.unitPrice ?? 0))}</td>
+                <td class="right">${escapeHtml(fmtMoney(it.subtotal ?? 0))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // system fields (折りたたみ気味)
+    const createdAt = sale.createdAtText || "";
+    const clientCreatedAt = sale.clientCreatedAt ? String(sale.clientCreatedAt) : "";
+    const orderDateMs = sale.orderDateMs ? String(sale.orderDateMs) : "";
+
+    if(createdAt || clientCreatedAt || orderDateMs){
+      html += `<div class="sectionTitle">システム</div>
+        <div class="kv">
+          ${createdAt ? kv("createdAt", createdAt) : ""}
+          ${clientCreatedAt ? kv("clientCreatedAt", clientCreatedAt) : ""}
+          ${orderDateMs ? kv("orderDateMs", orderDateMs) : ""}
+        </div>
+      `;
+    }
+
+    body.innerHTML = html;
+
+    drawerBackdropEl.classList.add("open");
+    drawerEl.classList.add("open");
+  }
+
 
   function openEditChoiceModal(sale){
     const modal = document.createElement("div");
