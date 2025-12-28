@@ -1137,32 +1137,130 @@
     return sale;
   }
 
-  async function loadSales(){
-    // sales が増えていく前提：最新2000件まで（必要なら増やしてOK）
-    const q = query(
-      collection(db, "sales"),
-      orderBy("createdAt", "desc"),
-      limit(2000)
-    );
-    const snap = await getDocs(q);
+  
+// ======================
+// Bundle + Patch 読み込み
+// ======================
+// 1) bundle (JSON) を基本として読み込み
+// 2) Firestore の差分（updates/adds）だけを重ねる
+//
+// ※ GitHub Pages で動かす場合：
+//    - bundle JSON は同じリポジトリ内に置いて fetch できるようにする
+//    - 例: /bundles/sales_bundle.json など
+const BUNDLE_PATH = "./sales_bundle.json"; // ←必要ならパス変更
 
-    const list = [];
-    snap.forEach(d=> list.push(normalizeSale(d)));
-    rawSales = list;
+// 読み取り件数（表示用）
+let readCountJson = 0;
+let readCountFirebase = 0;
 
-    // option lists を sales から自動収集
-    optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
-    optChannels       = uniqSorted(rawSales.map(x=>x.channel));
+async function loadBundleSales(){
+  readCountJson = 0;
+  try{
+    const res = await fetch(BUNDLE_PATH, { cache: "no-store" });
+    if(!res.ok) throw new Error("bundle fetch failed");
+    const data = await res.json();
 
-    fillYearOptions(rawSales);
-    const latest = rawSales.find(s=> s.date.getTime()>0);
-    if(latest){
-      yearSel.value = String(latest.date.getFullYear());
+    // 期待形式：{ sales:[ ... ] } または [ ... ]
+    const list = Array.isArray(data) ? data : (Array.isArray(data.sales) ? data.sales : []);
+    // bundle 由来フラグ付与
+    for(const s of list){
+      if(s && typeof s === "object"){
+        if(!("isBundled" in s)) s.isBundled = true;
+        if(!("source" in s)) s.source = "bundle";
+      }
     }
+    readCountJson = list.length;
+    return list;
+  }catch(err){
+    console.warn("bundle load failed", err);
+    readCountJson = 0;
+    return [];
+  }
+}
+
+async function loadSalesPatches(){
+  readCountFirebase = 0;
+  // updates: 既存 saleId を上書きする差分
+  // adds:    新規 sale を追加する差分
+  const updates = [];
+  const adds = [];
+
+  try{
+    const [uSnap, aSnap] = await Promise.all([
+      getDocs(query(collection(db, "sales_patch_updates"), limit(5000))),
+      getDocs(query(collection(db, "sales_patch_adds"), limit(5000)))
+    ]);
+
+    uSnap.forEach(d=>{
+      updates.push({ id: d.id, ...((d.data && d.data()) || {}) , source:"firebase" });
+    });
+    aSnap.forEach(d=>{
+      adds.push({ id: d.id, ...((d.data && d.data()) || {}) , source:"firebase" });
+    });
+
+    readCountFirebase = updates.length + adds.length;
+  }catch(err){
+    // まだコレクションが無い / 権限が無い等でも UI が落ちないようにする
+    console.warn("patch load failed", err);
+    readCountFirebase = 0;
   }
 
+  return { updates, adds };
+}
 
-  async function loadFixRequests(){
+function mergeBundleAndPatches(bundleList, patch){
+  const map = new Map();
+
+  // bundle をベース
+  for(const s of (bundleList || [])){
+    const id = safeStr(s?.id || "");
+    if(!id) continue;
+    map.set(id, { ...s });
+  }
+
+  // updates を上書き（存在しない id は新規扱いで入れる）
+  for(const u of (patch?.updates || [])){
+    const id = safeStr(u?.id || "");
+    if(!id) continue;
+    const cur = map.get(id) || { id };
+    map.set(id, { ...cur, ...u });
+  }
+
+  // adds を追加（同じ id があれば上書き）
+  for(const a of (patch?.adds || [])){
+    const id = safeStr(a?.id || "");
+    if(!id) continue;
+    map.set(id, { ...a, id });
+  }
+
+  return [...map.values()];
+}
+
+async function loadSales(){
+  // 旧：Firestore の sales を丸読み
+  // 新：bundle を基本にして、Firestore は差分だけ読む
+  const bundleList = await loadBundleSales();
+  const patch = await loadSalesPatches();
+
+  const mergedRaw = mergeBundleAndPatches(bundleList, patch);
+
+  // normalize
+  rawSales = mergedRaw.map(x=> normalizeSale(x));
+
+  // option lists を sales から自動収集
+  optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
+  optChannels       = uniqSorted(rawSales.map(x=>x.channel));
+
+  fillYearOptions(rawSales);
+  const latest = rawSales.find(s=> s.date.getTime()>0);
+  if(latest){
+    yearSel.value = String(latest.date.getFullYear());
+  }
+}
+
+
+async function loadFixRequests(){
+(){
     // 修正依頼は多くてもそこまで増えない想定：最新5000件まで
     try{
       const q = query(
@@ -1204,7 +1302,7 @@
       await loadSales();
       await loadFixRequests();
 
-      authStateEl.textContent = `OK（sales: ${rawSales.length} 件 / 修正依頼: ${fixReqList.length} 件）`;
+      authStateEl.textContent = `OK（bundle(json): ${readCountJson} 件 / patch(firebase): ${readCountFirebase} 件 / 合算: ${rawSales.length} 件 / 修正依頼: ${fixReqList.length} 件）`;
       render();
     }catch(err){
       console.error(err);
@@ -1261,6 +1359,12 @@
     p2.className = "pill";
     p2.textContent = `件数：${cnt.toLocaleString("ja-JP")} 件`;
     statsEl.appendChild(p2);
+
+    // 読み取り件数（firebase / json）
+    const p3 = document.createElement("div");
+    p3.className = "pill";
+    p3.textContent = `読込：firebase ${readCountFirebase.toLocaleString("ja-JP")} 件 / json ${readCountJson.toLocaleString("ja-JP")} 件`;
+    statsEl.appendChild(p3);
   }
 
   function render(){
