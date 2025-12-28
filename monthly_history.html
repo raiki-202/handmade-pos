@@ -1678,7 +1678,7 @@ async function renderFixSummary(){
         editBtn.addEventListener("click", (e)=>{
           e.preventDefault();
           e.stopPropagation();
-          openEditChoiceModal(s);
+          openFixEditor(s);
         });
 
         sRow.appendChild(sLeft);
@@ -1889,7 +1889,41 @@ async function renderFixSummary(){
       `;
     }
 
+    // actions (詳細から直接 修正/返金)
+    if(sale && sale.id){
+      html += `
+        <div class="sectionTitle" style="margin-top:14px;">操作</div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="modalBtn primary" id="drawerFixBtn" type="button"><span>✎ 打ち間違い修正</span></button>
+          <button class="modalBtn danger" id="drawerClaimBtn" type="button"><span>クレーム返金処理</span></button>
+        </div>
+      `;
+    }
+
     body.innerHTML = html;
+
+    // actions wiring
+    const fixBtn = body.querySelector("#drawerFixBtn");
+    if(fixBtn){
+      fixBtn.addEventListener("click", (e)=>{
+        e.preventDefault(); e.stopPropagation();
+        try{ openFixEditor(sale); }catch(err){ console.error(err); toast("修正画面の表示に失敗"); }
+      });
+    }
+    const claimBtn = body.querySelector("#drawerClaimBtn");
+    if(claimBtn){
+      // refund の sales には返金処理を重ねない
+      if(sale.isRefund){
+        claimBtn.disabled = true;
+        claimBtn.style.opacity = "0.45";
+        claimBtn.style.pointerEvents = "none";
+      }else{
+        claimBtn.addEventListener("click",(e)=>{
+          e.preventDefault(); e.stopPropagation();
+          try{ openClaimEditor(sale); }catch(err){ console.error(err); toast("返金画面の表示に失敗"); }
+        });
+      }
+    }
 
     // 修正履歴件数
     if(sale.id){
