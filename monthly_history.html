@@ -1175,12 +1175,7 @@
 
   async function loadBundleSales(){
   // バンドル（json）を優先読み込み。存在しない場合はスキップ。
-  const candidates = [
-    "bundle/sales_bundle.json",
-    "bundle/sales.json",
-    "sales_bundle.json",
-    "sales.json"
-  ];
+  const candidates = ["bundle/sales_bundle.json","sales_bundle.json"];
   for(const url of candidates){
     try{
       const res = await fetch(url, { cache: "no-store" });
@@ -1206,15 +1201,28 @@ async function loadSales(){
   const bundleList = await loadBundleSales();
 
   // 2) Firestore（差分/最新）を読む
-  const q = query(
-    collection(db, "sales"),
-    orderBy("createdAt", "desc"),
-    limit(2000)
-  );
-  const snap = await getDocs(q);
-
-  const fbList = [];
-  snap.forEach(d=> fbList.push(normalizeSale(d)));
+  // 基本はバンドル（json）を正とし、Firestore は「差分」を読む想定。
+  // まず isBundled==false を差分として読み、失敗したら全件読みへフォールバック。
+  let fbList = [];
+  try{
+    const qDiff = query(
+      collection(db, "sales"),
+      where("isBundled", "==", false),
+      orderBy("createdAt", "desc"),
+      limit(2000)
+    );
+    const snap = await getDocs(qDiff);
+    snap.forEach(d=> fbList.push(normalizeSale(d)));
+  }catch(e){
+    // インデックス未作成等で落ちたら、従来どおり全件読み（※最終手段）
+    const qAll = query(
+      collection(db, "sales"),
+      orderBy("createdAt", "desc"),
+      limit(2000)
+    );
+    const snap2 = await getDocs(qAll);
+    snap2.forEach(d=> fbList.push(normalizeSale(d)));
+  }
 
   // 3) マージ（同じ id は Firestore を優先）
   const map = new Map();
@@ -1229,10 +1237,8 @@ async function loadSales(){
 
   rawSales = [...map.values()];
 
-  // 4) 件数保持
-  const jsonCnt = rawSales.filter(s=> s._source === "json").length;
-  const fbCnt   = rawSales.filter(s=> s._source === "firebase").length;
-  lastSourceCounts = { json: jsonCnt, firebase: fbCnt };
+  // 4) 件数保持（読み取り件数：merge前）
+  lastSourceCounts = { json: bundleList.length, firebase: fbList.length };
 
   // option lists を sales から自動収集
   optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
@@ -1254,6 +1260,7 @@ function renderSourceSummary(){
     el.style.display = "none";
     return;
   }
+}
 
 async function renderFixSummary(){
   // sales_fix_requests の全体件数（依頼中/完了）を上部に表示
