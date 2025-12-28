@@ -765,6 +765,24 @@
     }
     .okChk input{ transform: translateY(1px); }
 
+
+    /* fix summary bar (outside card) */
+    .fixSummaryBar{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      justify-content:flex-end;
+      flex-wrap:wrap;
+      padding: 0 2px 12px;
+      margin-top: -6px;
+    }
+    .fixSummaryBar .pill{
+      cursor: default;
+    }
+    .fixSummaryBar .pill strong{
+      font-weight: 1000;
+    }
+
   </style>
 </head>
 
@@ -784,6 +802,12 @@
           <button class="btn primary" id="btnReload">↻ 再読込</button>
           <button class="btn" id="btnCsv">📄 CSV</button>
         </div>
+      </div>
+
+      <!-- 修正依頼サマリー（枠外表示） -->
+      <div class="fixSummaryBar" id="fixSummaryBar" style="display:none;">
+        <div class="pill" id="fixSumPending">修正依頼：依頼中 - 件</div>
+        <div class="pill" id="fixSumDone">完了 - 件</div>
       </div>
 
       <div class="card">
@@ -859,6 +883,10 @@
   const statsEl  = el("stats");
   const authStateEl = el("authState");
   const toastEl = el("toast");
+
+  const fixSummaryBar = el("fixSummaryBar");
+  const fixSumPendingEl = el("fixSumPending");
+  const fixSumDoneEl = el("fixSumDone");
 
   const yearSel = el("yearSel");
   const monthSel = el("monthSel");
@@ -1092,6 +1120,7 @@
 
     try{
       await loadSales();
+      await renderFixSummary();
 
       authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
       render();
@@ -1228,6 +1257,13 @@
           const b = document.createElement("span");
           b.className = "badge";
           b.textContent = "返金";
+          top.appendChild(b);
+        }
+
+        if(s.isBundled){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "バンドル修正待ち";
           top.appendChild(b);
         }
 
@@ -1368,6 +1404,7 @@
         <div class="drawerTitle">
           <div class="big" id="drawerBig">明細</div>
           <div class="sub" id="drawerSub"></div>
+          <div class="statRow" style="margin-top:8px;" id="drawerFixBadges"></div>
         </div>
         <button class="drawerClose" id="drawerCloseBtn" type="button">閉じる</button>
       </div>
@@ -1417,8 +1454,7 @@
       <div class="kv">
         ${kv("購入者", sale.buyerName ?? "")}
         ${kv("購入日付", dateText)}
-        <div class="k">修正履歴</div><div class="v"><span id="fixPending">-</span>件（依頼中） / <span id="fixDone">-</span>件（完了）</div>
-        ${kv("販売方法", channel)}
+                ${kv("販売方法", channel)}
         ${kv("決済方法", payment)}
         ${kv("開催場所", venue)}
         ${kv("販売種別", kind)}
@@ -1426,7 +1462,7 @@
         ${memo ? kv("メモ", memo) : ""}
                 ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
         ${sale.isRefund ? kv("返金", "はい") : ""}
-        ${sale.isBundled ? kv("Bundle", "はい") : ""}
+        ${sale.isBundled ? kv("バンドル修正待ち", "はい（バンドル更新で反映）") : ""}
       </div>
     `;
 
@@ -1476,10 +1512,19 @@
     // 修正履歴件数
     if(sale.id){
       fetchFixRequestCounts(sale.id).then(cnt=>{
-        const pEl = drawerEl.querySelector("#fixPending");
-        const dEl = drawerEl.querySelector("#fixDone");
-        if(pEl) pEl.textContent = String(cnt?.pending ?? 0);
-        if(dEl) dEl.textContent = String(cnt?.done ?? 0);
+        const wrap = drawerEl.querySelector("#drawerFixBadges");
+        if(wrap){
+          wrap.innerHTML = "";
+          const p1 = document.createElement("div");
+          p1.className = "pill";
+          p1.textContent = `修正依頼：依頼中 ${String(cnt?.pending ?? 0)} 件`;
+          wrap.appendChild(p1);
+
+          const p2 = document.createElement("div");
+          p2.className = "pill";
+          p2.textContent = `完了 ${String(cnt?.done ?? 0)} 件`;
+          wrap.appendChild(p2);
+        }
       });
 }
 
@@ -1522,6 +1567,15 @@
       bc.style.opacity = "0.45";
       bc.style.pointerEvents = "none";
       bc.querySelector(".hint").textContent = "不可";
+    }
+
+    // バンドル由来は打ち間違い修正（Firestore上書き）不可：バンドル更新待ち
+    if(sale.isBundled){
+      const bf = modal.querySelector("#btnFix");
+      bf.disabled = true;
+      bf.style.opacity = "0.55";
+      bf.style.pointerEvents = "none";
+      bf.querySelector(".hint").textContent = "バンドル修正待ち";
     }
 
     modal.querySelector("#btnClaim").onclick = ()=>{
@@ -1695,6 +1749,33 @@ function openClaimEditor(sale){
 
 
 
+  async function fetchFixSummaryCounts(){
+    // 全体の修正依頼件数（依頼中/完了）
+    try{
+      const qPending = query(
+        collection(db, "sales_fix_requests"),
+        where("status","==","依頼中")
+      );
+      const qDone = query(
+        collection(db, "sales_fix_requests"),
+        where("status","==","完了")
+      );
+      const [sPending, sDone] = await Promise.all([getDocs(qPending), getDocs(qDone)]);
+      return { pending: (sPending.size||0), done: (sDone.size||0) };
+    }catch(err){
+      console.warn("fetchFixSummaryCounts failed", err);
+      return { pending: 0, done: 0 };
+    }
+  }
+
+  async function renderFixSummary(){
+    if(!fixSummaryBar) return;
+    const cnt = await fetchFixSummaryCounts();
+    fixSumPendingEl.textContent = `修正依頼：依頼中 ${cnt.pending} 件`;
+    fixSumDoneEl.textContent = `完了 ${cnt.done} 件`;
+    fixSummaryBar.style.display = "flex";
+  }
+
   function isAdminUser(){
     return (currentUser?.email || "") === "enue_staff03@management.com";
   }
@@ -1774,13 +1855,19 @@ function openClaimEditor(sale){
     const requestTextValue = safeStr(pending?.requestText ?? "");
 
     modal.innerHTML = `
-      <div class="modalCard" role="dialog" aria-modal="true">
-        <div class="modalTitle">${admin && pending ? "修正依頼の反映（管理者）" : "打ち間違い修正（管理者へ依頼）"}</div>
-        <div class="modalSub">
-          ${admin && pending
-            ? "各変更の「許可」にチェック → 保存で sales に反映し、依頼を「完了」にします。"
-            : "カード内の情報をすべて編集できます。保存すると「修正依頼」を送信します（salesは変更しません）。"}
+      <div class="modalCard drawerLike" role="dialog" aria-modal="true">
+        <div class="drawerHeader">
+          <div class="drawerTitle">
+            <div class="big">${admin && pending ? "修正依頼の反映（管理者）" : "打ち間違い修正（管理者へ依頼）"}</div>
+            <div class="sub">
+              ${admin && pending
+                ? "旧→新 を確認して、反映する項目だけ「許可」にチェック → 保存で sales に反映し、依頼を「完了」にします。"
+                : "明細詳細と同じ画面で編集できます。保存すると「修正依頼」を送信します（salesは変更しません）。"}
+            </div>
+          </div>
+          <button class="drawerClose" id="cancelTop" type="button">閉じる</button>
         </div>
+        <div class="drawerBody">
 
         ${admin && pending ? `
           <div class="approveBox" id="approveBox">
@@ -1912,6 +1999,7 @@ function openClaimEditor(sale){
           </div>
         </div>
       </div>
+    </div>
     `;
 
     modal.addEventListener("click", (e)=>{
@@ -1983,6 +2071,9 @@ function openClaimEditor(sale){
       items.pop();
       renderItems();
     };
+
+    const cancelTop = modal.querySelector("#cancelTop");
+    if(cancelTop) cancelTop.onclick = ()=> closeModal(modal);
 
     modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
 
