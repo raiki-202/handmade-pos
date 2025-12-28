@@ -1140,7 +1140,7 @@
     }
     for(const v of list){
       const __dup_sel = (v===cur) ? " selected" : "";
-      opts.push(`<option value="${escapeHtml(v)}"${sel}>${escapeHtml(v)}</option>`);
+      opts.push(`<option value="${escapeHtml(v)}"${__dup_sel}>${escapeHtml(v)}</option>`);
     }
     // 自由入力
     opts.push(`<option value="__custom__">（自由入力）</option>`);
@@ -2182,7 +2182,7 @@ async function openFixEditor(sale){
       }
       for(const n of list){
         const __dup_sel = (n===cur) ? " selected" : "";
-        opts.push(`<option value="${escapeAttr(n)}"${sel}>${esc(n)}</option>`);
+        opts.push(`<option value="${escapeAttr(n)}"${__dup_sel}>${esc(n)}</option>`);
       }
       return opts.join("");
     };
@@ -2314,7 +2314,7 @@ async function openFixEditor(sale){
         channel: body.querySelector("#fix_channel").value || "",
         paymentMethod: body.querySelector("#fix_payment").value || "",
         venue: body.querySelector("#fix_venue").value || "",
-        urgentOption: body.querySelector("#fix_urgent").value || "",
+      urgentOption: "",
         kind: body.querySelector("#fix_kind").value || "",
         memo: body.querySelector("#fix_memo").value
       };
@@ -2337,7 +2337,6 @@ async function openFixEditor(sale){
           channel: draft.channel,
           paymentMethod: draft.paymentMethod,
           venue: draft.venue,
-          urgentOption: draft.urgentOption,
           kind: draft.kind,
           memo: draft.memo,
           items: cleanItems,
