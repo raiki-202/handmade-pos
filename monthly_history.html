@@ -1151,8 +1151,10 @@ const close = ()=>{
       input.addEventListener("change", ()=>{
         if(input.tagName === "SELECT") selectOrCustom(w, input);
         syncDisp();
+        if(input.tagName === "SELECT") close();
       });
-      input.addEventListener("blur", close);
+      // NOTE: SELECTはblurで即閉じると選択できない端末があるため、blurでは閉じない
+      if(input.tagName !== "SELECT") input.addEventListener("blur", close);
       input.addEventListener("keydown", (e)=>{
         if(e.key === "Enter"){ e.preventDefault(); close(); }
         if(e.key === "Escape"){ e.preventDefault(); close(); }
