@@ -1049,6 +1049,8 @@
   
   let optKinds = [];
   let optShippingOptions = [];
+  let optProductNames = [];
+  let productPriceByName = {};
 function uniqSorted(arr){
     const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
     return [...set].sort((a,b)=>a.localeCompare(b,'ja'));
@@ -1343,6 +1345,43 @@ async function loadBundleSales(){
   return { list: [], throughMs: 0 };
 }
 
+
+async function loadProductsBundle(){
+  // ✅ 商品マスタ（バンドル）を読む：打ち間違い修正の「商品名トグル」に使用
+  const candidates = [
+    "./products_bundle.json",
+    "products_bundle.json",
+    "./bundle/products_bundle.json",
+    "bundle/products_bundle.json"
+  ];
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) continue;
+      const js = await res.json();
+      const arr = Array.isArray(js?.products) ? js.products : [];
+      const names = [];
+      const map = {};
+      for(const p of arr){
+        if(p && p.active === false) continue;
+        const name = safeStr(p?.name).trim();
+        if(!name) continue;
+        names.push(name);
+        const price = Number(p?.price ?? 0);
+        if(!isNaN(price)) map[name] = price;
+      }
+      optProductNames = uniqSorted(names);
+      productPriceByName = map;
+      return;
+    }catch(e){
+      // try next candidate
+    }
+  }
+  // fallback（読めなければ空。sales items から後で補完してもOK）
+  optProductNames = optProductNames && optProductNames.length ? optProductNames : [];
+  productPriceByName = productPriceByName && Object.keys(productPriceByName).length ? productPriceByName : {};
+}
+
 async function loadSales(){
   // 1) バンドル(JSON)を先に読む（read節約の主役）
   const bundle = await loadBundleSales();
@@ -1461,6 +1500,7 @@ async function renderFixSummary(){
     statsEl.innerHTML = "";
 
     try{
+      await loadProductsBundle();
       await loadSales();
       await renderFixSummary();
 
@@ -1895,12 +1935,9 @@ async function renderFixSummary(){
       bc.querySelector(".hint").textContent = "不可";
     }
 
-    // バンドル由来は打ち間違い修正（Firestore上書き）不可：バンドル更新待ち
+    // バンドル由来は修正不可（バンドル更新待ち）だが、内容確認はできるようにボタンは有効のまま
     if(sale.isBundled){
       const bf = modal.querySelector("#btnFix");
-      bf.disabled = true;
-      bf.style.opacity = "0.55";
-      bf.style.pointerEvents = "none";
       bf.querySelector(".hint").textContent = "バンドル修正待ち";
     }
 
@@ -1967,6 +2004,20 @@ async function openFixEditor(sale){
     const wrap = body.querySelector("#fix_items");
     if(!wrap) return;
 
+    const buildProductOptions = (currentName)=>{
+      const cur = safeStr(currentName).trim();
+      const list = (optProductNames && optProductNames.length) ? optProductNames : [];
+      const opts = [];
+      if(cur && !list.includes(cur)){
+        opts.push(`<option value="${escapeAttr(cur)}" selected>${esc(cur)}</option>`);
+      }
+      for(const n of list){
+        const sel = (n===cur) ? " selected" : "";
+        opts.push(`<option value="${escapeAttr(n)}"${sel}>${esc(n)}</option>`);
+      }
+      return opts.join("");
+    };
+
     if(!items.length){
       wrap.innerHTML = `<div class="empty">明細（items）がありません。</div>`;
       recalc();
@@ -1979,7 +2030,7 @@ async function openFixEditor(sale){
         <tbody>
           ${items.map((it,i)=>`
             <tr>
-              <td><input class="cellIn" data-i="${i}" data-f="name" value="${escapeAttr(it.name)}" /></td>
+              <td><select class="cellIn cellSel" data-i="${i}" data-f="name">${buildProductOptions(it.name)}</select></td>
               <td><input class="cellIn" data-i="${i}" data-f="qty" type="number" inputmode="numeric" value="${escapeAttr(it.qty)}" /></td>
               <td><input class="cellIn" data-i="${i}" data-f="price" type="number" inputmode="numeric" value="${escapeAttr(it.price)}" /></td>
               <td><input class="cellIn" data-i="${i}" data-f="subtotal" type="number" inputmode="numeric" value="${escapeAttr(it.subtotal)}" /></td>
@@ -2000,6 +2051,29 @@ async function openFixEditor(sale){
 
         if(f==="qty" || f==="price"){
           items[i].subtotal = Math.round(Number(items[i].qty||0)*Number(items[i].price||0));
+          const subEl = wrap.querySelector(`.cellIn[data-f="subtotal"][data-i="${i}"]`);
+          if(subEl) subEl.value = String(items[i].subtotal);
+        }
+        recalc();
+      });
+    });
+
+    // 商品名（select）
+    wrap.querySelectorAll(".cellSel").forEach(el=>{
+      el.addEventListener("change", ()=>{
+        const i = Number(el.getAttribute("data-i"));
+        if(!items[i]) return;
+        const name = el.value;
+        items[i].name = name;
+
+        // price が未入力/0 のときだけ、マスタの価格を自動入力（上書きしない）
+        const p0 = Number(items[i].price||0);
+        const mp = Number(productPriceByName?.[name] ?? 0);
+        if((!p0 || p0===0) && mp>0){
+          items[i].price = mp;
+          const priceEl = wrap.querySelector(`.cellIn[data-f="price"][data-i="${i}"]`);
+          if(priceEl) priceEl.value = String(mp);
+          items[i].subtotal = Math.round(Number(items[i].qty||0) * Number(items[i].price||0));
           const subEl = wrap.querySelector(`.cellIn[data-f="subtotal"][data-i="${i}"]`);
           if(subEl) subEl.value = String(items[i].subtotal);
         }
