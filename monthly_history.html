@@ -871,11 +871,13 @@
 
   // ---- helpers
   const pad2 = (n)=> String(n).padStart(2,"0");
-  const fmtYMD = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtYMDHM = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
   const fmtMoney = (n)=> {
     const v = Number(n||0);
     return "¥" + v.toLocaleString("ja-JP");
   };
+  const yen = (n)=> fmtMoney(n);
+
   const ymKey = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
 
   function toast(msg){
@@ -1210,7 +1212,7 @@
 
         const d = document.createElement("div");
         d.className = "saleDate";
-        d.textContent = (s.orderDate ? s.orderDate : fmtYMD(s.date));
+        d.textContent = (s.orderDate ? s.orderDate : fmtYMDHM(s.date));
 
         top.appendChild(d);
 
@@ -1287,7 +1289,7 @@
     for(const s of list){
       const base = [
         csvCell(s.id),
-        csvCell(fmtYMD(s.date)),
+        csvCell(fmtYMDHM(s.date)),
         csvCell(s.total),
         csvCell(s.buyerName),
         csvCell(s.channel),
@@ -1393,7 +1395,7 @@
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
-    const dateText = sale.orderDate ? sale.orderDate : fmtYMD(sale.date);
+    const dateText = sale.orderDate ? sale.orderDate : fmtYMDHM(sale.date);
     const big = `${fmtMoney(sale.total)}`;
     const sub = `${dateText}${(sale.buyerName? " / " + sale.buyerName : "")}`;
 
@@ -1697,7 +1699,7 @@ function openClaimEditor(sale){
     return (currentUser?.email || "") === "enue_staff03@management.com";
   }
 
-  function fmtYMD(d){
+  function fmtYMDDate(d){
     const y = d.getFullYear();
     const m = pad2(d.getMonth()+1);
     const dd = pad2(d.getDate());
@@ -1708,7 +1710,7 @@ function openClaimEditor(sale){
     return x.getTime();
   }
 
-  async async function openFullEditEditor(sale){
+  async function openFullEditEditor(sale){
     const modal = document.createElement("div");
     modal.className = "modal";
 
@@ -2090,7 +2092,7 @@ function openClaimEditor(sale){
           if(allowed.has("kind")) updateData.kind = kind;
 
           if(allowed.has("date")){
-            updateData.orderDate = fmtYMD(createdAtDate);
+            updateData.orderDate = fmtYMDDate(createdAtDate);
             updateData.orderDateMs = msAtLocalMidnight(createdAtDate);
             updateData.clientCreatedAt = createdAtDate.getTime();
           }
