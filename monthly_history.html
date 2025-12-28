@@ -691,51 +691,6 @@
     }
     .k{ font-size: 12px; color: rgba(34,34,34,.70); }
     .v{ font-size: 13px; word-break: break-word; }
-
-    .kvGrid2{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px 12px;
-    }
-    @media (max-width:560px){
-      .kvGrid2{ grid-template-columns: 1fr; }
-    }
-    .kvRow{
-      display:flex;
-      gap:10px;
-      align-items:flex-start;
-      padding: 12px 12px;
-      background: rgba(255,255,255,.62);
-      border: 1px solid rgba(0,0,0,.06);
-      border-radius: 14px;
-    }
-    .kvRow .k{
-      width: 96px;
-      flex: 0 0 auto;
-      font-size: 12px;
-      color: rgba(34,34,34,.70);
-      font-weight: 900;
-    }
-    .kvRow .v{ min-width:0; }
-    .kvRow .vv{
-      font-size: 13px;
-      font-weight: 900;
-      color: rgba(34,34,34,.92);
-      word-break: break-word;
-    }
-    .kvRow .vh{
-      margin-top: 4px;
-      font-size: 11px;
-      color: rgba(34,34,34,.55);
-      font-weight: 800;
-    }
-    .tappable{
-      cursor:pointer;
-    }
-    .tappable:active{
-      transform: translateY(1px);
-    }
-
     .sectionTitle{
       margin: 12px 0 6px;
       font-weight: 1000;
@@ -876,7 +831,1370 @@
     </div>
   </div>
 
-<script type="module" src="./monthly_history.js"></script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore,
+    collection, doc, query, where, orderBy, limit, getDocs, addDoc, updateDoc, serverTimestamp, Timestamp
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+  // ✅ 本番（既存ファイルと同じ）
+  const firebaseConfig = {
+    apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+    authDomain: "handmade-pos.firebaseapp.com",
+    projectId: "handmade-pos",
+    storageBucket: "handmade-pos.firebasestorage.app",
+    messagingSenderId: "174873514252",
+    appId: "1:174873514252:web:c26659bffca850d475f929"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // ---- UI refs
+  const el = (id)=>document.getElementById(id);
+  const monthsEl = el("months");
+  const statsEl  = el("stats");
+  const authStateEl = el("authState");
+  const toastEl = el("toast");
+
+  const yearSel = el("yearSel");
+  const monthSel = el("monthSel");
+  const qEl = el("q");
+
+  const btnHome = el("btnHome");
+  const btnOther = el("btnOther");
+  const btnReload = el("btnReload");
+  const btnCsv = el("btnCsv");
+
+  // ---- helpers
+  const pad2 = (n)=> String(n).padStart(2,"0");
+  const fmtYMD = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtMoney = (n)=> {
+    const v = Number(n||0);
+    return "¥" + v.toLocaleString("ja-JP");
+  };
+  const ymKey = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+
+  function toast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add("on");
+    setTimeout(()=>toastEl.classList.remove("on"), 1400);
+  }
+
+  function safeStr(v){
+    if(v===null || v===undefined) return "";
+    return String(v);
+  }
+
+  function normalizeText(s){
+    return safeStr(s).toLowerCase().replace(/\\s+/g," ").trim();
+  }
+
+  function saleToSearchText(sale){
+    const parts = [];
+    parts.push(sale.id);
+    parts.push(sale.buyerName);
+    parts.push(sale.channel);
+    parts.push(sale.paymentMethod);
+    parts.push(sale.memo);
+    parts.push(sale.shippingOption);
+    parts.push(sale.kind);
+    parts.push(sale.parentSaleId);
+    parts.push(sale.isRefund ? "refund" : "");
+    if(Array.isArray(sale.items)){
+      for(const it of sale.items){
+        parts.push(it.name, it.productName, it.sku, it.code);
+      }
+    }
+    return normalizeText(parts.filter(Boolean).join(" "));
+  }
+
+  function escapeHtml(str){
+    return safeStr(str)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#039;");
+  }
+
+  // ---- data cache
+  let rawSales = [];                 // normalized
+  let lastBuilt = null;              // { list, groups }
+  let currentUser = null;
+
+  // ---- option lists (自動収集)
+  let optPaymentMethods = [];
+  let optChannels = [];
+
+  function uniqSorted(arr){
+    const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
+    return [...set].sort((a,b)=>a.localeCompare(b,'ja'));
+  }
+  function buildOptionsHTML(list, current){
+    const cur = safeStr(current).trim();
+    const opts = [];
+    // current が候補に無い場合も先頭に出す
+    if(cur && !list.includes(cur)){
+      opts.push(`<option value="${escapeHtml(cur)}" selected>${escapeHtml(cur)}</option>`);
+    }
+    for(const v of list){
+      const sel = (v===cur) ? " selected" : "";
+      opts.push(`<option value="${escapeHtml(v)}"${sel}>${escapeHtml(v)}</option>`);
+    }
+    // 自由入力
+    opts.push(`<option value="__custom__">（自由入力）</option>`);
+    return opts.join("");
+  }
+
+  // ---- routing
+  btnHome.addEventListener("click", ()=> location.href = "index.html");
+  btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
+  btnReload.addEventListener("click", ()=> loadAll(true));
+  btnCsv.addEventListener("click", ()=> exportCsv());
+
+  yearSel.addEventListener("change", ()=> render());
+  monthSel.addEventListener("change", ()=> render());
+  qEl.addEventListener("input", ()=> render());
+
+  function fillYearOptions(sales){
+    const years = new Set(sales.map(s=> s.date.getFullYear()));
+    const arr = [...years].sort((a,b)=>b-a);
+
+    // fallback: 今年〜過去3年
+    const nowY = new Date().getFullYear();
+    if(arr.length===0){
+      for(let y=nowY; y>=nowY-3; y--) arr.push(y);
+    }else{
+      if(!years.has(nowY)) arr.unshift(nowY);
+    }
+
+    yearSel.innerHTML = "";
+    for(const y of arr){
+      const opt = document.createElement("option");
+      opt.value = String(y);
+      opt.textContent = `${y}年`;
+      yearSel.appendChild(opt);
+    }
+  }
+
+  function normalizeSale(docSnap){
+    const data = docSnap.data ? docSnap.data() : docSnap;
+
+    let createdAt = data.createdAt;
+    let date = null;
+    try{
+      if(createdAt?.toDate) date = createdAt.toDate();
+      else if(typeof createdAt === "number") date = new Date(createdAt);
+      else if(typeof createdAt === "string") date = new Date(createdAt);
+    }catch(e){}
+    if(!date || isNaN(date.getTime())){
+      date = new Date(0);
+    }
+
+    const items = Array.isArray(data.items) ? data.items.map(it=>({
+      id: it.id ?? it.productId ?? it.sku ?? "",
+      name: it.name ?? it.productName ?? "",
+      qty: Number(it.qty ?? it.quantity ?? 0),
+      unitPrice: Number(it.unitPrice ?? it.price ?? it.unit ?? 0),
+      // 互換用（古いコードが price を参照しても動くよう残す）
+      price: Number(it.unitPrice ?? it.price ?? it.unit ?? 0),
+      subtotal: Number(
+        it.subtotal ??
+        (Number(it.unitPrice ?? it.price ?? it.unit ?? 0) * Number(it.qty ?? it.quantity ?? 0)) ??
+        0
+      ),
+      raw: it
+    })) : [];
+
+    const total =
+      Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) ||
+      items.reduce((a,b)=> a + (Number(b.subtotal)||0), 0);
+
+    // バンドル由来判定（存在するなら尊重、無い場合は kind/source でも判定）
+    const isBundled = Boolean(
+      data.isBundled ?? data.bundled ?? (safeStr(data.source).toLowerCase()==="bundle") ?? false
+    ) || (safeStr(data.kind).toLowerCase()==="bundle");
+    const parentSaleId = data.parentSaleId ?? data.parentId ?? "";
+
+    const isRefund = Boolean(data.isRefund ?? false) || (safeStr(data.channel).toLowerCase()==="refund") || (Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) < 0 && parentSaleId);
+
+    const sale = {
+      id: docSnap.id ?? data.id ?? "",
+      date,
+      total,
+      items,
+
+      // 表示用
+      buyerName: data.buyerName ?? data.customerName ?? data.purchaserName ?? "",
+      orderDate: data.orderDate ?? "",
+      orderDateMs: Number(data.orderDateMs ?? 0) || 0,
+      createdAtText: createdAt?.toDate ? createdAt.toDate().toLocaleString('ja-JP') : (typeof createdAt==='number' ? new Date(createdAt).toLocaleString('ja-JP') : (createdAt?.seconds ? new Date(createdAt.seconds*1000).toLocaleString('ja-JP') : "")),
+      clientCreatedAt: Number(data.clientCreatedAt ?? 0) || 0,
+      channel: data.channel ?? data.channelId ?? "",
+      channelLabel: data.channelLabel ?? "",
+      paymentId: data.paymentId ?? "",
+      paymentLabel: data.paymentLabel ?? "",
+      paymentMethod: data.paymentMethod ?? data.payment ?? data.paymentId ?? "",
+      venue: data.venue ?? data.venueId ?? "",
+      venueLabel: data.venueLabel ?? "",
+      kindId: data.kindId ?? "",
+      kindLabel: data.kindLabel ?? "",
+      urgentOptionId: data.urgentOptionId ?? "",
+      urgentOptionLabel: data.urgentOptionLabel ?? "",
+      memo: data.memo ?? data.note ?? "",
+      shippingOption: data.shippingOption ?? "",
+      kind: data.kind ?? "",
+
+      parentSaleId,
+      isRefund,
+
+      isBundled
+    };
+    sale._search = saleToSearchText(sale);
+    sale._ym = ymKey(date);
+    return sale;
+  }
+
+  async function loadSales(){
+    // sales が増えていく前提：最新2000件まで（必要なら増やしてOK）
+    const q = query(
+      collection(db, "sales"),
+      orderBy("createdAt", "desc"),
+      limit(2000)
+    );
+    const snap = await getDocs(q);
+
+    const list = [];
+    snap.forEach(d=> list.push(normalizeSale(d)));
+    rawSales = list;
+
+    // option lists を sales から自動収集
+    optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
+    optChannels       = uniqSorted(rawSales.map(x=>x.channel));
+
+    fillYearOptions(rawSales);
+    const latest = rawSales.find(s=> s.date.getTime()>0);
+    if(latest){
+      yearSel.value = String(latest.date.getFullYear());
+    }
+  }
+
+  async function loadAll(force=false){
+    authStateEl.textContent = "読み込み中…";
+    monthsEl.innerHTML = "";
+    statsEl.innerHTML = "";
+
+    try{
+      await loadSales();
+
+      authStateEl.textContent = `OK（sales: ${rawSales.length} 件）`;
+      render();
+    }catch(err){
+      console.error(err);
+      authStateEl.textContent = "読み込み失敗";
+      monthsEl.innerHTML = `<div class="empty">読み込みに失敗しました。<br><span class="muted">Firestore ルール / インデックス / createdAt の型を確認してね。</span></div>`;
+      toast("読み込み失敗");
+    }
+  }
+
+  function buildGroups(filtered){
+    const map = new Map();
+    for(const s of filtered){
+      const key = s._ym;
+      if(!map.has(key)){
+        map.set(key, { monthKey:key, total:0, count:0, sales:[] });
+      }
+      const g = map.get(key);
+      g.total += Number(s.total||0);
+      g.count += 1;
+      g.sales.push(s);
+    }
+    for(const g of map.values()){
+      g.sales.sort((a,b)=> b.date - a.date);
+    }
+    const arr = [...map.values()].sort((a,b)=> b.monthKey.localeCompare(a.monthKey));
+    return arr;
+  }
+
+  function applyFilters(){
+    const y = Number(yearSel.value);
+    const m = monthSel.value === "all" ? null : Number(monthSel.value);
+    const q = normalizeText(qEl.value);
+
+    return rawSales.filter(s=>{
+      if(s.date.getTime()<=0) return false;
+      if(s.date.getFullYear() !== y) return false;
+      if(m && (s.date.getMonth()+1)!==m) return false;
+      if(q && !s._search.includes(q)) return false;
+      return true;
+    });
+  }
+
+  function renderStats(list){
+    const total = list.reduce((a,b)=> a + Number(b.total||0), 0);
+    const cnt = list.length;
+
+    statsEl.innerHTML = "";
+    const p1 = document.createElement("div");
+    p1.className = "pill";
+    p1.textContent = `合計：${fmtMoney(total)}`;
+    statsEl.appendChild(p1);
+
+    const p2 = document.createElement("div");
+    p2.className = "pill";
+    p2.textContent = `件数：${cnt.toLocaleString("ja-JP")} 件`;
+    statsEl.appendChild(p2);
+  }
+
+  function render(){
+    if(!rawSales.length){
+      monthsEl.innerHTML = `<div class="empty">データがありません。</div>`;
+      return;
+    }
+
+    const list = applyFilters();
+    renderStats(list);
+
+    const groups = buildGroups(list);
+    lastBuilt = { list, groups };
+
+    monthsEl.innerHTML = "";
+    if(groups.length===0){
+      monthsEl.innerHTML = `<div class="empty">該当データがありません。</div>`;
+      return;
+    }
+
+    for(const g of groups){
+      const [yy,mm] = g.monthKey.split("-");
+      const monthLabel = `${yy}年${Number(mm)}月`;
+
+      const det = document.createElement("details");
+      det.className = "month";
+
+      const sum = document.createElement("summary");
+
+      const left = document.createElement("div");
+      left.className = "mLeft";
+      left.innerHTML = `<div class="mTitle">${monthLabel}</div><div class="mSub">タップで明細</div>`;
+
+      const right = document.createElement("div");
+      right.className = "mRight";
+      right.innerHTML = `<div class="mTotal">${fmtMoney(g.total)}</div><div class="mCount">${g.count} 件</div>`;
+
+      sum.appendChild(left);
+      sum.appendChild(right);
+      det.appendChild(sum);
+
+      const salesWrap = document.createElement("div");
+      salesWrap.className = "sales";
+
+      for(const s of g.sales){
+        const card = document.createElement("div");
+        card.className = "saleCard";
+        card.addEventListener("click", ()=>{
+          openSaleDrawer(s);
+        });
+
+        const sRow = document.createElement("div");
+        sRow.className = "saleSum";
+
+        const sLeft = document.createElement("div");
+        sLeft.className = "saleLeft";
+
+        const top = document.createElement("div");
+        top.className = "saleTop";
+
+        const d = document.createElement("div");
+        d.className = "saleDate";
+        d.textContent = (s.orderDate ? s.orderDate : fmtYMD(s.date));
+
+        top.appendChild(d);
+
+        // 販売方法（channel）
+        if(s.channelLabel || s.channel){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = (s.channelLabel || s.channel);
+          top.appendChild(b);
+        }
+
+        if(s.isRefund){
+          const b = document.createElement("span");
+          b.className = "badge";
+          b.textContent = "返金";
+          top.appendChild(b);
+        }
+
+        const bottom = document.createElement("div");
+        bottom.className = "saleBottom";
+
+        const bn = document.createElement("div");
+        bn.className = "saleBuyer";
+        bn.textContent = (s.buyerName ?? "");
+
+        const t = document.createElement("div");
+        t.className = "saleTotal";
+        t.textContent = fmtMoney(s.total);
+
+        bottom.appendChild(bn);
+        bottom.appendChild(t);
+
+        sLeft.appendChild(top);
+        sLeft.appendChild(bottom);
+
+        const sRight = document.createElement("div");
+        sRight.className = "saleRight";
+
+        const editBtn = document.createElement("button");
+        editBtn.className = "editBtn";
+        editBtn.type = "button";
+        editBtn.textContent = "✎";
+        editBtn.title = "編集";
+        editBtn.addEventListener("click", (e)=>{
+          e.preventDefault();
+          e.stopPropagation();
+          openEditChoiceModal(s);
+        });
+
+        sRow.appendChild(sLeft);
+        sRow.appendChild(sRight);
+        sRow.appendChild(editBtn);
+        card.appendChild(sRow);
+
+        salesWrap.appendChild(card);
+      }
+
+      det.appendChild(salesWrap);
+      monthsEl.appendChild(det);
+    }
+  }
+
+  function exportCsv(){
+    if(!lastBuilt || !lastBuilt.list){
+      toast("データなし");
+      return;
+    }
+
+    const list = lastBuilt.list.slice().sort((a,b)=> b.date - a.date);
+
+    const header = ["id","date","total","buyerName","channel","paymentMethod","kind","parentSaleId","isRefund","memo","itemName","qty","price","subtotal"];
+    const lines = [header.join(",")];
+
+    for(const s of list){
+      const base = [
+        csvCell(s.id),
+        csvCell(fmtYMD(s.date)),
+        csvCell(s.total),
+        csvCell(s.buyerName),
+        csvCell(s.channel),
+        csvCell(s.paymentMethod),
+        csvCell(s.kind),
+        csvCell(s.parentSaleId),
+        csvCell(s.isRefund ? "true" : ""),
+        csvCell(s.memo)
+      ];
+
+      if(s.items?.length){
+        for(const it of s.items){
+          const row = base.concat([
+            csvCell(it.name),
+            csvCell(it.qty),
+            csvCell(it.price),
+            csvCell(it.subtotal)
+          ]);
+          lines.push(row.join(","));
+        }
+      }else{
+        const row = base.concat([csvCell(""),csvCell(""),csvCell(""),csvCell("")]);
+        lines.push(row.join(","));
+      }
+    }
+
+    const blob = new Blob(["\\ufeff" + lines.join("\\n")], {type:"text/csv;charset=utf-8"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+
+    const y = yearSel.value || "year";
+    const m = monthSel.value === "all" ? "all" : pad2(monthSel.value);
+    a.download = `monthly_sales_${y}_${m}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast("CSV出しました");
+  }
+
+  function csvCell(v){
+    const s = safeStr(v);
+    if(/[",\\n]/.test(s)){
+      return '"' + s.replaceAll('"','""') + '"';
+    }
+    return s;
+  }
+
+  // ======================
+  //  編集フロー
+  // ======================
+  function closeModal(modal){
+    if(modal && modal.remove) modal.remove();
+  }
+
+  // =========================
+  // Bottom Drawer : Sale Detail
+  // =========================
+  let drawerEl = null;
+  let drawerBackdropEl = null;
+
+  function ensureDrawer(){
+    if(drawerEl && drawerBackdropEl) return;
+
+    drawerBackdropEl = document.createElement("div");
+    drawerBackdropEl.className = "drawerBackdrop";
+    drawerBackdropEl.addEventListener("click", ()=> closeSaleDrawer());
+
+    drawerEl = document.createElement("div");
+    drawerEl.className = "drawer";
+    drawerEl.innerHTML = `
+      <div class="drawerHeader">
+        <div class="drawerTitle">
+          <div class="big" id="drawerBig">明細</div>
+          <div class="sub" id="drawerSub"></div>
+        </div>
+        <button class="drawerClose" id="drawerCloseBtn" type="button">閉じる</button>
+      </div>
+      <div class="drawerBody" id="drawerBody"></div>
+    `;
+    drawerEl.querySelector("#drawerCloseBtn").addEventListener("click", ()=> closeSaleDrawer());
+
+    document.body.appendChild(drawerBackdropEl);
+    document.body.appendChild(drawerEl);
+  }
+
+  function closeSaleDrawer(){
+    if(!drawerEl) return;
+    drawerEl.classList.remove("open");
+    drawerBackdropEl.classList.remove("open");
+    // iOS 背景スクロール復帰
+    document.documentElement.style.overflow = "";
+    document.body.style.overflow = "";
+  }
+
+  function openSaleDrawer(sale){
+    ensureDrawer();
+
+    // 背景スクロール抑止
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+
+    const dateText = sale.orderDate ? sale.orderDate : fmtYMD(sale.date);
+    const big = `${fmtMoney(sale.total)}`;
+    const sub = `${dateText}${(sale.buyerName? " / " + sale.buyerName : "")}`;
+
+    drawerEl.querySelector("#drawerBig").textContent = big;
+    drawerEl.querySelector("#drawerSub").textContent = sub;
+
+    const body = drawerEl.querySelector("#drawerBody");
+
+    const kv = (k,v)=>`<div class="k">${escapeHtml(k)}</div><div class="v">${escapeHtml(v ?? "")}</div>`;
+
+    const channel = sale.channelLabel || sale.channel || "";
+    const payment = sale.paymentLabel || sale.paymentMethod || sale.paymentId || "";
+    const kind = sale.kindLabel || sale.kindId || "";
+    const venue = sale.venueLabel || sale.venue || "";
+    const urgent = sale.urgentOptionLabel || sale.urgentOptionId || "";
+    const memo = sale.memo || "";
+
+    let html = `
+      <div class="kv">
+        ${kv("購入者", sale.buyerName ?? "")}
+        ${kv("購入日付", dateText)}
+        <div class="k">修正履歴</div><div class="v"><span id="fixPending">-</span>件（依頼中） / <span id="fixDone">-</span>件（完了）</div>
+        ${kv("販売方法", channel)}
+        ${kv("決済方法", payment)}
+        ${kv("開催場所", venue)}
+        ${kv("販売種別", kind)}
+        ${urgent ? kv("緊急オプション", urgent) : ""}
+        ${memo ? kv("メモ", memo) : ""}
+                ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
+        ${sale.isRefund ? kv("返金", "はい") : ""}
+        ${sale.isBundled ? kv("Bundle", "はい") : ""}
+      </div>
+    `;
+
+    // items
+    const rows = Array.isArray(sale.items) ? sale.items : [];
+    html += `<div class="sectionTitle">商品明細</div>`;
+    if(!rows.length){
+      html += `<div class="empty">明細（items）がありません。</div>`;
+    }else{
+      html += `
+        <table class="drawerTable">
+          <thead>
+            <tr>
+              <th>商品</th>
+              <th class="right">数量</th>
+              <th class="right">単価</th>
+              <th class="right">小計</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(it=>`
+              <tr>
+                <td>${escapeHtml(it.name || it.id || "")}</td>
+                <td class="right">${escapeHtml(String(it.qty ?? ""))}</td>
+                <td class="right">${escapeHtml(fmtMoney((it.unitPrice ?? it.price ?? 0)))}</td>
+                <td class="right">${escapeHtml(fmtMoney(it.subtotal ?? 0))}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+
+    // system fields (折りたたみ気味)
+    const createdAt = sale.createdAtText || "";
+
+    if(createdAt){
+      html += `<div class="sectionTitle">システム</div>
+        <div class="kv">
+          ${createdAt ? kv("createdAt", createdAt) : ""}
+        </div>
+      `;
+    }
+
+    body.innerHTML = html;
+
+    // 修正履歴件数
+    if(sale.id){
+      fetchFixRequestCounts(sale.id).then(cnt=>{
+        const pEl = drawerEl.querySelector("#fixPending");
+        const dEl = drawerEl.querySelector("#fixDone");
+        if(pEl) pEl.textContent = String(cnt?.pending ?? 0);
+        if(dEl) dEl.textContent = String(cnt?.done ?? 0);
+      });
+}
+
+    drawerBackdropEl.classList.add("open");
+    drawerEl.classList.add("open");
+  }
+
+
+  function openEditChoiceModal(sale){
+    const modal = document.createElement("div");
+    modal.className = "modal";
+    modal.innerHTML = `
+      <div class="modalCard" role="dialog" aria-modal="true">
+        <div class="modalTitle">編集内容を選択</div>
+        <div class="modalSub">クレーム返金：マイナスの sales を新規作成 / 打ち間違い修正：管理者へ修正依頼を送信（salesは変更しません）</div>
+        <div class="modalBtns">
+          <button class="modalBtn danger" id="btnClaim">
+            <span>クレーム返金処理</span><span class="hint">追記</span>
+          </button>
+          <button class="modalBtn primary" id="btnFix">
+            <span>打ち間違い修正</span><span class="hint">依頼</span>
+          </button>
+          <button class="modalBtn" id="btnCancel">
+            <span>キャンセル</span><span class="hint">閉じる</span>
+          </button>
+        </div>
+      </div>
+    `;
+    modal.addEventListener("click", (e)=>{
+      if(e.target === modal) closeModal(modal);
+    });
+    document.body.appendChild(modal);
+
+    modal.querySelector("#btnCancel").onclick = ()=> closeModal(modal);
+
+    // refund の sales には返金処理を重ねない（必要なら打ち間違い修正で編集）
+    if(sale.isRefund){
+      const bc = modal.querySelector("#btnClaim");
+      bc.disabled = true;
+      bc.style.opacity = "0.45";
+      bc.style.pointerEvents = "none";
+      bc.querySelector(".hint").textContent = "不可";
+    }
+
+    modal.querySelector("#btnClaim").onclick = ()=>{
+      closeModal(modal);
+      openClaimEditor(sale);
+    };
+
+    modal.querySelector("#btnFix").onclick = ()=>{
+      closeModal(modal);
+      openFullEditEditor(sale);
+    };
+  }
+function openClaimEditor(sale){
+  const modal = document.createElement("div");
+  modal.className = "modal";
+
+  modal.innerHTML = `
+    <div class="modalCard" role="dialog" aria-modal="true">
+      <div class="modalTitle">クレーム返金処理（マイナス sales 作成）</div>
+      <div class="modalSub">元の sales は変更しません。紐づく「返金用の sales（マイナス）」を新規作成します。</div>
+
+      <div class="form">
+        <div class="row">
+          <div class="input">
+            <div class="lab">返金額（円）</div>
+            <input id="refundAmt" inputmode="numeric" type="number" min="1" step="1" placeholder="例：2000" />
+          </div>
+          <div class="input">
+            <div class="lab">対象 sale</div>
+            <input value="${escapeHtml(sale.id)}" disabled />
+          </div>
+        </div>
+
+        <div class="input">
+          <div class="lab">事由</div>
+          <textarea id="reason" placeholder="例：商品不良 / 破損 / 誤配送 など"></textarea>
+        </div>
+
+        <div class="miniActions">
+          <button class="sbtn primary" id="save">保存（返金 sales 作成）</button>
+          <button class="sbtn" id="cancel">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modal.addEventListener("click", (e)=>{
+    if(e.target === modal) closeModal(modal);
+  });
+  document.body.appendChild(modal);
+
+  modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
+
+  modal.querySelector("#save").onclick = async ()=>{
+    try{
+      const amt = Number(modal.querySelector("#refundAmt").value || 0);
+      const reason = safeStr(modal.querySelector("#reason").value || "").trim();
+      if(!(amt>0)){
+        toast("返金額を入れてね");
+        return;
+      }
+      if(!reason){
+        toast("事由を入れてね");
+        return;
+      }
+
+      // 返金は「紐づくマイナス sales」を新規作成
+      await addDoc(collection(db,"sales"),{
+        parentSaleId: sale.id,
+        isRefund: true,
+
+        createdAt: serverTimestamp(),
+
+        buyerName: sale.buyerName || "",
+        channel: sale.channel || "refund",
+        paymentMethod: sale.paymentMethod || "",
+        shippingOption: sale.shippingOption || "",
+        kind: "-",
+
+        memo: `返金：${reason}`,
+
+        items: [{
+          name: "クレーム返金",
+          qty: 1,
+          price: -Math.abs(amt),
+          subtotal: -Math.abs(amt)
+        }],
+        total: -Math.abs(amt),
+
+        createdBy: (currentUser?.email || currentUser?.uid || "")
+      });
+
+      toast("返金 sales を作成しました");
+      closeModal(modal);
+
+      await loadAll(true);
+
+    }catch(err){
+      console.error(err);
+      toast("保存失敗");
+    }
+  };
+}
+
+
+  function toLocalInputValue(date){
+    // datetime-local は「YYYY-MM-DDTHH:mm」
+    const d = date instanceof Date ? date : new Date(date);
+    if(isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = pad2(d.getMonth()+1);
+    const dd = pad2(d.getDate());
+    const hh = pad2(d.getHours());
+    const mm = pad2(d.getMinutes());
+    return `${y}-${m}-${dd}T${hh}:${mm}`;
+  }
+
+  function parseLocalInputValue(v){
+    // ブラウザによってはローカルタイム扱いで Date 化される
+    const d = new Date(v);
+    return d;
+  }
+
+  function recalcItems(items){
+    return items.map(it=>{
+      const qty = Number(it.qty||0);
+      const price = Number(it.price||0);
+      return { ...it, qty, price, subtotal: qty*price };
+    });
+  }
+
+  
+  async function fetchPendingFixRequest(saleId){
+    try{
+      const q = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId),
+        where("status","==", "依頼中"),
+        orderBy("createdAt","desc"),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if(snap.empty) return null;
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() };
+    }catch(err){
+      console.warn("fetchPendingFixRequest failed", err);
+      return null;
+    }
+  }
+  async function fetchFixRequestCounts(saleId){
+    // returns { pending: number, done: number }
+    try{
+      const qPending = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId),
+        where("status","==","依頼中")
+      );
+      const qDone = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId),
+        where("status","==","完了")
+      );
+      const [sPending, sDone] = await Promise.all([getDocs(qPending), getDocs(qDone)]);
+      return { pending: (sPending.size||0), done: (sDone.size||0) };
+    }catch(err){
+      console.warn("fetchFixRequestCounts failed", err);
+      return { pending: 0, done: 0 };
+    }
+  }
+
+
+
+  function isAdminUser(){
+    return (currentUser?.email || "") === "enue_staff03@management.com";
+  }
+
+  function fmtYMD(d){
+    const y = d.getFullYear();
+    const m = pad2(d.getMonth()+1);
+    const dd = pad2(d.getDate());
+    return `${y}-${m}-${dd}`;
+  }
+  function msAtLocalMidnight(d){
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+    return x.getTime();
+  }
+
+  async async function openFullEditEditor(sale){
+    const modal = document.createElement("div");
+    modal.className = "modal";
+
+    const admin = isAdminUser();
+    const pending = admin ? await fetchPendingFixRequest(sale.id) : null;
+
+    // 基準（現在の sales）
+    const baseItems = recalcItems((sale.items || []).map(it=>({
+      name: safeStr(it.name||""),
+      qty: Number(it.qty||0),
+      price: Number(it.price||0)
+    })));
+    const baseTotal = baseItems.reduce((a,b)=>a+Number(b.subtotal||0),0);
+
+    // proposed（依頼があればそれを優先表示）
+    let p = null;
+    if(pending?.proposed && typeof pending.proposed === "object"){
+      p = pending.proposed;
+    }
+
+    let items = p?.items
+      ? recalcItems((p.items||[]).map(it=>({ name: safeStr(it.name||""), qty: Number(it.qty||0), price: Number(it.price||0) })))
+      : baseItems.map(it=>({ ...it }));
+
+    if(items.length===0) items = [{name:"", qty:1, price:0, subtotal:0}];
+
+    const initBuyer = safeStr(p?.buyerName ?? sale.buyerName ?? "");
+    const initPayment = safeStr(p?.paymentMethod ?? sale.paymentMethod ?? "");
+    const initChannel = safeStr(p?.channel ?? sale.channel ?? "");
+    const initMemo = safeStr(p?.memo ?? sale.memo ?? "");
+    const initShip = safeStr(p?.shippingOption ?? sale.shippingOption ?? "");
+    const initKind = safeStr(p?.kind ?? sale.kind ?? "");
+    const initTotal = (p?.total!=null ? Number(p.total||0) : baseTotal);
+
+    // 変更内容（何→何）表示用：pendingがある時は snapshot→proposed を表示
+    const snap = pending?.snapshot || null;
+    const prop = pending?.proposed || null;
+    const fromTo = (key, fallbackBefore, fallbackAfter)=>{
+      if(!admin || !pending) return "";
+      const before = String((snap && (key in snap)) ? (snap[key] ?? "") : (fallbackBefore ?? ""));
+      const after  = String((prop && (key in prop)) ? (prop[key] ?? "") : (fallbackAfter ?? ""));
+      if(before === after) return "";
+      const b = before === "" ? "（空）" : before;
+      const a = after === "" ? "（空）" : after;
+      return `${b}→${a}`;
+    };
+
+    const ftBuyer  = fromTo("buyerName", sale.buyerName, initBuyer);
+    const ftPay    = fromTo("paymentMethod", sale.paymentMethod, initPayment);
+    const ftChan   = fromTo("channel", sale.channel, initChannel);
+    const ftMemo   = fromTo("memo", sale.memo, initMemo);
+    const ftShip   = fromTo("shippingOption", sale.shippingOption, initShip);
+    const ftKind   = fromTo("kind", sale.kind, initKind);
+    const ftTotal  = fromTo("total", baseTotal, initTotal);
+
+
+
+    const initDate = (p?.createdAtLocal ? new Date(p.createdAtLocal) : sale.date);
+    const initDateVal = toLocalInputValue(initDate);
+
+    const requestTextValue = safeStr(pending?.requestText ?? "");
+
+    modal.innerHTML = `
+      <div class="modalCard" role="dialog" aria-modal="true">
+        <div class="modalTitle">${admin && pending ? "修正依頼の反映（管理者）" : "打ち間違い修正（管理者へ依頼）"}</div>
+        <div class="modalSub">
+          ${admin && pending
+            ? "各変更の「許可」にチェック → 保存で sales に反映し、依頼を「完了」にします。"
+            : "カード内の情報をすべて編集できます。保存すると「修正依頼」を送信します（salesは変更しません）。"}
+        </div>
+
+        ${admin && pending ? `
+          <div class="approveBox" id="approveBox">
+            <div class="approveHead">反映する変更にチェック</div>
+            <div class="approveNote">依頼コメント：${escapeHtml(requestTextValue || "-")}</div>
+            <div class="approveList" id="approveList"></div>
+          </div>
+        ` : ""}
+
+        <div class="form">
+          <div class="row">
+            <div class="input">
+              <div class="lab">
+                購入者氏名
+                ${admin && pending && ftBuyer ? `<span class="fromTo">${escapeHtml(ftBuyer)}</span>` : ``}
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="buyerName" checked>許可</label>` : ``}
+              </div>
+              <input id="buyerName" value="${escapeHtml(initBuyer)}" placeholder="例：山田 太郎" />
+            </div>
+            <div class="input">
+              <div class="lab">
+                日付
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="date" checked>許可</label>` : ``}
+              </div>
+              <input id="createdAt" type="datetime-local" value="${escapeHtml(initDateVal)}" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+              <div class="lab">
+                決済方法
+                ${admin && pending && ftPay ? `<span class="fromTo">${escapeHtml(ftPay)}</span>` : ``}
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="paymentMethod" checked>許可</label>` : ``}
+              </div>
+              <select id="paymentMethodSel">
+                ${buildOptionsHTML(optPaymentMethods, initPayment)}
+              </select>
+              <input id="paymentMethodCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：現金 / PayPay）" />
+            </div>
+            <div class="input">
+              <div class="lab">
+                チャンネル
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="channel" checked>許可</label>` : ``}
+              </div>
+              <select id="channelSel">
+                ${buildOptionsHTML(optChannels, initChannel)}
+              </select>
+              <input id="channelCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：マルシェ / インスタ）" />
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+              <div class="lab">
+                種別 kind
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="kind" checked>許可</label>` : ``}
+              </div>
+              <select id="kindSel">
+                <option value="">-</option>
+                <option value="stock">stock</option>
+                <option value="order">order</option>
+              </select>
+            </div>
+            <div class="input">
+              <div class="lab">
+                配送 shippingOption
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="shippingOption" checked>許可</label>` : ``}
+              </div>
+              <input id="shippingOption" value="${escapeHtml(initShip)}" placeholder="例：持ち帰り" />
+            </div>
+          </div>
+
+          <div class="input">
+            <div class="lab">
+              メモ
+              ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="memo" checked>許可</label>` : ``}
+            </div>
+            <textarea id="memo" placeholder="メモ（任意）">${escapeHtml(initMemo)}</textarea>
+          </div>
+
+          ${admin && pending ? "" : `
+          <div class="input">
+            <div class="lab">管理者への依頼コメント（必須）</div>
+            <textarea id="requestText" placeholder="例：決済方法を現金→PayPayに、日付を12/28→12/27に修正してください"></textarea>
+          </div>
+          `}
+
+          <div class="input">
+            <div class="lab">
+              明細（items）
+              ${admin && pending ? `<label class="okChk" style="margin-left:10px;"><input type="checkbox" data-appr="items" checked>許可</label>` : ``}
+            </div>
+            <table class="miniTable" id="itemsTbl">
+              <thead>
+                <tr>
+                  <th style="width:42%;">商品</th>
+                  <th style="width:18%;">数量</th>
+                  <th style="width:20%;">単価</th>
+                  <th style="width:20%;">小計</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+
+            <div class="miniActions">
+              <button class="sbtn" id="addItem">＋ 行追加</button>
+              <button class="sbtn danger" id="delItem">－ 最終行削除</button>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="input">
+              <div class="lab">
+                合計（円）
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="total" checked>許可</label>` : ``}
+              </div>
+              <input id="total" type="number" step="1" value="${escapeHtml(String(initTotal))}" />
+            </div>
+            <div class="input">
+              <div class="lab">ID（編集不可）</div>
+              <input value="${escapeHtml(safeStr(sale.id))}" disabled />
+            </div>
+          </div>
+
+          <div class="miniActions">
+            <button class="sbtn primary" id="save">${admin && pending ? "保存して反映（完了）" : "保存（依頼送信）"}</button>
+            <button class="sbtn" id="cancel">キャンセル</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    modal.addEventListener("click", (e)=>{
+      if(e.target === modal) closeModal(modal);
+    });
+    document.body.appendChild(modal);
+
+    // kind 初期値
+    const kindSel = modal.querySelector("#kindSel");
+    kindSel.value = initKind || "";
+
+    const tbody = modal.querySelector("#itemsTbl tbody");
+
+    const paySel = modal.querySelector("#paymentMethodSel");
+    const payCus = modal.querySelector("#paymentMethodCustom");
+    const chSel = modal.querySelector("#channelSel");
+    const chCus = modal.querySelector("#channelCustom");
+
+    const syncCustomVisibility = ()=>{
+      payCus.style.display = (paySel.value==="__custom__") ? "block" : "none";
+      chCus.style.display = (chSel.value==="__custom__") ? "block" : "none";
+    };
+    syncCustomVisibility();
+    paySel.onchange = syncCustomVisibility;
+    chSel.onchange = syncCustomVisibility;
+
+    function renderItems(){
+      items = recalcItems(items);
+      tbody.innerHTML = items.map((it, idx)=>`
+        <tr>
+          <td><input data-i="${idx}" data-k="name" value="${escapeHtml(it.name||"")}" placeholder="商品名" /></td>
+          <td><input data-i="${idx}" data-k="qty" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(String(it.qty||0))}" /></td>
+          <td><input data-i="${idx}" data-k="price" type="number" inputmode="numeric" step="1" value="${escapeHtml(String(it.price||0))}" /></td>
+          <td class="right">${yen(it.subtotal||0)}</td>
+        </tr>
+      `).join("");
+
+      // total は items から再計算して自動で入れる（手入力したいなら後でスイッチ足す）
+      const t = items.reduce((a,b)=>a+Number(b.subtotal||0),0);
+      modal.querySelector("#total").value = String(Math.round(t));
+    }
+
+    tbody.addEventListener("input", (e)=>{
+      const inp = e.target;
+      if(!(inp instanceof HTMLInputElement)) return;
+      const i = Number(inp.dataset.i);
+      const k = inp.dataset.k;
+      if(!Number.isFinite(i) || !k) return;
+
+      if(k==="name"){
+        items[i].name = inp.value;
+      }else if(k==="qty"){
+        items[i].qty = Number(inp.value||0);
+      }else if(k==="price"){
+        items[i].price = Number(inp.value||0);
+      }
+      renderItems();
+    });
+
+    modal.querySelector("#addItem").onclick = ()=>{
+      items.push({ name:"", qty:1, price:0, subtotal:0 });
+      renderItems();
+    };
+    modal.querySelector("#delItem").onclick = ()=>{
+      if(items.length<=1){
+        toast("これ以上減らせない");
+        return;
+      }
+      items.pop();
+      renderItems();
+    };
+
+    modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
+
+    // 管理者：差分表示
+    if(admin && pending){
+      const list = modal.querySelector("#approveList");
+      const base = {
+        buyerName: safeStr(sale.buyerName||""),
+        date: toLocalInputValue(sale.date),
+        paymentMethod: safeStr(sale.paymentMethod||""),
+        channel: safeStr(sale.channel||""),
+        kind: safeStr(sale.kind||""),
+        shippingOption: safeStr(sale.shippingOption||""),
+        memo: safeStr(sale.memo||""),
+        items: JSON.stringify(baseItems),
+        total: String(Math.round(baseTotal))
+      };
+      const now = {
+        buyerName: safeStr(modal.querySelector("#buyerName").value||""),
+        date: safeStr(modal.querySelector("#createdAt").value||""),
+        paymentMethod: (paySel.value==="__custom__"? safeStr(payCus.value||"") : safeStr(paySel.value||"")),
+        channel: (chSel.value==="__custom__"? safeStr(chCus.value||"") : safeStr(chSel.value||"")),
+        kind: safeStr(kindSel.value||""),
+        shippingOption: safeStr(modal.querySelector("#shippingOption").value||""),
+        memo: safeStr(modal.querySelector("#memo").value||""),
+        items: JSON.stringify(items),
+        total: safeStr(modal.querySelector("#total").value||"")
+      };
+      const rows = [
+        ["buyerName","購入者氏名"],
+        ["date","日付"],
+        ["paymentMethod","決済方法"],
+        ["channel","チャンネル"],
+        ["kind","種別 kind"],
+        ["shippingOption","配送"],
+        ["memo","メモ"],
+        ["items","明細 items"],
+        ["total","合計"]
+      ].filter(([k])=> base[k]!==now[k]);
+
+      if(rows.length===0){
+        list.innerHTML = `<div class="approveEmpty">差分が見つかりません（そのまま保存で完了にできます）</div>`;
+      }else{
+        list.innerHTML = rows.map(([k,label])=>`
+          <div class="approveRow">
+            <div class="approveL">${escapeHtml(label)}</div>
+            <div class="approveR">${escapeHtml(String(base[k]))} → <b>${escapeHtml(String(now[k]))}</b></div>
+            <label class="approveC"><input type="checkbox" data-appr="${k}" checked>許可</label>
+          </div>
+        `).join("");
+      }
+    }
+
+    modal.querySelector("#save").onclick = async ()=>{
+      try{
+        const buyerName = safeStr(modal.querySelector("#buyerName").value || "").trim();
+        const createdAtStr = safeStr(modal.querySelector("#createdAt").value || "");
+        const paymentMethod = (paySel.value === "__custom__"
+          ? safeStr(payCus.value || "").trim()
+          : safeStr(paySel.value || "").trim());
+        const channel = (chSel.value === "__custom__"
+          ? safeStr(chCus.value || "").trim()
+          : safeStr(chSel.value || "").trim());
+        const memo = safeStr(modal.querySelector("#memo").value || "").trim();
+        const shippingOption = safeStr(modal.querySelector("#shippingOption").value || "").trim();
+        const kind = safeStr(kindSel.value || "").trim();
+
+        const createdAtDate = parseLocalInputValue(createdAtStr);
+        if(!createdAtStr || isNaN(createdAtDate.getTime())){
+          toast("日付が不正");
+          return;
+        }
+
+        // items 正規化
+        items = recalcItems(items).map(it=>({
+          name: safeStr(it.name||"").trim(),
+          qty: Number(it.qty||0),
+          price: Number(it.price||0),
+          subtotal: Number(it.subtotal||0)
+        })).filter(it=> it.name || it.qty || it.price);
+
+        const total = Number(modal.querySelector("#total").value || 0);
+
+        if(!items.length){
+          toast("明細が空です");
+          return;
+        }
+        if(!(total>=0)){
+          toast("合計が不正");
+          return;
+        }
+
+        if(admin && pending){
+          // ---- 管理者：許可チェックされたものだけ sales に反映
+          const allowed = new Set(
+            Array.from(modal.querySelectorAll('input[type="checkbox"][data-appr]'))
+              .filter(ch=>ch.checked)
+              .map(ch=>ch.getAttribute("data-appr"))
+          );
+
+          const updateData = {};
+          if(allowed.has("buyerName")) updateData.buyerName = buyerName;
+          if(allowed.has("paymentMethod")) updateData.paymentMethod = paymentMethod;
+          if(allowed.has("channel")) updateData.channel = channel;
+          if(allowed.has("memo")) updateData.memo = memo;
+          if(allowed.has("shippingOption")) updateData.shippingOption = shippingOption;
+          if(allowed.has("kind")) updateData.kind = kind;
+
+          if(allowed.has("date")){
+            updateData.orderDate = fmtYMD(createdAtDate);
+            updateData.orderDateMs = msAtLocalMidnight(createdAtDate);
+            updateData.clientCreatedAt = createdAtDate.getTime();
+          }
+
+          if(allowed.has("items")){
+            updateData.items = items;
+          }
+          if(allowed.has("total")){
+            updateData.total = Math.round(total);
+          }else{
+            // total の許可が外れてるのに items だけ反映、みたいな時にズレが出るのを避ける
+            if(allowed.has("items")){
+              updateData.total = Math.round(items.reduce((a,b)=>a+Number(b.subtotal||0),0));
+            }
+          }
+
+          // 何も許可しない場合は sales を触らず「完了」にできる（運用次第）
+          if(Object.keys(updateData).length > 0){
+            await updateDoc(doc(db, "sales", sale.id), updateData);
+          }
+
+          await updateDoc(doc(db, "sales_fix_requests", pending.id), {
+            status: "完了",
+            resolvedAt: serverTimestamp(),
+            resolvedBy: (currentUser?.email || currentUser?.uid || "")
+          });
+
+          toast("反映して完了にしました");
+          closeModal(modal);
+          await loadAll(true);
+          return;
+        }
+
+        // ---- スタッフ：修正依頼を送る（salesは触らない）
+        const requestText = safeStr(modal.querySelector("#requestText").value || "").trim();
+        if(!requestText){
+          toast("依頼コメントを入れてね");
+          return;
+        }
+
+        await addDoc(collection(db, "sales_fix_requests"), {
+          saleId: sale.id,
+          status: "依頼中",
+          requestText,
+          createdAt: serverTimestamp(),
+          createdBy: (currentUser?.email || currentUser?.uid || ""),
+
+          snapshot: {
+            buyerName: sale.buyerName || "",
+            orderDate: sale.orderDate || "",
+            channel: sale.channel || "",
+            paymentMethod: sale.paymentMethod || "",
+            memo: sale.memo || "",
+            shippingOption: sale.shippingOption || "",
+            kind: sale.kind || "",
+            total: Number(sale.total || 0),
+            items: (sale.items || []).map(it=>({
+              name: it.name || "",
+              qty: Number(it.qty||0),
+              price: Number(it.price||0),
+              subtotal: Number(it.subtotal||0)
+            }))
+          },
+
+          proposed: {
+            buyerName,
+            createdAtLocal: createdAtDate.toISOString(),
+            paymentMethod,
+            channel,
+            memo,
+            shippingOption,
+            kind,
+            items,
+            total
+          }
+        });
+
+        toast("保存しました。管理者へ確認依頼の連絡をお願いします");
+        closeModal(modal);
+        await loadAll(true);
+
+      }catch(err){
+        console.error(err);
+        toast("保存失敗（ルール確認）");
+      }
+    };
+
+    // 初期レンダ
+    renderItems();
+  }
+
+
+  // ---- auth gate (ログインしてなければ login.html へ)
+  onAuthStateChanged(auth, (user)=>{
+    if(!user){
+      authStateEl.textContent = "未ログイン → login.html へ";
+      setTimeout(()=> location.href = "login.html", 250);
+      return;
+    }
+    currentUser = user;
+    authStateEl.textContent = `ログイン中：${user.email || "user"}`;
+    loadAll();
+  });
+</script>
 
 </body>
 </html>
