@@ -2152,14 +2152,15 @@ async function loadFixRequests(){
     }
 
     body.innerHTML = html;
-    }
 
-    // 修正履歴件数
-    if(sale.id){
-}
-  {
-    drawerBackdropEl.classList.add("open");
-    drawerEl.classList.add("open");
+    // wire actions
+    const fixBtn = drawerEl.querySelector('#drawerFixBtn');
+    if (fixBtn) fixBtn.onclick = ()=> openEditChoiceModal(sale);
+    const claimBtn = drawerEl.querySelector('#drawerClaimBtn');
+    if (claimBtn) claimBtn.onclick = ()=> openClaimEditor(sale);
+
+    drawerBackdropEl.classList.add('open');
+    drawerEl.classList.add('open');
   }
 
 
