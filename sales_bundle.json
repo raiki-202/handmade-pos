@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "schema": "sales_bundle_v1",
+    "generatedAt": "2025-12-28T14:32:45",
+    "note": "GitHub Pages に置いて monthly_history_bundle.html から fetch で読む。createdAt は ms(数値) 推奨。"
+  },
+  "sales": [
+    {
+      "id": "s_demo_001",
+      "createdAt": 1764585000000,
+      "orderDate": "2025-12-01",
+      "orderDateMs": 1764547200000,
+      "buyerName": "山田 花子",
+      "channel": "マルシェ",
+      "paymentMethod": "現金",
+      "memo": "bundleサンプル",
+      "kind": "stock",
+      "items": [
+        {
+          "name": "ピアスA",
+          "qty": 1,
+          "unitPrice": 1800,
+          "price": 1800,
+          "subtotal": 1800
+        }
+      ],
+      "total": 1800,
+      "isBundled": true,
+      "source": "bundle"
+    },
+    {
+      "id": "s_demo_002",
+      "createdAt": 1764771300000,
+      "orderDate": "2025-12-03",
+      "buyerName": "佐藤 太郎",
+      "channel": "インスタ",
+      "paymentMethod": "PayPay",
+      "memo": "",
+      "kind": "order",
+      "items": [
+        {
+          "name": "イヤリングB",
+          "qty": 2,
+          "unitPrice": 1200,
+          "price": 1200,
+          "subtotal": 2400
+        }
+      ],
+      "total": 2400,
+      "isBundled": true,
+      "source": "bundle"
+    }
+  ]
+}
