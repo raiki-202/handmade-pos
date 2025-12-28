@@ -1027,6 +1027,54 @@
       .replaceAll("'","&#039;");
   }
 
+  // --- Fix request helpers (staff workflow)
+  const FIX_FIELD_ORDER = ["buyerName","orderDate","channel","paymentMethod","venue","kind","urgentOption","memo","items","total"];
+
+  function jsonEq(a,b){
+    try{ return JSON.stringify(a ?? null) === JSON.stringify(b ?? null); }catch(e){ return String(a)===String(b); }
+  }
+  function computeDiffKeys(snapshot, proposed){
+    const diff = [];
+    for(const k of FIX_FIELD_ORDER){
+      if(!jsonEq(snapshot?.[k], proposed?.[k])) diff.push(k);
+    }
+    return diff;
+  }
+  function normalizeDone(diffKeys, doneKeys){
+    const set = new Set(doneKeys || []);
+    return diffKeys.filter(k => set.has(k));
+  }
+  function statusFrom(diffKeys, doneKeys){
+    const done = new Set(doneKeys || []);
+    return diffKeys.length > 0 && diffKeys.every(k => done.has(k)) ? "修正済み" : "修正中";
+  }
+  function fieldLabel(key){
+    const map = {
+      buyerName:"購入者", orderDate:"購入日付", channel:"販売方法", paymentMethod:"決済方法", venue:"開催場所",
+      kind:"販売種別", urgentOption:"お急ぎ", memo:"メモ", items:"商品明細", total:"合計"
+    };
+    return map[key] || key;
+  }
+
+  function renderDiffRow(key, oldVal, newVal, checked){
+    const oldTxt = escapeHtml(key==="items" ? (oldVal||[]).map(it=>`${it?.productName||it?.name||it?.product||"-"}×${it?.qty||it?.quantity||1} @${it?.price||it?.unitPrice||0}`).join(" / ") : String(oldVal??""));
+    const newTxt = escapeHtml(key==="items" ? (newVal||[]).map(it=>`${it?.productName||it?.name||it?.product||"-"}×${it?.qty||it?.quantity||1} @${it?.price||it?.unitPrice||0}`).join(" / ") : String(newVal??""));
+    return `
+      <div class="diffrow" data-key="${escapeAttr(key)}" style="display:grid; grid-template-columns: 140px 1fr 110px; gap:10px; align-items:center; padding:10px 0; border-top:1px dashed rgba(0,0,0,.12);">
+        <div style="font-weight:700;">${escapeHtml(fieldLabel(key))}</div>
+        <div style="font-size:13px; line-height:1.35;">
+          <div style="opacity:.75;">旧：${oldTxt}</div>
+          <div style="margin-top:4px;">新：${newTxt}</div>
+        </div>
+        <label style="display:flex; gap:8px; align-items:center; justify-content:flex-end; font-weight:700;">
+          <input type="checkbox" class="doneChk" ${checked ? "checked":""} />
+          <span>完了</span>
+        </label>
+      </div>
+    `;
+  }
+
+
   // --- select helper (robust: string[] でも {id,label}[] でもOK)
   function normalizeOptions(options){
     const out = [];
@@ -2129,6 +2177,11 @@ async function renderFixSummary(){
   }
 
 async function openFixEditor(sale){
+  let currentFixReq = null;
+  // load existing fix request (one doc per saleId)
+  const reqId = String(sale?.id || sale?.docId || "");
+  const reqRef = doc(db, "sales_fix_requests", reqId);
+  getDoc(reqRef).then(snap=>{ if(snap.exists()) currentFixReq = snap.data(); }).catch(()=>{});
   // 「明細詳細」と同じDrawerの見た目で、編集入力を常時表示する版（タップで消える問題を根本回避）
   ensureDrawer();
 
@@ -2331,6 +2384,112 @@ async function openFixEditor(sale){
         kind: body.querySelector("#fix_kind").value || "",
         memo: body.querySelector("#fix_memo").value
       };
+          // --- Build/Upsert fix request (staff only)
+          const snapshot = {
+            buyerName: sale?.buyerName ?? sale?.buyer ?? "",
+            orderDate: sale?.orderDate ?? sale?.date ?? "",
+            channel: sale?.channel ?? "",
+            paymentMethod: sale?.paymentMethod ?? "",
+            venue: sale?.venue ?? "",
+            kind: sale?.kind ?? "",
+            urgentOption: sale?.urgentOption ?? "",
+            memo: sale?.memo ?? "",
+            items: sale?.items ?? [],
+            total: sale?.total ?? sale?.amount ?? 0,
+          };
+
+          const proposed = {
+            buyerName: draft.buyerName,
+            orderDate: draft.orderDate,
+            channel: draft.channel,
+            paymentMethod: draft.paymentMethod,
+            venue: draft.venue,
+            kind: draft.kind,
+            urgentOption: draft.urgentOption,
+            memo: draft.memo,
+            items: draft.items,
+            total: draft.total,
+          };
+
+          const diffKeys = computeDiffKeys(snapshot, proposed);
+          const prevDone = (currentFixReq && currentFixReq.doneKeys) ? currentFixReq.doneKeys : [];
+          const doneKeys = normalizeDone(diffKeys, prevDone);
+          const status = statusFrom(diffKeys, doneKeys);
+
+          const reqPayload = {
+            saleId: String(sale?.id || sale?.docId || ""),
+            status,
+            updatedAt: new Date(),
+            diffKeys,
+            doneKeys,
+            snapshot,
+            proposed,
+            createdAt: (currentFixReq && currentFixReq.createdAt) ? currentFixReq.createdAt : new Date(),
+            createdByUid: (auth?.currentUser?.uid || ""),
+            createdByEmail: (auth?.currentUser?.email || ""),
+          };
+
+          if(diffKeys.length === 0){
+            toast("変更がありません");
+            // still render checklist (empty)
+          } else {
+            // upsert: one request per saleId (doc id = saleId)
+            const reqId = reqPayload.saleId;
+            const reqRef = doc(db, "sales_fix_requests", reqId);
+            try{
+              await setDoc(reqRef, reqPayload, { merge: true });
+              currentFixReq = reqPayload;
+              toast("修正依頼を保存しました");
+            }catch(err){
+              console.error("fix request save failed", err);
+              toast(`保存失敗（${err?.code||"error"}）`);
+              return;
+            }
+          }
+
+          // render checklist and wire updates
+          try{
+            const box = document.getElementById("fix_checklist");
+            if(box){
+              box.innerHTML = `
+                <h3 style="margin:18px 0 10px;">修正チェック（旧→新　□完了）</h3>
+                <div class="diffbox" style="border:1px solid rgba(0,0,0,.08); border-radius:16px; padding:14px 14px 6px; background:rgba(255,255,255,.72)"></div>
+              `;
+              const inner = box.querySelector(".diffbox");
+              const doneSet = new Set(doneKeys||[]);
+              inner.innerHTML = diffKeys.map(k=>renderDiffRow(k, snapshot[k], proposed[k], doneSet.has(k))).join("") 
+                + `<div style="padding:10px 0; text-align:right; font-weight:800;">ステータス：<span id="fix_status_badge">${escapeHtml(status)}</span></div>`;
+              const reqId2 = String(reqPayload.saleId||"");
+              const reqRef2 = doc(db, "sales_fix_requests", reqId2);
+
+              inner.querySelectorAll(".diffrow").forEach(row=>{
+                const key = row.getAttribute("data-key");
+                const chk = row.querySelector(".doneChk");
+                chk.addEventListener("change", async ()=>{
+                  const cur = currentFixReq || reqPayload;
+                  const dk = computeDiffKeys(cur.snapshot || snapshot, cur.proposed || proposed);
+                  const set = new Set(cur.doneKeys || []);
+                  if(chk.checked) set.add(key); else set.delete(key);
+                  const nextDone = normalizeDone(dk, Array.from(set));
+                  const nextStatus = statusFrom(dk, nextDone);
+                  try{
+                    await updateDoc(reqRef2, { doneKeys: nextDone, status: nextStatus, updatedAt: new Date() });
+                    currentFixReq = { ...(cur||{}), doneKeys: nextDone, status: nextStatus };
+                    const badge = document.getElementById("fix_status_badge");
+                    if(badge) badge.textContent = nextStatus;
+                    // refresh top counters if exists
+                    if(typeof refreshFixBadges === "function") refreshFixBadges();
+                  }catch(err){
+                    console.error("done toggle failed", err);
+                    chk.checked = !chk.checked;
+                    toast(`更新失敗（${err?.code||"error"}）`);
+                  }
+                });
+              });
+            }
+          }catch(e){ console.warn(e); }
+
+
 
       // normalize items
       const cleanItems = items.map(it=>({
@@ -2344,21 +2503,11 @@ async function openFixEditor(sale){
 
       if(admin){
         // 管理者：salesを上書き
-        await updateDoc(doc(db,"sales", sale.id), {
-          buyerName: draft.buyerName,
-          orderDate: draft.orderDate,
-          channel: draft.channel,
-          paymentMethod: draft.paymentMethod,
-          venue: draft.venue,
-          kind: draft.kind,
-          memo: draft.memo,
-          items: cleanItems,
-          total: newTotal,
-          updatedAt: new Date(),
-        });
-        toast("保存しました（salesを更新）");
+        // direct sales update disabled (admin edits in Firebase)
+toast("保存しました（salesを更新）");
         await loadAll();
-        // 再表示
+      if(typeof refreshFixBadges==='function') refreshFixBadges();
+// 再表示
         const latest = rawSales.find(x=>x.id===sale.id) || sale;
         openSaleDrawer(latest);
       }else{
