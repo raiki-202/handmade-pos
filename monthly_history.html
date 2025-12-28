@@ -975,6 +975,7 @@
   // ---- helpers
   const pad2 = (n)=> String(n).padStart(2,"0");
   const fmtYMDHM = (d)=> `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  const fmtYMD = (d)=> `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
   const fmtMoney = (n)=> {
     const v = Number(n||0);
     return "¥" + v.toLocaleString("ja-JP");
@@ -1967,7 +1968,7 @@ async function openFixEditor(sale){
     </div>
   `;
 
-  const esc = (s)=>escapeHTML(String(s ?? ""));
+  const esc = (s)=>escapeHtml(String(s ?? ""));
   const sel = (id, list, value, placeholder="-")=>{
     const v = (value==null? "" : String(value));
     const opts = [`<option value="">${placeholder}</option>`]
@@ -2179,7 +2180,7 @@ async function openFixEditor(sale){
         toast("保存しました（salesを更新）");
         await loadAll();
         // 再表示
-        const latest = allSales.find(x=>x.id===sale.id) || sale;
+        const latest = rawSales.find(x=>x.id===sale.id) || sale;
         openSaleDrawer(latest);
       }else{
         // スタッフ：依頼送信（salesは変更しない）
