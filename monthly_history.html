@@ -2408,8 +2408,9 @@ async function openFixEditor(sale){
         doneKeys: [],
         snapshot,
         proposed,
-        createdAt: existing?.createdAt || new Date(),
-        updatedAt: new Date(),
+        createdAt: (existing?.createdAt || serverTimestamp()),
+        updatedAt: serverTimestamp(),
+        createdBy: (auth?.currentUser?.email || auth?.currentUser?.uid || ""),
         createdByUid: (auth?.currentUser?.uid || ""),
         createdByEmail: (auth?.currentUser?.email || "")
       };
@@ -2483,7 +2484,7 @@ async function openFixEditor(sale){
       const nextDone = Array.from(set).filter(k=> dk.includes(k));
       const nextStatus = (dk.length>0 && dk.every(k=> nextDone.includes(k))) ? "修正済み" : "修正中";
       try{
-        await updateDoc(reqRef, { doneKeys: nextDone, status: nextStatus, updatedAt: new Date() });
+        await updateDoc(reqRef, { doneKeys: nextDone, status: nextStatus, updatedAt: serverTimestamp(), ...(nextStatus==="修正済み" ? { resolvedAt: serverTimestamp(), resolvedBy: (auth?.currentUser?.email || "") } : {}) });
         const stEl = body.querySelector("#req_status");
         if(stEl) stEl.textContent = nextStatus;
         await loadFixRequests();
