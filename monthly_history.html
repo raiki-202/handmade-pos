@@ -1501,14 +1501,7 @@ async function loadSales(){
 
   // 4) 件数（管理者表示用）
   lastSourceCounts = { json: bundleList.length, firebase: firebaseOnlyCount };
-
-  // option lists を sales から自動収集
-  optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
-  optChannels       = uniqSorted(rawSales.map(x=>x.channel));
-
-  
-  optKinds          = uniqSorted(rawSales.map(x=>x.kind));
-  optShippingOptions= uniqSorted(rawSales.map(x=>x.shippingOption));
+  // option lists：payments/channels/kinds/venues/urgent は bundle から読む（sales から上書きしない）
 fillYearOptions(rawSales);
   const latest = rawSales.reduce((a,b)=> (a && a.date>b.date) ? a : b, null);
   if(latest && latest.date?.getTime?.()>0){
@@ -2211,8 +2204,7 @@ async function openFixEditor(sale){
         ${kvRow("決済方法", sel("fix_payment", optPaymentMethods, sale.paymentLabel || sale.paymentMethod || sale.paymentMethodId || ""))}
         ${kvRow("開催場所", sel("fix_venue", optVenues, sale.venueLabel || sale.venue || ""))}
         ${kvRow("販売種別", sel("fix_kind", optKinds, sale.kind || ""))}
-        ${kvRow("配送", sel("fix_ship", optShippingOptions, sale.shippingOption || sale.shipping || ""))}
-        ${kvRow("メモ", area("fix_memo", memo, "メモ"))}
+                ${kvRow("メモ", area("fix_memo", memo, "メモ"))}
       </div>
 
       <div class="sectionTitle" style="margin-top:14px;">商品明細</div>
@@ -2251,7 +2243,6 @@ async function openFixEditor(sale){
         venue: body.querySelector("#fix_venue").value || "",
         urgentOption: body.querySelector("#fix_urgent").value || "",
         kind: body.querySelector("#fix_kind").value || "",
-        shippingOption: body.querySelector("#fix_ship").value || "",
         memo: body.querySelector("#fix_memo").value
       };
 
@@ -2275,7 +2266,6 @@ async function openFixEditor(sale){
           venue: draft.venue,
           urgentOption: draft.urgentOption,
           kind: draft.kind,
-          shippingOption: draft.shippingOption,
           memo: draft.memo,
           items: cleanItems,
           total: newTotal,
