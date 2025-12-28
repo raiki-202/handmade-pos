@@ -1786,6 +1786,7 @@ async function renderFixSummary(){
     };
   }
 function openFixEditor(sale){
+  const admin = isAdminEmail(currentUser?.email);
   const modal = document.createElement("div");
   modal.className = "modal";
 
