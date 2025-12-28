@@ -1044,7 +1044,10 @@
   let optPaymentMethods = [];
   let optChannels = [];
 
-  function uniqSorted(arr){
+  
+  let optKinds = [];
+  let optShippingOptions = [];
+function uniqSorted(arr){
     const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
     return [...set].sort((a,b)=>a.localeCompare(b,'ja'));
   }
@@ -1064,7 +1067,123 @@
     return opts.join("");
   }
 
-  // ---- routing
+  
+  // ---- fix editor helpers (self-contained)
+  function escapeAttr(s){ return escapeHtml(s); }
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+
+  function toLocalDateTimeInputValue(d){
+    try{
+      const dt = (d instanceof Date) ? d : new Date(d);
+      if(isNaN(dt.getTime())) return "";
+      return `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}T${pad2(dt.getHours())}:${pad2(dt.getMinutes())}`;
+    }catch(e){ return ""; }
+  }
+
+  function fmtDateTime(ms){
+    const d = new Date(Number(ms||0));
+    if(isNaN(d.getTime())) return "-";
+    return `${d.getFullYear()}/${pad2(d.getMonth()+1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  }
+
+  function fmtYMDDate(ms){
+    const d = new Date(Number(ms||0));
+    if(isNaN(d.getTime())) return "-";
+    return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+  }
+
+  function msAtLocalMidnight(ymd){
+    // ymd: "YYYY-MM-DD"
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd||""));
+    if(!m) return 0;
+    const d = new Date(Number(m[1]), Number(m[2])-1, Number(m[3]), 0,0,0,0);
+    return d.getTime();
+  }
+
+  function wireTapEdit(root){
+    // tap/click disp -> show input; blur/Enter -> back to disp
+    const wraps = root.querySelectorAll?.(".editWrap") || [];
+    wraps.forEach(w=>{
+      const disp = w.querySelector(".disp");
+      const input = w.querySelector(".editInput");
+      if(!disp || !input) return;
+
+      const syncDisp = ()=>{
+        let val = "";
+        if(input.tagName === "SELECT"){
+          val = input.value === "__custom__" ? (w.querySelector(".customInput")?.value || "") : input.value;
+        }else{
+          val = input.value;
+        }
+        disp.textContent = (val && String(val).trim().length) ? String(val) : "-";
+      };
+
+      // init
+      input.style.display = "none";
+      const custom = w.querySelector(".customInput");
+      if(custom) custom.style.display = "none";
+      syncDisp();
+
+      disp.style.cursor = "pointer";
+      disp.addEventListener("click", ()=>{
+        disp.style.display = "none";
+        input.style.display = "";
+        if(input.tagName === "SELECT"){
+          selectOrCustom(w, input);
+        }else{
+          input.focus();
+        }
+      });
+
+      const close = ()=>{
+        input.style.display = "none";
+        if(custom) custom.style.display = "none";
+        disp.style.display = "";
+        syncDisp();
+      };
+
+      input.addEventListener("change", ()=>{
+        if(input.tagName === "SELECT") selectOrCustom(w, input);
+        syncDisp();
+      });
+      input.addEventListener("blur", close);
+      input.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter"){ e.preventDefault(); close(); }
+        if(e.key === "Escape"){ e.preventDefault(); close(); }
+      });
+
+      if(custom){
+        custom.addEventListener("input", syncDisp);
+        custom.addEventListener("blur", close);
+        custom.addEventListener("keydown", (e)=>{
+          if(e.key === "Enter"){ e.preventDefault(); close(); }
+          if(e.key === "Escape"){ e.preventDefault(); close(); }
+        });
+      }
+    });
+  }
+
+  function selectOrCustom(wrap, sel){
+    const custom = wrap.querySelector(".customInput");
+    if(!custom) return;
+    if(sel.value === "__custom__"){
+      custom.style.display = "";
+      custom.focus();
+    }else{
+      custom.style.display = "none";
+      custom.value = "";
+    }
+  }
+
+  function getSelOrCustom(sel, custom){
+    if(sel && sel.value === "__custom__"){
+      return (custom?.value || "").trim();
+    }
+    return (sel?.value || "").trim();
+  }
+
+// ---- routing
   btnHome.addEventListener("click", ()=> location.href = "index.html");
   btnOther.addEventListener("click", ()=> location.href = "otherpage.html");
   btnReload.addEventListener("click", ()=> loadAll(true));
@@ -1278,7 +1397,10 @@ async function loadSales(){
   optPaymentMethods = uniqSorted(rawSales.map(x=>x.paymentMethod));
   optChannels       = uniqSorted(rawSales.map(x=>x.channel));
 
-  fillYearOptions(rawSales);
+  
+  optKinds          = uniqSorted(rawSales.map(x=>x.kind));
+  optShippingOptions= uniqSorted(rawSales.map(x=>x.shippingOption));
+fillYearOptions(rawSales);
   const latest = rawSales.reduce((a,b)=> (a && a.date>b.date) ? a : b, null);
   if(latest && latest.date?.getTime?.()>0){
     yearSel.value = String(latest.date.getFullYear());
@@ -1786,7 +1908,7 @@ async function renderFixSummary(){
     };
   }
 
-async function openFixEditor(sale){
+async async function openFixEditor(sale){
   const admin = isAdminEmail(currentUser?.email);
 
   // ---- 管理者：この sale の「依頼中」リクエストを1件だけ拾う（あれば承認モード）
