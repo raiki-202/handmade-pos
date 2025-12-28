@@ -1905,7 +1905,7 @@ async function renderFixSummary(){
     };
   }
 
-async async function openFixEditor(sale){
+async function openFixEditor(sale){
   const admin = isAdminEmail(currentUser?.email);
 
   // ---- 管理者：この sale の「依頼中」リクエストを1件だけ拾う（あれば承認モード）
@@ -2225,7 +2225,7 @@ async async function openFixEditor(sale){
         if(f === "qty" || f === "price"){
           items[i].subtotal = Math.round(Number(items[i].qty||0) * Number(items[i].price||0));
           // subtotal欄も同期
-          const sub = area.querySelector(\`.cellIn[data-f="subtotal"][data-i="\${i}"]\`);
+          const sub = area.querySelector(`.cellIn[data-f="subtotal"][data-i="${i}"]`);
           if(sub) sub.value = String(items[i].subtotal);
         }
         // total更新
