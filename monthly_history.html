@@ -2239,14 +2239,10 @@ async function openFixEditor(sale){
         buyerName: body.querySelector("#fix_buyer").value.trim(),
         orderDate: body.querySelector("#fix_date").value.trim(),
         channel: body.querySelector("#fix_channel").value || "",
-        channelLabel: (optChannels.find(o=>o.id===(body.querySelector("#fix_channel").value||""))||{}).label || "",
         paymentMethod: body.querySelector("#fix_payment").value || "",
         venue: body.querySelector("#fix_venue").value || "",
-        venueLabel: (optVenues.find(o=>o.id===(body.querySelector("#fix_venue").value||""))||{}).label || "",
         urgentOption: body.querySelector("#fix_urgent").value || "",
-        urgentOptionLabel: (optUrgentOptions.find(o=>o.id===(body.querySelector("#fix_urgent").value||""))||{}).label || "",
         kind: body.querySelector("#fix_kind").value || "",
-        kindLabel: (optKinds.find(o=>o.id===(body.querySelector("#fix_kind").value||""))||{}).label || "",
         memo: body.querySelector("#fix_memo").value
       };
 
@@ -2300,7 +2296,8 @@ async function openFixEditor(sale){
       }
     }catch(err){
       console.error(err);
-      toast("保存失敗（ルール確認）");
+      toast(`保存失敗（${err?.code||"error"}）`);
+          console.error("save failed", err);
     }
   };
 }
