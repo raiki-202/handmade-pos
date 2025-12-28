@@ -1782,17 +1782,17 @@ async function renderFixSummary(){
 
     modal.querySelector("#btnFix").onclick = ()=>{
       closeModal(modal);
-      openFullEditEditor(sale);
+      openFixEditor(sale);
     };
   }
-function openClaimEditor(sale){
+function openFixEditor(sale){
   const modal = document.createElement("div");
   modal.className = "modal";
 
   modal.innerHTML = `
     <div class="modalCard" role="dialog" aria-modal="true">
-      <div class="modalTitle">クレーム返金処理（マイナス sales 作成）</div>
-      <div class="modalSub">元の sales は変更しません。紐づく「返金用の sales（マイナス）」を新規作成します。</div>
+      <div class="modalTitle">打ち間違い修正（依頼／承認）</div>
+      <div class="modalSub">スタッフ：修正依頼を送信（salesは変更しません）／管理者：許可した項目だけ sales に反映して完了にします。</div>
 
       <div class="editKvWrap">
   <div class="kv editKv">
@@ -2222,7 +2222,13 @@ function openClaimEditor(sale){
   }
 
 
-  // ---- auth gate (ログインしてなければ login.html へ)
+  
+  // ---- クレーム返金処理（未実装：必要なら実装します）
+  function openClaimEditor(sale){
+    toast("クレーム返金処理はこの版では未実装です（必要なら追加します）");
+  }
+
+// ---- auth gate (ログインしてなければ login.html へ)
   onAuthStateChanged(auth, (user)=>{
     if(!user){
       authStateEl.textContent = "未ログイン → login.html へ";
