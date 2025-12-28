@@ -716,7 +716,56 @@
     }
     .drawerTable .right{ text-align:right; }
 
-</style>
+
+    /* approve (admin) */
+    .approveBox{
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(255,255,255,.62);
+      box-shadow: 0 10px 18px rgba(0,0,0,.05);
+    }
+    .approveHead{
+      font-weight: 900;
+      font-size: 13px;
+      margin-bottom: 6px;
+    }
+    .approveNote{
+      font-size: 12px;
+      color: rgba(34,34,34,.72);
+      font-weight: 800;
+      margin-bottom: 8px;
+      line-height: 1.35;
+    }
+    .approveRow{
+      display:grid;
+      grid-template-columns: 120px 1fr 80px;
+      gap:10px;
+      align-items:center;
+      padding: 8px 0;
+      border-top: 1px dashed rgba(0,0,0,.10);
+      font-size: 12px;
+    }
+    .approveRow:first-child{ border-top:0; }
+    .approveL{ font-weight: 900; color: rgba(34,34,34,.82); }
+    .approveR{ color: rgba(34,34,34,.76); font-weight: 800; word-break: break-word; }
+    .approveC{ justify-self:end; font-weight: 900; color: rgba(34,34,34,.82); display:flex; gap:6px; align-items:center; }
+    .approveEmpty{ font-size: 12px; font-weight: 800; color: rgba(34,34,34,.72); padding: 6px 0; }
+    .fromTo{font-size:11px;font-weight:900;color:rgba(34,34,34,.55);margin-left:8px;}
+    .okChk{
+      margin-left: 10px;
+      font-size: 11px;
+      font-weight: 900;
+      color: rgba(34,34,34,.76);
+      display:inline-flex;
+      gap:6px;
+      align-items:center;
+      user-select:none;
+    }
+    .okChk input{ transform: translateY(1px); }
+
+  </style>
 </head>
 
 <body>
@@ -772,8 +821,8 @@
 
           <div class="smallNote" id="note">
             ・saleをクリックすると明細を開きます。右端の「✎」で編集できます。<br>
-            ・「クレーム返金」は「マイナスの sales」を新規作成します（元の sales は保持）。「打ち間違い修正」は sales を上書きします。<br>
-            ・バンドル由来データは上書き編集できません（管理者へ修正内容を伝えてください）。
+            ・「クレーム返金」は「マイナスの sales」を新規作成します（元の sales は保持）。「打ち間違い修正」は管理者へ修正依頼を送ります（salesは変更しません）。<br>
+            ・バンドル由来データも含め、打ち間違い修正は「修正依頼」を送ります（salesは変更しません）。本修正は管理者のみです。
           </div>
         </div>
       </div>
@@ -787,7 +836,7 @@
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   import {
     getFirestore,
-    collection, doc, query, where, orderBy, limit, getDocs, addDoc, updateDoc, serverTimestamp
+    collection, doc, query, where, orderBy, limit, getDocs, addDoc, updateDoc, serverTimestamp, Timestamp
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   // ✅ 本番（既存ファイルと同じ）
@@ -947,10 +996,17 @@
     }
 
     const items = Array.isArray(data.items) ? data.items.map(it=>({
+      id: it.id ?? it.productId ?? it.sku ?? "",
       name: it.name ?? it.productName ?? "",
       qty: Number(it.qty ?? it.quantity ?? 0),
-      price: Number(it.price ?? it.unitPrice ?? 0),
-      subtotal: Number(it.subtotal ?? (Number(it.price ?? 0) * Number(it.qty ?? 0)) ?? 0),
+      unitPrice: Number(it.unitPrice ?? it.price ?? it.unit ?? 0),
+      // 互換用（古いコードが price を参照しても動くよう残す）
+      price: Number(it.unitPrice ?? it.price ?? it.unit ?? 0),
+      subtotal: Number(
+        it.subtotal ??
+        (Number(it.unitPrice ?? it.price ?? it.unit ?? 0) * Number(it.qty ?? it.quantity ?? 0)) ??
+        0
+      ),
       raw: it
     })) : [];
 
@@ -1359,16 +1415,16 @@
       <div class="kv">
         ${kv("購入者", sale.buyerName ?? "")}
         ${kv("購入日付", dateText)}
+        <div class="k">修正履歴</div><div class="v"><span id="fixCount">-</span>件</div>
         ${kv("販売方法", channel)}
         ${kv("決済方法", payment)}
         ${kv("開催場所", venue)}
         ${kv("販売種別", kind)}
         ${urgent ? kv("緊急オプション", urgent) : ""}
         ${memo ? kv("メモ", memo) : ""}
-        ${sale.id ? kv("Sale ID", sale.id) : ""}
-        ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
+                ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
         ${sale.isRefund ? kv("返金", "はい") : ""}
-        ${sale.isBundled ? kv("Bundle", "はい（上書き不可）") : ""}
+        ${sale.isBundled ? kv("Bundle", "はい") : ""}
       </div>
     `;
 
@@ -1404,20 +1460,24 @@
 
     // system fields (折りたたみ気味)
     const createdAt = sale.createdAtText || "";
-    const clientCreatedAt = sale.clientCreatedAt ? String(sale.clientCreatedAt) : "";
-    const orderDateMs = sale.orderDateMs ? String(sale.orderDateMs) : "";
 
-    if(createdAt || clientCreatedAt || orderDateMs){
+    if(createdAt){
       html += `<div class="sectionTitle">システム</div>
         <div class="kv">
           ${createdAt ? kv("createdAt", createdAt) : ""}
-          ${clientCreatedAt ? kv("clientCreatedAt", clientCreatedAt) : ""}
-          ${orderDateMs ? kv("orderDateMs", orderDateMs) : ""}
         </div>
       `;
     }
 
     body.innerHTML = html;
+
+    // 修正履歴件数
+    if(sale.id){
+      fetchFixRequestCount(sale.id).then(n=>{
+        const el = drawerEl.querySelector("#fixCount");
+        if(el) el.textContent = String(n);
+      });
+    }
 
     drawerBackdropEl.classList.add("open");
     drawerEl.classList.add("open");
@@ -1430,13 +1490,13 @@
     modal.innerHTML = `
       <div class="modalCard" role="dialog" aria-modal="true">
         <div class="modalTitle">編集内容を選択</div>
-        <div class="modalSub">クレーム返金：マイナスの sales を新規作成 / 打ち間違い修正：salesを上書き</div>
+        <div class="modalSub">クレーム返金：マイナスの sales を新規作成 / 打ち間違い修正：管理者へ修正依頼を送信（salesは変更しません）</div>
         <div class="modalBtns">
           <button class="modalBtn danger" id="btnClaim">
             <span>クレーム返金処理</span><span class="hint">追記</span>
           </button>
           <button class="modalBtn primary" id="btnFix">
-            <span>打ち間違い修正</span><span class="hint">上書き</span>
+            <span>打ち間違い修正</span><span class="hint">依頼</span>
           </button>
           <button class="modalBtn" id="btnCancel">
             <span>キャンセル</span><span class="hint">閉じる</span>
@@ -1589,51 +1649,174 @@ function openClaimEditor(sale){
     });
   }
 
-  function openFullEditEditor(sale){
-    // バンドル由来は上書き禁止
-    if(sale.isBundled){
-      toast("このデータは編集できません。管理者へ修正内容を伝えてください。");
-      return;
+  
+  async function fetchPendingFixRequest(saleId){
+    try{
+      const q = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId),
+        where("status","==", "依頼中"),
+        orderBy("createdAt","desc"),
+        limit(1)
+      );
+      const snap = await getDocs(q);
+      if(snap.empty) return null;
+      const d = snap.docs[0];
+      return { id: d.id, ...d.data() };
+    }catch(err){
+      console.warn("fetchPendingFixRequest failed", err);
+      return null;
     }
+  }
+  async function fetchFixRequestCount(saleId){
+    try{
+      const q = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId)
+      );
+      const snap = await getDocs(q);
+      return snap.size || 0;
+    }catch(err){
+      console.warn("fetchFixRequestCount failed", err);
+      return 0;
+    }
+  }
 
+
+
+  function isAdminUser(){
+    return (currentUser?.email || "") === "enue_staff03@management.com";
+  }
+
+  function fmtYMD(d){
+    const y = d.getFullYear();
+    const m = pad2(d.getMonth()+1);
+    const dd = pad2(d.getDate());
+    return `${y}-${m}-${dd}`;
+  }
+  function msAtLocalMidnight(d){
+    const x = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0,0,0,0);
+    return x.getTime();
+  }
+
+  async async function openFullEditEditor(sale){
     const modal = document.createElement("div");
     modal.className = "modal";
 
-    // shallow copy
-    let items = (sale.items || []).map(it=>({ name: safeStr(it.name||""), qty: Number(it.qty||0), price: Number(it.price||0) }));
-    items = recalcItems(items);
+    const admin = isAdminUser();
+    const pending = admin ? await fetchPendingFixRequest(sale.id) : null;
 
-    const totalAuto = items.reduce((a,b)=>a+Number(b.subtotal||0),0);
+    // 基準（現在の sales）
+    const baseItems = recalcItems((sale.items || []).map(it=>({
+      name: safeStr(it.name||""),
+      qty: Number(it.qty||0),
+      price: Number(it.price||0)
+    })));
+    const baseTotal = baseItems.reduce((a,b)=>a+Number(b.subtotal||0),0);
+
+    // proposed（依頼があればそれを優先表示）
+    let p = null;
+    if(pending?.proposed && typeof pending.proposed === "object"){
+      p = pending.proposed;
+    }
+
+    let items = p?.items
+      ? recalcItems((p.items||[]).map(it=>({ name: safeStr(it.name||""), qty: Number(it.qty||0), price: Number(it.price||0) })))
+      : baseItems.map(it=>({ ...it }));
+
+    if(items.length===0) items = [{name:"", qty:1, price:0, subtotal:0}];
+
+    const initBuyer = safeStr(p?.buyerName ?? sale.buyerName ?? "");
+    const initPayment = safeStr(p?.paymentMethod ?? sale.paymentMethod ?? "");
+    const initChannel = safeStr(p?.channel ?? sale.channel ?? "");
+    const initMemo = safeStr(p?.memo ?? sale.memo ?? "");
+    const initShip = safeStr(p?.shippingOption ?? sale.shippingOption ?? "");
+    const initKind = safeStr(p?.kind ?? sale.kind ?? "");
+    const initTotal = (p?.total!=null ? Number(p.total||0) : baseTotal);
+
+    // 変更内容（何→何）表示用：pendingがある時は snapshot→proposed を表示
+    const snap = pending?.snapshot || null;
+    const prop = pending?.proposed || null;
+    const fromTo = (key, fallbackBefore, fallbackAfter)=>{
+      if(!admin || !pending) return "";
+      const before = String((snap && (key in snap)) ? (snap[key] ?? "") : (fallbackBefore ?? ""));
+      const after  = String((prop && (key in prop)) ? (prop[key] ?? "") : (fallbackAfter ?? ""));
+      if(before === after) return "";
+      const b = before === "" ? "（空）" : before;
+      const a = after === "" ? "（空）" : after;
+      return `${b}→${a}`;
+    };
+
+    const ftBuyer  = fromTo("buyerName", sale.buyerName, initBuyer);
+    const ftPay    = fromTo("paymentMethod", sale.paymentMethod, initPayment);
+    const ftChan   = fromTo("channel", sale.channel, initChannel);
+    const ftMemo   = fromTo("memo", sale.memo, initMemo);
+    const ftShip   = fromTo("shippingOption", sale.shippingOption, initShip);
+    const ftKind   = fromTo("kind", sale.kind, initKind);
+    const ftTotal  = fromTo("total", baseTotal, initTotal);
+
+
+
+    const initDate = (p?.createdAtLocal ? new Date(p.createdAtLocal) : sale.date);
+    const initDateVal = toLocalInputValue(initDate);
+
+    const requestTextValue = safeStr(pending?.requestText ?? "");
 
     modal.innerHTML = `
       <div class="modalCard" role="dialog" aria-modal="true">
-        <div class="modalTitle">打ち間違い修正（sales上書き）</div>
-        <div class="modalSub">カード内の情報をすべて編集できます。保存すると sales を update します。</div>
+        <div class="modalTitle">${admin && pending ? "修正依頼の反映（管理者）" : "打ち間違い修正（管理者へ依頼）"}</div>
+        <div class="modalSub">
+          ${admin && pending
+            ? "各変更の「許可」にチェック → 保存で sales に反映し、依頼を「完了」にします。"
+            : "カード内の情報をすべて編集できます。保存すると「修正依頼」を送信します（salesは変更しません）。"}
+        </div>
+
+        ${admin && pending ? `
+          <div class="approveBox" id="approveBox">
+            <div class="approveHead">反映する変更にチェック</div>
+            <div class="approveNote">依頼コメント：${escapeHtml(requestTextValue || "-")}</div>
+            <div class="approveList" id="approveList"></div>
+          </div>
+        ` : ""}
 
         <div class="form">
           <div class="row">
             <div class="input">
-              <div class="lab">購入者氏名</div>
-              <input id="buyerName" value="${escapeHtml(safeStr(sale.buyerName))}" placeholder="例：山田 太郎" />
+              <div class="lab">
+                購入者氏名
+                ${admin && pending && ftBuyer ? `<span class="fromTo">${escapeHtml(ftBuyer)}</span>` : ``}
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="buyerName" checked>許可</label>` : ``}
+              </div>
+              <input id="buyerName" value="${escapeHtml(initBuyer)}" placeholder="例：山田 太郎" />
             </div>
             <div class="input">
-              <div class="lab">日付</div>
-              <input id="createdAt" type="datetime-local" value="${escapeHtml(toLocalInputValue(sale.date))}" />
+              <div class="lab">
+                日付
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="date" checked>許可</label>` : ``}
+              </div>
+              <input id="createdAt" type="datetime-local" value="${escapeHtml(initDateVal)}" />
             </div>
           </div>
 
           <div class="row">
             <div class="input">
-              <div class="lab">決済方法</div>
+              <div class="lab">
+                決済方法
+                ${admin && pending && ftPay ? `<span class="fromTo">${escapeHtml(ftPay)}</span>` : ``}
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="paymentMethod" checked>許可</label>` : ``}
+              </div>
               <select id="paymentMethodSel">
-                ${buildOptionsHTML(optPaymentMethods, sale.paymentMethod)}
+                ${buildOptionsHTML(optPaymentMethods, initPayment)}
               </select>
               <input id="paymentMethodCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：現金 / PayPay）" />
             </div>
             <div class="input">
-              <div class="lab">チャンネル</div>
+              <div class="lab">
+                チャンネル
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="channel" checked>許可</label>` : ``}
+              </div>
               <select id="channelSel">
-                ${buildOptionsHTML(optChannels, sale.channel)}
+                ${buildOptionsHTML(optChannels, initChannel)}
               </select>
               <input id="channelCustom" style="display:none;margin-top:6px;" value="" placeholder="自由入力（例：マルシェ / インスタ）" />
             </div>
@@ -1641,26 +1824,45 @@ function openClaimEditor(sale){
 
           <div class="row">
             <div class="input">
-  <div class="lab">種別 kind</div>
-  <select id="kindSel">
-    <option value="">-</option>
-    <option value="stock">stock</option>
-    <option value="order">order</option>
-  </select>
-</div>
+              <div class="lab">
+                種別 kind
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="kind" checked>許可</label>` : ``}
+              </div>
+              <select id="kindSel">
+                <option value="">-</option>
+                <option value="stock">stock</option>
+                <option value="order">order</option>
+              </select>
+            </div>
             <div class="input">
-              <div class="lab">配送 shippingOption</div>
-              <input id="shippingOption" value="${escapeHtml(safeStr(sale.shippingOption))}" placeholder="例：持ち帰り" />
+              <div class="lab">
+                配送 shippingOption
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="shippingOption" checked>許可</label>` : ``}
+              </div>
+              <input id="shippingOption" value="${escapeHtml(initShip)}" placeholder="例：持ち帰り" />
             </div>
           </div>
 
           <div class="input">
-            <div class="lab">メモ</div>
-            <textarea id="memo" placeholder="メモ（任意）">${escapeHtml(safeStr(sale.memo))}</textarea>
+            <div class="lab">
+              メモ
+              ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="memo" checked>許可</label>` : ``}
+            </div>
+            <textarea id="memo" placeholder="メモ（任意）">${escapeHtml(initMemo)}</textarea>
           </div>
 
+          ${admin && pending ? "" : `
           <div class="input">
-            <div class="lab">明細（items）</div>
+            <div class="lab">管理者への依頼コメント（必須）</div>
+            <textarea id="requestText" placeholder="例：決済方法を現金→PayPayに、日付を12/28→12/27に修正してください"></textarea>
+          </div>
+          `}
+
+          <div class="input">
+            <div class="lab">
+              明細（items）
+              ${admin && pending ? `<label class="okChk" style="margin-left:10px;"><input type="checkbox" data-appr="items" checked>許可</label>` : ``}
+            </div>
             <table class="miniTable" id="itemsTbl">
               <thead>
                 <tr>
@@ -1681,8 +1883,11 @@ function openClaimEditor(sale){
 
           <div class="row">
             <div class="input">
-              <div class="lab">合計（円）</div>
-              <input id="total" type="number" step="1" value="${escapeHtml(String(totalAuto))}" />
+              <div class="lab">
+                合計（円）
+                ${admin && pending ? `<label class="okChk"><input type="checkbox" data-appr="total" checked>許可</label>` : ``}
+              </div>
+              <input id="total" type="number" step="1" value="${escapeHtml(String(initTotal))}" />
             </div>
             <div class="input">
               <div class="lab">ID（編集不可）</div>
@@ -1691,7 +1896,7 @@ function openClaimEditor(sale){
           </div>
 
           <div class="miniActions">
-            <button class="sbtn primary" id="save">保存（上書き）</button>
+            <button class="sbtn primary" id="save">${admin && pending ? "保存して反映（完了）" : "保存（依頼送信）"}</button>
             <button class="sbtn" id="cancel">キャンセル</button>
           </div>
         </div>
@@ -1703,52 +1908,36 @@ function openClaimEditor(sale){
     });
     document.body.appendChild(modal);
 
-    // --- selects: 選択式 + 自由入力
-    const paySel = modal.querySelector("#paymentMethodSel");
-    const payCus = modal.querySelector("#paymentMethodCustom");
-    const chSel  = modal.querySelector("#channelSel");
-    const chCus  = modal.querySelector("#channelCustom");
-    const kSel   = modal.querySelector("#kindSel");
-
-    kSel.value = (sale.kind==="stock"||sale.kind==="order") ? sale.kind : "";
-
-    function wireSelect(sel, custom, initial){
-      const init = safeStr(initial).trim();
-      // 初期が空のときは「（自由入力）」ではなく最初の候補に合わせる
-      if(!init && sel && sel.options.length){
-        // 何もしない（既に最初のoptionが選択）
-      }
-      const apply = ()=>{
-        if(sel.value === "__custom__"){
-          custom.style.display = "block";
-          custom.focus();
-        }else{
-          custom.style.display = "none";
-          custom.value = "";
-        }
-      };
-      sel.addEventListener("change", apply);
-      apply();
-    }
-    wireSelect(paySel, payCus, sale.paymentMethod);
-    wireSelect(chSel,  chCus,  sale.channel);
+    // kind 初期値
+    const kindSel = modal.querySelector("#kindSel");
+    kindSel.value = initKind || "";
 
     const tbody = modal.querySelector("#itemsTbl tbody");
 
+    const paySel = modal.querySelector("#paymentMethodSel");
+    const payCus = modal.querySelector("#paymentMethodCustom");
+    const chSel = modal.querySelector("#channelSel");
+    const chCus = modal.querySelector("#channelCustom");
+
+    const syncCustomVisibility = ()=>{
+      payCus.style.display = (paySel.value==="__custom__") ? "block" : "none";
+      chCus.style.display = (chSel.value==="__custom__") ? "block" : "none";
+    };
+    syncCustomVisibility();
+    paySel.onchange = syncCustomVisibility;
+    chSel.onchange = syncCustomVisibility;
+
     function renderItems(){
-      tbody.innerHTML = "";
       items = recalcItems(items);
-      for(let i=0;i<items.length;i++){
-        const it = items[i];
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-          <td><input data-k="name" data-i="${i}" value="${escapeHtml(it.name)}" placeholder="商品名" /></td>
-          <td><input data-k="qty" data-i="${i}" type="number" step="1" inputmode="numeric" value="${escapeHtml(String(it.qty||0))}" /></td>
-          <td><input data-k="price" data-i="${i}" type="number" step="1" inputmode="numeric" value="${escapeHtml(String(it.price||0))}" /></td>
-          <td><input data-k="subtotal" data-i="${i}" value="${escapeHtml(String(it.subtotal||0))}" disabled /></td>
-        `;
-        tbody.appendChild(tr);
-      }
+      tbody.innerHTML = items.map((it, idx)=>`
+        <tr>
+          <td><input data-i="${idx}" data-k="name" value="${escapeHtml(it.name||"")}" placeholder="商品名" /></td>
+          <td><input data-i="${idx}" data-k="qty" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(String(it.qty||0))}" /></td>
+          <td><input data-i="${idx}" data-k="price" type="number" inputmode="numeric" step="1" value="${escapeHtml(String(it.price||0))}" /></td>
+          <td class="right">${yen(it.subtotal||0)}</td>
+        </tr>
+      `).join("");
+
       // total は items から再計算して自動で入れる（手入力したいなら後でスイッチ足す）
       const t = items.reduce((a,b)=>a+Number(b.subtotal||0),0);
       modal.querySelector("#total").value = String(Math.round(t));
@@ -1786,6 +1975,56 @@ function openClaimEditor(sale){
 
     modal.querySelector("#cancel").onclick = ()=> closeModal(modal);
 
+    // 管理者：差分表示
+    if(admin && pending){
+      const list = modal.querySelector("#approveList");
+      const base = {
+        buyerName: safeStr(sale.buyerName||""),
+        date: toLocalInputValue(sale.date),
+        paymentMethod: safeStr(sale.paymentMethod||""),
+        channel: safeStr(sale.channel||""),
+        kind: safeStr(sale.kind||""),
+        shippingOption: safeStr(sale.shippingOption||""),
+        memo: safeStr(sale.memo||""),
+        items: JSON.stringify(baseItems),
+        total: String(Math.round(baseTotal))
+      };
+      const now = {
+        buyerName: safeStr(modal.querySelector("#buyerName").value||""),
+        date: safeStr(modal.querySelector("#createdAt").value||""),
+        paymentMethod: (paySel.value==="__custom__"? safeStr(payCus.value||"") : safeStr(paySel.value||"")),
+        channel: (chSel.value==="__custom__"? safeStr(chCus.value||"") : safeStr(chSel.value||"")),
+        kind: safeStr(kindSel.value||""),
+        shippingOption: safeStr(modal.querySelector("#shippingOption").value||""),
+        memo: safeStr(modal.querySelector("#memo").value||""),
+        items: JSON.stringify(items),
+        total: safeStr(modal.querySelector("#total").value||"")
+      };
+      const rows = [
+        ["buyerName","購入者氏名"],
+        ["date","日付"],
+        ["paymentMethod","決済方法"],
+        ["channel","チャンネル"],
+        ["kind","種別 kind"],
+        ["shippingOption","配送"],
+        ["memo","メモ"],
+        ["items","明細 items"],
+        ["total","合計"]
+      ].filter(([k])=> base[k]!==now[k]);
+
+      if(rows.length===0){
+        list.innerHTML = `<div class="approveEmpty">差分が見つかりません（そのまま保存で完了にできます）</div>`;
+      }else{
+        list.innerHTML = rows.map(([k,label])=>`
+          <div class="approveRow">
+            <div class="approveL">${escapeHtml(label)}</div>
+            <div class="approveR">${escapeHtml(String(base[k]))} → <b>${escapeHtml(String(now[k]))}</b></div>
+            <label class="approveC"><input type="checkbox" data-appr="${k}" checked>許可</label>
+          </div>
+        `).join("");
+      }
+    }
+
     modal.querySelector("#save").onclick = async ()=>{
       try{
         const buyerName = safeStr(modal.querySelector("#buyerName").value || "").trim();
@@ -1798,7 +2037,7 @@ function openClaimEditor(sale){
           : safeStr(chSel.value || "").trim());
         const memo = safeStr(modal.querySelector("#memo").value || "").trim();
         const shippingOption = safeStr(modal.querySelector("#shippingOption").value || "").trim();
-                const kind = safeStr(kSel.value || "").trim();
+        const kind = safeStr(kindSel.value || "").trim();
 
         const createdAtDate = parseLocalInputValue(createdAtStr);
         if(!createdAtStr || isNaN(createdAtDate.getTime())){
@@ -1825,24 +2064,105 @@ function openClaimEditor(sale){
           return;
         }
 
-        await updateDoc(doc(db, "sales", sale.id), {
-          buyerName,
-          createdAt: createdAtDate,
-          paymentMethod,
-          channel,
-          memo,
-          shippingOption,
-          kind,
-          items,
-          total,
-          updatedAt: serverTimestamp(),
-          updatedBy: (currentUser?.email || currentUser?.uid || "")
+        if(admin && pending){
+          // ---- 管理者：許可チェックされたものだけ sales に反映
+          const allowed = new Set(
+            Array.from(modal.querySelectorAll('input[type="checkbox"][data-appr]'))
+              .filter(ch=>ch.checked)
+              .map(ch=>ch.getAttribute("data-appr"))
+          );
+
+          const updateData = {};
+          if(allowed.has("buyerName")) updateData.buyerName = buyerName;
+          if(allowed.has("paymentMethod")) updateData.paymentMethod = paymentMethod;
+          if(allowed.has("channel")) updateData.channel = channel;
+          if(allowed.has("memo")) updateData.memo = memo;
+          if(allowed.has("shippingOption")) updateData.shippingOption = shippingOption;
+          if(allowed.has("kind")) updateData.kind = kind;
+
+          if(allowed.has("date")){
+            updateData.orderDate = fmtYMD(createdAtDate);
+            updateData.orderDateMs = msAtLocalMidnight(createdAtDate);
+            updateData.clientCreatedAt = createdAtDate.getTime();
+          }
+
+          if(allowed.has("items")){
+            updateData.items = items;
+          }
+          if(allowed.has("total")){
+            updateData.total = Math.round(total);
+          }else{
+            // total の許可が外れてるのに items だけ反映、みたいな時にズレが出るのを避ける
+            if(allowed.has("items")){
+              updateData.total = Math.round(items.reduce((a,b)=>a+Number(b.subtotal||0),0));
+            }
+          }
+
+          // 何も許可しない場合は sales を触らず「完了」にできる（運用次第）
+          if(Object.keys(updateData).length > 0){
+            await updateDoc(doc(db, "sales", sale.id), updateData);
+          }
+
+          await updateDoc(doc(db, "sales_fix_requests", pending.id), {
+            status: "完了",
+            resolvedAt: serverTimestamp(),
+            resolvedBy: (currentUser?.email || currentUser?.uid || "")
+          });
+
+          toast("反映して完了にしました");
+          closeModal(modal);
+          await loadAll(true);
+          return;
+        }
+
+        // ---- スタッフ：修正依頼を送る（salesは触らない）
+        const requestText = safeStr(modal.querySelector("#requestText").value || "").trim();
+        if(!requestText){
+          toast("依頼コメントを入れてね");
+          return;
+        }
+
+        await addDoc(collection(db, "sales_fix_requests"), {
+          saleId: sale.id,
+          status: "依頼中",
+          requestText,
+          createdAt: serverTimestamp(),
+          createdBy: (currentUser?.email || currentUser?.uid || ""),
+
+          snapshot: {
+            buyerName: sale.buyerName || "",
+            orderDate: sale.orderDate || "",
+            channel: sale.channel || "",
+            paymentMethod: sale.paymentMethod || "",
+            memo: sale.memo || "",
+            shippingOption: sale.shippingOption || "",
+            kind: sale.kind || "",
+            total: Number(sale.total || 0),
+            items: (sale.items || []).map(it=>({
+              name: it.name || "",
+              qty: Number(it.qty||0),
+              price: Number(it.price||0),
+              subtotal: Number(it.subtotal||0)
+            }))
+          },
+
+          proposed: {
+            buyerName,
+            createdAtLocal: createdAtDate.toISOString(),
+            paymentMethod,
+            channel,
+            memo,
+            shippingOption,
+            kind,
+            items,
+            total
+          }
         });
 
-        toast("上書き保存しました");
+        toast("保存しました。管理者へ確認依頼の連絡をお願いします");
         closeModal(modal);
-
         await loadAll(true);
+
       }catch(err){
         console.error(err);
         toast("保存失敗（ルール確認）");
@@ -1850,9 +2170,9 @@ function openClaimEditor(sale){
     };
 
     // 初期レンダ
-    if(items.length===0) items = [{name:"", qty:1, price:0, subtotal:0}];
     renderItems();
   }
+
 
   // ---- auth gate (ログインしてなければ login.html へ)
   onAuthStateChanged(auth, (user)=>{
