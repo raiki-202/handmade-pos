@@ -1027,6 +1027,53 @@
       .replaceAll("'","&#039;");
   }
 
+  // --- select helper (robust: string[] でも {id,label}[] でもOK)
+  function normalizeOptions(options){
+    const out = [];
+    for(const o of (options||[])){
+      if(o == null) continue;
+      if(typeof o === "string" || typeof o === "number"){
+        const s = String(o);
+        out.push({ id: s, label: s });
+      }else if(typeof o === "object"){
+        const id = String(o.id ?? o.value ?? o.key ?? o.label ?? o.name ?? "").trim();
+        const label = String(o.label ?? o.name ?? o.id ?? "").trim();
+        if(!id && !label) continue;
+        out.push({ id: id || label, label: label || id });
+      }
+    }
+    // idでユニーク化
+    const map = {};
+    out.forEach(x=>{ map[x.id] = x; });
+    return Object.values(map);
+  }
+
+  function norm(s){ return String(s??"").trim().toLowerCase(); }
+
+  function resolveId(options, current){
+    const opts = normalizeOptions(options);
+    const c = String(current??"").trim();
+    if(!c) return "";
+    if(opts.some(o=>o.id === c)) return c;
+    const n = norm(c);
+    const hit = opts.find(o=> norm(o.label) === n) || opts.find(o=> norm(o.id) === n);
+    return hit ? hit.id : c;
+  }
+
+  // 上書き定義：古い sel が残っていてもこれが最終的に使われる
+  const sel = (id, options, current)=>{
+    const opts = normalizeOptions(options);
+    const curId = resolveId(opts, current);
+    const htmlOpts = opts.map(o=>{
+      const v = escapeAttr(o.id);
+      const t = escapeHtml(o.label);
+      const s = (o.id === curId) ? " selected" : "";
+      return `<option value="${v}"${s}>${t}</option>`;
+    }).join("");
+    return `<select class="in sel" id="${id}">${htmlOpts}</select>`;
+  };
+
+
   // ---- data cache
   let rawSales = [];                 // normalized
   let lastBuilt = null;              // { list, groups }
