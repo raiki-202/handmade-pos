@@ -1413,35 +1413,35 @@ async function loadMastersBundles(){
     ["./channels_bundle.json","channels_bundle.json","./bundle/channels_bundle.json","bundle/channels_bundle.json"],
     (js)=> js?.channels
   );
-  optChannels = activeLabels(channels, "label");
+  optChannels = activeEntries(channels);
 
   // payments
   const payments = await loadSimpleBundle(
     ["./payments_bundle.json","payments_bundle.json","./bundle/payments_bundle.json","bundle/payments_bundle.json"],
     (js)=> js?.payments
   );
-  optPaymentMethods = activeLabels(payments, "label");
+  optPaymentMethods = activeEntries(payments);
 
   // kinds
   const kinds = await loadSimpleBundle(
     ["./kinds_bundle.json","kinds_bundle.json","./bundle/kinds_bundle.json","bundle/kinds_bundle.json"],
     (js)=> js?.kinds
   );
-  optKinds = activeLabels(kinds, "label");
+  optKinds = activeEntries(kinds);
 
   // venues
   const venues = await loadSimpleBundle(
     ["./venues_bundle.json","venues_bundle.json","./bundle/venues_bundle.json","bundle/venues_bundle.json"],
     (js)=> js?.venues
   );
-  optVenues = activeLabels(venues, "label");
+  optVenues = activeEntries(venues);
 
   // urgent options
   const urgent = await loadSimpleBundle(
     ["./urgent_options_bundle.json","urgent_options_bundle.json","./bundle/urgent_options_bundle.json","bundle/urgent_options_bundle.json"],
     (js)=> js?.urgentOptions
   );
-  optUrgentOptions = activeLabels(urgent, "label");
+  optUrgentOptions = activeEntries(urgent);
 }
 
 
@@ -2202,8 +2202,8 @@ async function openFixEditor(sale){
         ${kvRow("購入日付", dateInp("fix_date", orderDate))}
         ${kvRow("販売方法", sel("fix_channel", optChannels, sale.channelLabel || sale.channel || ""))}
         ${kvRow("決済方法", sel("fix_payment", optPaymentMethods, sale.paymentLabel || sale.paymentMethod || sale.paymentMethodId || ""))}
-        ${kvRow("開催場所", sel("fix_venue", optVenues, sale.venueLabel || sale.venue || ""))}
-        ${kvRow("販売種別", sel("fix_kind", optKinds, sale.kind || ""))}
+        ${kvRow("開催場所", sel("fix_venue", optVenues, sale.venueId || sale.venue || sale.venueLabel || ""))}
+        ${kvRow("販売種別", sel("fix_kind", optKinds, sale.kindId || sale.kind || sale.kindLabel || ""))}
                 ${kvRow("メモ", area("fix_memo", memo, "メモ"))}
       </div>
 
@@ -2218,7 +2218,7 @@ async function openFixEditor(sale){
       <div style="display:flex; gap:10px; margin-top:14px;">
         <button class="modalBtn" id="fix_close"><span>閉じる</span></button>
         <button class="modalBtn primary" id="fix_save">
-          <span>${admin ? "保存（sales上書き）" : "保存（依頼送信）"}</span>
+          <span>${admin ? "保存して閉じる（sales上書き）" : "保存（依頼送信）"}</span>
         </button>
       </div>
     </div>
@@ -2239,10 +2239,14 @@ async function openFixEditor(sale){
         buyerName: body.querySelector("#fix_buyer").value.trim(),
         orderDate: body.querySelector("#fix_date").value.trim(),
         channel: body.querySelector("#fix_channel").value || "",
+        channelLabel: (optChannels.find(o=>o.id===(body.querySelector("#fix_channel").value||""))||{}).label || "",
         paymentMethod: body.querySelector("#fix_payment").value || "",
         venue: body.querySelector("#fix_venue").value || "",
+        venueLabel: (optVenues.find(o=>o.id===(body.querySelector("#fix_venue").value||""))||{}).label || "",
         urgentOption: body.querySelector("#fix_urgent").value || "",
+        urgentOptionLabel: (optUrgentOptions.find(o=>o.id===(body.querySelector("#fix_urgent").value||""))||{}).label || "",
         kind: body.querySelector("#fix_kind").value || "",
+        kindLabel: (optKinds.find(o=>o.id===(body.querySelector("#fix_kind").value||""))||{}).label || "",
         memo: body.querySelector("#fix_memo").value
       };
 
