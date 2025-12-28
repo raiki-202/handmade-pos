@@ -1415,7 +1415,7 @@
       <div class="kv">
         ${kv("購入者", sale.buyerName ?? "")}
         ${kv("購入日付", dateText)}
-        <div class="k">修正履歴</div><div class="v"><span id="fixCount">-</span>件</div>
+        <div class="k">修正履歴</div><div class="v"><span id="fixPending">-</span>件（依頼中） / <span id="fixDone">-</span>件（完了）</div>
         ${kv("販売方法", channel)}
         ${kv("決済方法", payment)}
         ${kv("開催場所", venue)}
@@ -1449,7 +1449,7 @@
               <tr>
                 <td>${escapeHtml(it.name || it.id || "")}</td>
                 <td class="right">${escapeHtml(String(it.qty ?? ""))}</td>
-                <td class="right">${escapeHtml(fmtMoney(it.unitPrice ?? 0))}</td>
+                <td class="right">${escapeHtml(fmtMoney((it.unitPrice ?? it.price ?? 0)))}</td>
                 <td class="right">${escapeHtml(fmtMoney(it.subtotal ?? 0))}</td>
               </tr>
             `).join("")}
@@ -1473,11 +1473,13 @@
 
     // 修正履歴件数
     if(sale.id){
-      fetchFixRequestCount(sale.id).then(n=>{
-        const el = drawerEl.querySelector("#fixCount");
-        if(el) el.textContent = String(n);
+      fetchFixRequestCounts(sale.id).then(cnt=>{
+        const pEl = drawerEl.querySelector("#fixPending");
+        const dEl = drawerEl.querySelector("#fixDone");
+        if(pEl) pEl.textContent = String(cnt?.pending ?? 0);
+        if(dEl) dEl.textContent = String(cnt?.done ?? 0);
       });
-    }
+}
 
     drawerBackdropEl.classList.add("open");
     drawerEl.classList.add("open");
@@ -1668,17 +1670,24 @@ function openClaimEditor(sale){
       return null;
     }
   }
-  async function fetchFixRequestCount(saleId){
+  async function fetchFixRequestCounts(saleId){
+    // returns { pending: number, done: number }
     try{
-      const q = query(
+      const qPending = query(
         collection(db, "sales_fix_requests"),
-        where("saleId","==", saleId)
+        where("saleId","==", saleId),
+        where("status","==","依頼中")
       );
-      const snap = await getDocs(q);
-      return snap.size || 0;
+      const qDone = query(
+        collection(db, "sales_fix_requests"),
+        where("saleId","==", saleId),
+        where("status","==","完了")
+      );
+      const [sPending, sDone] = await Promise.all([getDocs(qPending), getDocs(qDone)]);
+      return { pending: (sPending.size||0), done: (sDone.size||0) };
     }catch(err){
-      console.warn("fetchFixRequestCount failed", err);
-      return 0;
+      console.warn("fetchFixRequestCounts failed", err);
+      return { pending: 0, done: 0 };
     }
   }
 
