@@ -919,7 +919,7 @@
           <div class="months" id="months"></div>
 
           <div class="smallNote" id="note">
-            ・saleをクリックすると明細を開きます。右端の「✎」で編集できます。<br>
+            ・saleをクリックすると明細を開きます。明細内の「✎打ち間違い修正」から修正できます。<br>
             ・「クレーム返金」は「マイナスの sales」を新規作成します（元の sales は保持）。「打ち間違い修正」は管理者へ修正依頼を送ります（salesは変更しません）。<br>
             ・バンドル由来データも含め、打ち間違い修正は「修正依頼」を送ります（salesは変更しません）。本修正は管理者のみです。
           </div>
@@ -1043,16 +1043,18 @@
   // ---- source counts
   let lastSourceCounts = { json: 0, firebase: 0 };
 
-  // ---- option lists (自動収集)
-  let optPaymentMethods = [];
-  let optChannels = [];
+  // ---- option lists (JSON bundle から読む)
+  let optPaymentMethods = [];   // payments_bundle.json (label)
+  let optChannels = [];         // channels_bundle.json (label)
+  let optKinds = [];            // kinds_bundle.json (label)
+  let optVenues = [];           // venues_bundle.json (label)
+  let optUrgentOptions = [];    // urgent_options_bundle.json (label)
 
-  
-  let optKinds = [];
-  let optShippingOptions = [];
-  let optProductNames = [];
+  let optShippingOptions = [];  // sales から自動収集（bundle無し）
+  let optProductNames = [];     // products_bundle.json (name)
   let productPriceByName = {};
-function uniqSorted(arr){
+
+  function uniqSorted(arr){
     const set = new Set(arr.map(v=>safeStr(v).trim()).filter(Boolean));
     return [...set].sort((a,b)=>a.localeCompare(b,'ja'));
   }
@@ -1383,6 +1385,66 @@ async function loadProductsBundle(){
   productPriceByName = productPriceByName && Object.keys(productPriceByName).length ? productPriceByName : {};
 }
 
+
+async function loadSimpleBundle(candidates, pickFn){
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) continue;
+      const js = await res.json();
+      const out = pickFn(js);
+      if(Array.isArray(out)) return out;
+    }catch(e){}
+  }
+  return [];
+}
+
+function activeLabels(arr, labelKey="label"){
+  return uniqSorted((arr||[])
+    .filter(x=> x && x.active !== false)
+    .map(x=> safeStr(x[labelKey] ?? x.label ?? x.name ?? x.id).trim())
+    .filter(Boolean)
+  );
+}
+
+async function loadMastersBundles(){
+  // channels
+  const channels = await loadSimpleBundle(
+    ["./channels_bundle.json","channels_bundle.json","./bundle/channels_bundle.json","bundle/channels_bundle.json"],
+    (js)=> js?.channels
+  );
+  optChannels = activeLabels(channels, "label");
+
+  // payments
+  const payments = await loadSimpleBundle(
+    ["./payments_bundle.json","payments_bundle.json","./bundle/payments_bundle.json","bundle/payments_bundle.json"],
+    (js)=> js?.payments
+  );
+  optPaymentMethods = activeLabels(payments, "label");
+
+  // kinds
+  const kinds = await loadSimpleBundle(
+    ["./kinds_bundle.json","kinds_bundle.json","./bundle/kinds_bundle.json","bundle/kinds_bundle.json"],
+    (js)=> js?.kinds
+  );
+  optKinds = activeLabels(kinds, "label");
+
+  // venues
+  const venues = await loadSimpleBundle(
+    ["./venues_bundle.json","venues_bundle.json","./bundle/venues_bundle.json","bundle/venues_bundle.json"],
+    (js)=> js?.venues
+  );
+  optVenues = activeLabels(venues, "label");
+
+  // urgent options
+  const urgent = await loadSimpleBundle(
+    ["./urgent_options_bundle.json","urgent_options_bundle.json","./bundle/urgent_options_bundle.json","bundle/urgent_options_bundle.json"],
+    (js)=> js?.urgentOptions
+  );
+  optUrgentOptions = activeLabels(urgent, "label");
+}
+
+
 async function loadSales(){
   // 1) バンドル(JSON)を先に読む（read節約の主役）
   const bundle = await loadBundleSales();
@@ -1502,6 +1564,7 @@ async function renderFixSummary(){
 
     try{
       await loadProductsBundle();
+      await loadMastersBundles();
       await loadSales();
       await renderFixSummary();
 
@@ -1683,7 +1746,6 @@ async function renderFixSummary(){
 
         sRow.appendChild(sLeft);
         sRow.appendChild(sRight);
-        sRow.appendChild(editBtn);
         card.appendChild(sRow);
 
         salesWrap.appendChild(card);
@@ -2014,6 +2076,12 @@ async function openFixEditor(sale){
     return `<select class="in" id="${id}">${opts.join("")}</select>`;
   };
   const inp = (id, value, ph="")=>`<input class="in" id="${id}" value="${escapeAttr(value??"")}" placeholder="${escapeAttr(ph)}" />`;
+  const dateInp = (id, value)=>{
+    const v = String(value||"").trim();
+    // 期待形式: YYYY-MM-DD（違う場合は空にしてユーザーが選び直せるように）
+    const ok = /^\d{4}-\d{2}-\d{2}$/.test(v);
+    return `<input class="in" id="${id}" type="date" value="${escapeAttr(ok? v : "")}" />`;
+  };
   const area = (id, value, ph="")=>`<textarea class="in" id="${id}" rows="3" placeholder="${escapeAttr(ph)}">${esc(value??"")}</textarea>`;
 
   // editable draft（salesのコピー）
@@ -2138,10 +2206,10 @@ async function openFixEditor(sale){
 
       <div class="kvBox">
         ${kvRow("購入者", inp("fix_buyer", buyer, "例：山田 太郎"))}
-        ${kvRow("購入日付", inp("fix_date", orderDate, "YYYY-MM-DD"))}
+        ${kvRow("購入日付", dateInp("fix_date", orderDate))}
         ${kvRow("販売方法", sel("fix_channel", optChannels, sale.channelLabel || sale.channel || ""))}
         ${kvRow("決済方法", sel("fix_payment", optPaymentMethods, sale.paymentLabel || sale.paymentMethod || sale.paymentMethodId || ""))}
-        ${kvRow("開催場所", inp("fix_venue", sale.venueLabel || sale.venue || "", "例：マルシェA"))}
+        ${kvRow("開催場所", sel("fix_venue", optVenues, sale.venueLabel || sale.venue || ""))}
         ${kvRow("販売種別", sel("fix_kind", optKinds, sale.kind || ""))}
         ${kvRow("配送", sel("fix_ship", optShippingOptions, sale.shippingOption || sale.shipping || ""))}
         ${kvRow("メモ", area("fix_memo", memo, "メモ"))}
@@ -2180,7 +2248,8 @@ async function openFixEditor(sale){
         orderDate: body.querySelector("#fix_date").value.trim(),
         channel: body.querySelector("#fix_channel").value || "",
         paymentMethod: body.querySelector("#fix_payment").value || "",
-        venue: body.querySelector("#fix_venue").value.trim(),
+        venue: body.querySelector("#fix_venue").value || "",
+        urgentOption: body.querySelector("#fix_urgent").value || "",
         kind: body.querySelector("#fix_kind").value || "",
         shippingOption: body.querySelector("#fix_ship").value || "",
         memo: body.querySelector("#fix_memo").value
@@ -2204,6 +2273,7 @@ async function openFixEditor(sale){
           channel: draft.channel,
           paymentMethod: draft.paymentMethod,
           venue: draft.venue,
+          urgentOption: draft.urgentOption,
           kind: draft.kind,
           shippingOption: draft.shippingOption,
           memo: draft.memo,
