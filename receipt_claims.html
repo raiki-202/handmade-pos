@@ -1,41 +1,372 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>e.nue 領収申請</title>
-<style>
-:root{
-  --bg0:#f3ede4; --bg1:#f7f2ea;
-  --glass:rgba(255,255,255,.88); --glass2:rgba(255,255,255,.96);
-  --line:rgba(120,90,40,.18);
-  --shadow:0 18px 40px rgba(120,90,40,.18);
-  --text:#2f2a22; --muted:rgba(47,42,34,.45);
-  --r:18px;
-}
-*{box-sizing:border-box}
-body{
-  margin:0; color:var(--text);
-  font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
-  background:linear-gradient(135deg,var(--bg0),var(--bg1));
-}
-.wrap{max-width:1100px;margin:0 auto;padding:16px}
-.card{
-  background:linear-gradient(180deg,var(--glass),var(--glass2));
-  border-radius:var(--r); box-shadow:var(--shadow); padding:16px;
-}
-.btn{border:none;border-radius:999px;padding:10px 14px;background:#fff;box-shadow:var(--shadow);cursor:pointer;font-weight:700;}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>e.nue 領収申請</title>
+  <style>
+    :root{
+      --bg0:#e3ddd4;
+      --bg1:#e3ddd4;
+      --bg2:#d4ccc1;
+
+      --glass: rgba(255,255,255,.86);
+      --glass2: rgba(255,255,255,.78);
+      --line: rgba(0,0,0,.06);
+      --line2: rgba(0,0,0,.10);
+      --shadow: 0 18px 45px rgba(0,0,0,.14);
+
+      --text:#222222;
+      --sub:#555555;
+      --muted: rgba(34,34,34,.58);
+
+      --accent:#e18a6a;
+      --good:#2e9f7a;
+      --warn:#d89a2a;
+
+      --r:18px;
+      --maxw:980px;
+    }
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
+      color:var(--text);
+      background: linear-gradient(135deg, var(--bg1), var(--bg2));
+      }
+    .safe{
+      padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+      max-width:var(--maxw); margin:0 auto;
+    }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:6px 0 14px; }
+    .brand{ font-weight:1000; letter-spacing:.06em; }
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .pill{
+      appearance:none; border:1px solid var(--line);
+      background:rgba(255,255,255,.85); color:var(--text);
+      border-radius:999px; padding:10px 12px;
+      font-weight:900; font-size:12px; cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .pillPrimary{ background:rgba(255,255,255,.92); color:#222222; border-color: rgba(255,255,255,.92); }
+    .pill:active{ transform: translateY(1px); }
+
+    .card{
+      background:linear-gradient(180deg,var(--glass),var(--glass2));
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      box-shadow:var(--shadow);
+      overflow:hidden;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .head{ padding:14px 14px 10px; border-bottom:1px solid var(--line); }
+    .h1{ font-weight:1000; font-size:14px; letter-spacing:.06em; }
+    .subt{ font-size:12px; color:var(--muted); margin-top:2px; }
+
+    .filters{ padding:12px 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .field{
+      display:flex; gap:8px; align-items:center;
+      background:rgba(255,255,255,.85);
+      border:1px solid var(--line);
+      border-radius:14px;
+      padding:10px 10px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+    }
+    .field label{ font-weight:1000; font-size:12px; color:var(--sub); white-space:nowrap; }
+    .field select,.field input{
+      appearance:none; border:1px solid var(--line2);
+      background:rgba(255,255,255,.72); color:var(--text);
+      border-radius:12px; padding:10px 10px; font-weight:900; font-size:12px; outline:none;
+    }
+    .field select{ min-width: 150px; }
+    .chips{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .chip{
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.85);
+      color:var(--sub);
+      border-radius:999px;
+      padding:10px 12px;
+      font-weight:1000; font-size:12px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .chip.on{ background: rgba(255,176,32,.14); color: rgba(255,176,32,.96); border-color: rgba(255,176,32,.35); }
+
+    .sumRow{ padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; }
+    .sumBox{
+      background:rgba(255,255,255,.85);
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:10px 12px;
+      min-width: 210px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
+    }
+    .sumBox .k{ font-size:11px; font-weight:1000; color:var(--muted); }
+    .sumBox .v{ font-size:18px; font-weight:1100; margin-top:2px; }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,176,32,.35);
+      background: rgba(255,176,32,.10);
+      font-size:12px;
+      font-weight:900;
+      color: rgba(255,176,32,.95);
+    }
+
+    .tableWrap{ padding:0 22px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; min-width:860px; }
+    th,td{ padding:10px; font-size:13px; vertical-align:middle; white-space:nowrap; }
+    th{ text-align:left; background:rgba(255,255,255,.85); position:sticky; top:0; z-index:1; }
+    tr+tr td{ border-top:1px solid var(--line); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; }
+    .mutedText{ color:var(--muted); font-weight:900; }
+    .empty{ padding:18px 14px; color:var(--muted); font-weight:900; }
+
+    @media (max-width: 420px){
+      .field select{ min-width: 140px; }
+      .sumBox{ min-width: 180px; }
+    }
+  </style>
 </head>
 <body>
-<div class="wrap">
-  <div style="display:flex;justify-content:space-between;align-items:center">
-    <h1>領収申請</h1>
-    <button class="btn" onclick="location.href='expenses.html'">← 支出へ</button>
+  <div class="safe">
+    <div class="topbar">
+      <div class="brand">e.nue</div>
+      <div class="actions">
+        <button class="pill" id="backBtn" type="button">← 戻る</button>
+        <button class="pill" id="toExpensesBtn" type="button">↩ 支出へ</button>
+        <button class="pill pillPrimary" id="refreshBtn" type="button">更新</button>
+      </div>
+    </div>
+
+    <main class="card">
+      <div class="head">
+        <div class="h1">領収申請</div>
+        <div class="subt">expenses.html の「領収申請(川原)/(藤原)」にチェックが付いたレシートを集計</div>
+      </div>
+
+      <div class="filters">
+        <div class="field">
+          <label for="yearSel">年</label>
+          <select id="yearSel"></select>
+        </div>
+        <div class="field">
+          <label for="monthSel">月</label>
+          <select id="monthSel"></select>
+        </div>
+        <div class="chips" aria-label="person filter">
+          <div class="chip on" data-person="all">すべて</div>
+          <div class="chip" data-person="kawahara">川原</div>
+          <div class="chip" data-person="fujiwara">藤原</div>
+        </div>
+      </div>
+
+      <div class="sumRow">
+        <div class="sumBox">
+          <div class="k">表示中 合計</div>
+          <div class="v" id="sumAmount">—</div>
+        </div>
+        <div class="sumBox">
+          <div class="k">表示件数（レシート）</div>
+          <div class="v" id="sumCount">—</div>
+        </div>
+      </div>
+
+      <div class="tableWrap">
+        <table aria-label="claims table">
+          <colgroup>
+            <col style="width: 14%;" />
+            <col style="width: 20%;" />
+            <col style="width: 14%;" />
+            <col style="width: 18%;" />
+            <col style="width: 34%;" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>購入店</th>
+              <th>合計</th>
+              <th>対象</th>
+              <th>メモ</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty" style="display:none;">対象がありません</div>
+      </div>
+    </main>
   </div>
-  <div class="card">
-    <p>領収申請にチェックされたレシートを表示します。</p>
-  </div>
-</div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      getDocs,
+      query,
+      where,
+      orderBy,
+      limit
+    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
+      authDomain: "handmade-pos.firebaseapp.com",
+      projectId: "handmade-pos",
+      storageBucket: "handmade-pos.firebasestorage.app",
+      messagingSenderId: "174873514252",
+      appId: "1:174873514252:web:c26659bffca850d475f929"
+    };
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    const COL = "expense_receipts";
+
+    const backBtn = document.getElementById("backBtn");
+    const toExpensesBtn = document.getElementById("toExpensesBtn");
+    const refreshBtn = document.getElementById("refreshBtn");
+    const yearSel = document.getElementById("yearSel");
+    const monthSel = document.getElementById("monthSel");
+    const tbody = document.getElementById("tbody");
+    const empty = document.getElementById("empty");
+    const sumAmount = document.getElementById("sumAmount");
+    const sumCount = document.getElementById("sumCount");
+    const chips = [...document.querySelectorAll(".chip")];
+
+    const pad2 = n => String(n).padStart(2,"0");
+    const formatJPY = n => "¥" + Math.round(n||0).toLocaleString("ja-JP");
+    const esc = (s)=> String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+
+    let person = "all";
+    let receipts = [];
+
+    function initYearMonth(){
+      const now = new Date();
+      const curY = now.getFullYear();
+      const years = [];
+      for(let y=curY-2; y<=curY+1; y++) years.push(y);
+      yearSel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join("");
+      yearSel.value = String(curY);
+
+      const months = [
+        {v:"all", t:"すべて（年合計）"},
+        ...Array.from({length:12}, (_,i)=>({v:String(i+1), t:`${i+1}月`}))
+      ];
+      monthSel.innerHTML = months.map(m=>`<option value="${m.v}">${m.t}</option>`).join("");
+      monthSel.value = String(now.getMonth()+1);
+    }
+
+    async function loadClaims(){
+      const y = Number(yearSel.value);
+      const m = monthSel.value;
+
+      // person条件は where で絞り込む（allはどちらかtrue）
+      const wh = [];
+      wh.push(where("year","==", y));
+      if(m !== "all") wh.push(where("month","==", Number(m)));
+
+      if(person === "kawahara") wh.push(where("claimKawahara","==", true));
+      if(person === "fujiwara") wh.push(where("claimFujiwara","==", true));
+
+      // all は where で OR できないので、年/月で取ってから JS で絞る
+      let qy;
+      if(person === "all"){
+        qy = query(collection(db, COL), ...wh, orderBy("date","desc"), limit(800));
+      }else{
+        qy = query(collection(db, COL), ...wh, orderBy("date","desc"), limit(800));
+      }
+
+      const snap = await getDocs(qy);
+      receipts = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      if(person === "all"){
+        receipts = receipts.filter(r=> !!r.claimKawahara || !!r.claimFujiwara );
+      }
+    }
+
+    function render(){
+      tbody.innerHTML = "";
+      empty.style.display = receipts.length ? "none" : "";
+
+      let sum = 0;
+      for(const r of receipts) sum += Number(r.sum||0);
+      sumAmount.textContent = formatJPY(sum);
+      sumCount.textContent = String(receipts.length);
+
+      for(const r of receipts){
+        const tr = document.createElement("tr");
+
+        const tdDate = document.createElement("td");
+        tdDate.textContent = r.date || "-";
+
+        const tdStore = document.createElement("td");
+        tdStore.innerHTML = `<span class="mono">${esc(r.store || "(未設定)")}</span>`;
+
+        const tdSum = document.createElement("td");
+        tdSum.innerHTML = `<span class="mono">${esc(formatJPY(r.sum||0))}</span>`;
+
+        const tdWho = document.createElement("td");
+        const who = [];
+        if(r.claimKawahara) who.push("川原");
+        if(r.claimFujiwara) who.push("藤原");
+        tdWho.innerHTML = `<span class="badge">${esc(who.join(" / ") || "-")}</span>`;
+
+        const tdMemo = document.createElement("td");
+        tdMemo.innerHTML = `<span class="mutedText">${esc((r.memo||"").slice(0,60))}</span>`;
+
+        tr.appendChild(tdDate);
+        tr.appendChild(tdStore);
+        tr.appendChild(tdSum);
+        tr.appendChild(tdWho);
+        tr.appendChild(tdMemo);
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function refreshAll(){
+      await loadClaims();
+      render();
+    }
+
+    chips.forEach(ch=>{
+      ch.onclick = ()=>{
+        chips.forEach(x=>x.classList.remove("on"));
+        ch.classList.add("on");
+        person = ch.dataset.person;
+        refreshAll();
+      };
+    });
+
+    backBtn.onclick = ()=> location.href = "index.html";
+    toExpensesBtn.onclick = ()=> location.href = "expenses.html";
+    refreshBtn.onclick = ()=> refreshAll();
+    yearSel.addEventListener("change", ()=> refreshAll());
+    monthSel.addEventListener("change", ()=> refreshAll());
+
+    onAuthStateChanged(auth, async (user)=>{
+      if(!user){
+        const redirect = encodeURIComponent("receipt_claims.html");
+        location.href = `login.html?redirect=${redirect}`;
+        return;
+      }
+      initYearMonth();
+      try{
+        await refreshAll();
+      }catch(e){
+        console.error(e);
+        alert("読み込みに失敗しました（権限/ネットワーク確認）");
+      }
+    });
+  </script>
 </body>
 </html>
