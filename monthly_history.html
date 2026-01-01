@@ -1666,15 +1666,16 @@ function renderSourceSummary(){
   sumEl.textContent = `sales：json ${lastSourceCounts.json.toLocaleString("ja-JP")} 件 / firebase ${lastSourceCounts.firebase.toLocaleString("ja-JP")} 件`;
 }
 
+
 async function loadFixRequests(){
-  // sales_sub を読み込み、(1) サマリー表示 (2) saleId->依頼のMap を更新
-  // ※件数が増えてきたら、期間指定やページングを検討
+  // sales_fix_patches を読み込み、(1) サマリー表示 (2) saleId->patchのMap を更新
+  // status: "申請中" | "完了"
   fixReqBySaleId = new Map();
   fixReqSummary = { pending: 0, done: 0 };
 
   try{
     const q = query(
-      collection(db, "sales_sub"),
+      collection(db, "sales_fix_patches"),
       orderBy("updatedAt", "desc"),
       limit(2000)
     );
@@ -1685,15 +1686,15 @@ async function loadFixRequests(){
       const saleId = String(data.saleId || d.id || "").trim();
       if(!saleId) return;
 
-      const status = safeStr(data.status || "依頼中").trim() || "依頼中";
-      if(status === "修正済み") fixReqSummary.done += 1;
+      const status = safeStr(data.status || "申請中").trim() || "申請中";
+      if(status === "完了") fixReqSummary.done += 1;
       else fixReqSummary.pending += 1;
 
       fixReqBySaleId.set(saleId, { id: d.id, ...data, saleId, status });
     });
 
-    fixSumPendingEl.textContent = `修正依頼：依頼中 ${fixReqSummary.pending.toLocaleString("ja-JP")} 件`;
-    fixSumDoneEl.textContent    = `修正済み ${fixReqSummary.done.toLocaleString("ja-JP")} 件`;
+    fixSumPendingEl.textContent = `修正申請：申請中 ${fixReqSummary.pending.toLocaleString("ja-JP")} 件`;
+    fixSumDoneEl.textContent    = `完了 ${fixReqSummary.done.toLocaleString("ja-JP")} 件`;
     fixSummaryBar.style.display = "flex";
   }catch(e){
     console.warn("loadFixRequests failed", e);
@@ -1702,6 +1703,7 @@ async function loadFixRequests(){
 }
 
   async function loadAll(force=false){
+(force=false){
     authStateEl.textContent = "読み込み中…";
     monthsEl.innerHTML = "";
     statsEl.innerHTML = "";
@@ -2218,79 +2220,108 @@ async function loadFixRequests(){
   }
 
 
+
 async function openFixEditor(sale){
-  // 誰でも「修正依頼」を作れる。sales自体はこの画面では変更しない（管理者はFirebaseで直接修正）。
+  // 役割
+  const admin = isAdminEmail(currentUser?.email);
   ensureDrawer();
 
   const saleId = String(sale?.id || "").trim();
   if(!saleId){ toast("saleIdがありません"); return; }
 
-  // 既存依頼取得（docId = saleId）
-  const reqRef = doc(db, "sales_sub", saleId);
-  let reqSnap = null;
-  try{ reqSnap = await getDoc(reqRef); }catch(e){}
+  // bundle由来かどうか
+  const isBundled = Boolean(sale?.isBundled);
 
-  const existing = (reqSnap && reqSnap.exists()) ? (reqSnap.data()||{}) : null;
-  const admin = isAdminEmail(currentUser?.email);
+  // patch doc (docId = saleId)
+  const patchRef = doc(db, "sales_fix_patches", saleId);
+  let patchSnap = null;
+  try{ patchSnap = await getDoc(patchRef); }catch(e){}
+  const patch = (patchSnap && patchSnap.exists()) ? (patchSnap.data()||{}) : null;
 
-  // snapshot（旧）
+  // ---- master maps
+  const channelLabelById = Object.fromEntries((optChannels||[]).map(o=>[o.id,o.label]));
+  const paymentLabelById = Object.fromEntries((optPaymentMethods||[]).map(o=>[o.id,o.label]));
+  const kindLabelById    = Object.fromEntries((optKinds||[]).map(o=>[o.id,o.label]));
+  const venueLabelById   = Object.fromEntries((optVenues||[]).map(o=>[o.id,o.label]));
+
+  // products: name -> id
+  let productIdByName = {};
+  try{
+    // products_bundle.json が読めていれば optProductNames に入ってるが、idは別途作る
+    // （bundle読み込み時に map までは持っていないので、ここで fetch せずに簡易推定）
+  }catch(e){}
+
+  // ---- snapshot（旧）
   const snapshot = {
     buyerName: sale?.buyerName ?? "",
     orderDate: sale?.orderDate ?? (sale?.date ? fmtYMD(sale.date) : ""),
-    channel: sale?.channelLabel || sale?.channel || "",
-    paymentMethod: sale?.paymentLabel || sale?.paymentMethod || "",
-    venue: sale?.venueLabel || sale?.venue || "",
-    kind: sale?.kindLabel || sale?.kind || "",
-    memo: sale?.memo || "",
+    channelId: sale?.channelId ?? resolveId(optChannels, (sale?.channelLabel || sale?.channel || "")),
+    paymentId: sale?.paymentId ?? resolveId(optPaymentMethods, (sale?.paymentLabel || sale?.paymentMethod || "")),
+    venueId: sale?.venueId ?? resolveId(optVenues, (sale?.venueLabel || sale?.venue || "")),
+    kindId: sale?.kindId ?? resolveId(optKinds, (sale?.kindLabel || sale?.kind || "")),
     items: Array.isArray(sale?.items) ? sale.items.map(it=>({
       name: it?.name ?? "",
       qty: Number(it?.qty ?? 0),
-      price: Number(it?.unitPrice ?? it?.price ?? 0),
+      unitPrice: Number(it?.unitPrice ?? it?.price ?? 0),
       subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.unitPrice ?? it?.price ?? 0))) || 0
-    })) : [],
-    total: Number(sale?.total ?? 0)
+    })) : []
   };
 
-  // proposed（新）…既存依頼があればそれを初期値に
-  const proposed0 = existing?.proposed ? existing.proposed : snapshot;
+  // ---- proposed（新）
+  const proposed0 = patch?.proposed ? patch.proposed : snapshot;
 
-  const body = drawerEl.querySelector("#drawerBody");
-  drawerEl.querySelector("#drawerBig").textContent = "修正依頼";
+  // ---- drawer header
+  drawerEl.querySelector("#drawerBig").textContent = "打ち間違い修正";
   drawerEl.querySelector("#drawerSub").textContent = `${snapshot.orderDate}${snapshot.buyerName ? " / "+snapshot.buyerName : ""}`;
 
-  // staff: 入力欄＋保存ボタン / admin: チェックリストのみ
+  const body = drawerEl.querySelector("#drawerBody");
+
   const kvRow = (label, html)=>`
     <div class="kv editKv">
       <div class="k">${escapeHtml(label)}</div>
       <div class="v">${html}</div>
     </div>
   `;
-  const inp = (id, v, ph="")=>`<input class="editInput always" id="${id}" value="${escapeAttr(v??"")}" placeholder="${escapeAttr(ph)}" />`;
-  const dateInp = (id, v)=>`<input class="editInput always" id="${id}" type="date" value="${escapeAttr(/^\d{4}-\d{2}-\d{2}$/.test(String(v||"")) ? v : "")}" />`;
-  const area = (id, v, ph="")=>`<textarea class="editInput always" id="${id}" rows="3" placeholder="${escapeAttr(ph)}">${escapeHtml(v??"")}</textarea>`;
 
-  // itemsはスタッフだけ編集可（管理者はFirebaseで修正する運用）
+  const inp = (id, v, ph="")=>`<input class="editInput always" id="${id}" value="${escapeAttr(v??"")}" placeholder="${escapeAttr(ph)}" />`;
+
+  const dateInp = (id, v)=>`<input class="editInput always" id="${id}" type="date" value="${escapeAttr(/^\d{4}-\d{2}-\d{2}$/.test(String(v||"")) ? v : "")}" />`;
+
+  const selId = (id, options, currentId, placeholder="")=>{
+    const opts = normalizeOptions(options);
+    const cur = resolveId(opts, currentId);
+    const htmlOpts = [
+      `<option value="">${escapeHtml(placeholder||"選択")}</option>`,
+      ...opts.map(o=>{
+        const s = (o.id === cur) ? " selected" : "";
+        return `<option value="${escapeAttr(o.id)}"${s}>${escapeHtml(o.label)}</option>`;
+      })
+    ].join("");
+    return `<select class="in sel" id="${id}">${htmlOpts}</select>`;
+  };
+
+  // items（編集用）
   let items = Array.isArray(proposed0?.items) ? proposed0.items.map(it=>({
     name: it?.name ?? "",
     qty: Number(it?.qty ?? 0),
-    price: Number(it?.price ?? it?.unitPrice ?? 0),
-    subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.price ?? it?.unitPrice ?? 0))) || 0
+    unitPrice: Number(it?.unitPrice ?? it?.price ?? 0),
+    subtotal: Number(it?.subtotal ?? (Number(it?.qty??0)*Number(it?.unitPrice ?? it?.price ?? 0))) || 0
   })) : [];
 
   function recalc(){
     items.forEach(it=>{
       it.qty = Number(it.qty||0);
-      it.price = Number(it.price||0);
-      it.subtotal = Math.round(it.qty * it.price);
+      it.unitPrice = Number(it.unitPrice||0);
+      it.subtotal = Math.round(it.qty * it.unitPrice);
     });
     const total = items.reduce((a,it)=>a+Number(it.subtotal||0),0);
-    const t = body.querySelector("#req_total");
+    const t = body.querySelector("#fx_total");
     if(t) t.textContent = fmtMoney(total);
     return total;
   }
 
-  function renderItems(){
-    const wrap = body.querySelector("#req_items");
+  function renderItemsEditable(){
+    const wrap = body.querySelector("#fx_items");
     if(!wrap) return;
 
     const list = (optProductNames && optProductNames.length) ? optProductNames : [];
@@ -2304,12 +2335,6 @@ async function openFixEditor(sale){
       return opts.join("");
     };
 
-    if(!items.length){
-      wrap.innerHTML = `<div class="empty">明細（items）がありません。</div>`;
-      recalc();
-      return;
-    }
-
     wrap.innerHTML = `
       <table class="drawerTable">
         <thead>
@@ -2318,17 +2343,19 @@ async function openFixEditor(sale){
         <tbody>
           ${items.map((it,i)=>`
             <tr>
-              <td>${admin ? escapeHtml(it.name) : `<select class="cellSel" data-i="${i}">${buildOpts(it.name)}</select>`}</td>
-              <td class="right">${admin ? escapeHtml(String(it.qty)) : `<input class="cellIn right" data-i="${i}" data-f="qty" type="number" value="${escapeAttr(it.qty)}" />`}</td>
-              <td class="right">${admin ? escapeHtml(String(it.price)) : `<input class="cellIn right" data-i="${i}" data-f="price" type="number" value="${escapeAttr(it.price)}" />`}</td>
+              <td><select class="cellSel" data-i="${i}">${buildOpts(it.name)}</select></td>
+              <td class="right"><input class="cellIn right" data-i="${i}" data-f="qty" type="number" inputmode="numeric" value="${escapeAttr(it.qty)}" /></td>
+              <td class="right"><input class="cellIn right" data-i="${i}" data-f="unitPrice" type="number" inputmode="numeric" value="${escapeAttr(it.unitPrice)}" /></td>
               <td class="right">${escapeHtml(fmtMoney(it.subtotal))}</td>
             </tr>
           `).join("")}
         </tbody>
       </table>
+      <div class="miniActions">
+        <button class="sbtn" id="fx_addItem" type="button">＋ 行を追加</button>
+        <button class="sbtn danger" id="fx_delItem" type="button">－ 最終行を削除</button>
+      </div>
     `;
-
-    if(admin) return;
 
     wrap.querySelectorAll(".cellIn").forEach(el2=>{
       el2.addEventListener("input", ()=>{
@@ -2337,7 +2364,7 @@ async function openFixEditor(sale){
         if(!items[i]) return;
         items[i][f] = Number(el2.value||0);
         recalc();
-        renderItems();
+        renderItemsEditable();
       });
     });
     wrap.querySelectorAll(".cellSel").forEach(sel2=>{
@@ -2347,85 +2374,217 @@ async function openFixEditor(sale){
         const name = sel2.value;
         items[i].name = name;
         const mp = Number(productPriceByName?.[name] ?? 0);
-        if((!items[i].price || items[i].price===0) && mp>0) items[i].price = mp;
+        if((!items[i].unitPrice || items[i].unitPrice===0) && mp>0) items[i].unitPrice = mp;
         recalc();
-        renderItems();
+        renderItemsEditable();
       });
     });
+
+    const addBtn = wrap.querySelector("#fx_addItem");
+    const delBtn = wrap.querySelector("#fx_delItem");
+    addBtn.onclick = ()=>{
+      items.push({ name: (optProductNames?.[0]||""), qty: 1, unitPrice: 0, subtotal: 0 });
+      recalc();
+      renderItemsEditable();
+    };
+    delBtn.onclick = ()=>{
+      if(items.length<=0) return;
+      items.pop();
+      recalc();
+      renderItemsEditable();
+    };
 
     recalc();
   }
 
-  // ---- UI描画
+  function renderItemsReadonly(rows){
+    const wrap = body.querySelector("#fx_items");
+    if(!wrap) return;
+    const arr = Array.isArray(rows) ? rows : [];
+    if(!arr.length){
+      wrap.innerHTML = `<div class="empty">明細（items）がありません。</div>`;
+      return;
+    }
+    wrap.innerHTML = `
+      <table class="drawerTable">
+        <thead>
+          <tr><th>商品</th><th class="right">数量</th><th class="right">単価</th><th class="right">小計</th></tr>
+        </thead>
+        <tbody>
+          ${arr.map(it=>`
+            <tr>
+              <td>${escapeHtml(it?.name || "")}</td>
+              <td class="right">${escapeHtml(String(it?.qty ?? ""))}</td>
+              <td class="right">${escapeHtml(String(it?.unitPrice ?? it?.price ?? ""))}</td>
+              <td class="right">${escapeHtml(fmtMoney(it?.subtotal ?? (Number(it?.qty||0)*Number(it?.unitPrice ?? it?.price ?? 0))))}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    `;
+  }
+
+  function diffLine(label, oldV, newV, statusText){
+    const o = escapeHtml(String(oldV ?? ""));
+    const n = escapeHtml(String(newV ?? ""));
+    const st = escapeHtml(statusText || "");
+    return `
+      <div class="diffLine">
+        <div>${escapeHtml(label)}<span class="fromTo"> ${o} → ${n}</span></div>
+        <div style="font-weight:1000;">${st}</div>
+      </div>
+    `;
+  }
+
+  function buildDiffHtml(snap, prop){
+    const chOld = channelLabelById[snap.channelId] || snap.channelId || "";
+    const chNew = channelLabelById[prop.channelId] || prop.channelId || "";
+    const pmOld = paymentLabelById[snap.paymentId] || snap.paymentId || "";
+    const pmNew = paymentLabelById[prop.paymentId] || prop.paymentId || "";
+    const vnOld = venueLabelById[snap.venueId] || snap.venueId || "";
+    const vnNew = venueLabelById[prop.venueId] || prop.venueId || "";
+    const kdOld = kindLabelById[snap.kindId] || snap.kindId || "";
+    const kdNew = kindLabelById[prop.kindId] || prop.kindId || "";
+
+    const lines = [];
+    if(!jsonEq(snap.buyerName, prop.buyerName)) lines.push(diffLine("購入者", snap.buyerName, prop.buyerName, admin ? "☑完了" : "申請中"));
+    if(!jsonEq(snap.orderDate, prop.orderDate)) lines.push(diffLine("購入日付", snap.orderDate, prop.orderDate, admin ? "☑完了" : "申請中"));
+    if(!jsonEq(snap.channelId, prop.channelId)) lines.push(diffLine("販売方法", chOld, chNew, admin ? "☑完了" : "申請中"));
+    if(!jsonEq(snap.paymentId, prop.paymentId)) lines.push(diffLine("決済方法", pmOld, pmNew, admin ? "☑完了" : "申請中"));
+    if(!jsonEq(snap.venueId, prop.venueId)) lines.push(diffLine("開催場所", vnOld, vnNew, admin ? "☑完了" : "申請中"));
+    if(!jsonEq(snap.kindId, prop.kindId)) lines.push(diffLine("販売種別", kdOld, kdNew, admin ? "☑完了" : "申請中"));
+    // items / total はまとめて1行
+    if(!jsonEq(snap.items, prop.items)){
+      lines.push(diffLine("商品明細", "（旧）", "（新）", admin ? "☑完了" : "申請中"));
+    }
+    return lines.length ? lines.join("") : `<div class="empty">差分なし</div>`;
+  }
+
+  // =========================
+  // staff view
+  // =========================
   if(!admin){
+    const status = safeStr(patch?.status || "申請中");
+    const hasPatch = !!patch;
+
     body.innerHTML = `
-      <div class="sectionTitle">修正依頼の作成</div>
-      <div class="muted" style="margin-bottom:10px;">保存すると <b>sales_sub</b> に依頼が作成されます（salesは変更しません）。</div>
-
-      ${kvRow("購入者", inp("req_buyer", proposed0?.buyerName ?? snapshot.buyerName, "例：山田 太郎"))}
-      ${kvRow("購入日付", dateInp("req_date", proposed0?.orderDate ?? snapshot.orderDate))}
-      ${kvRow("販売方法", sel("req_channel", optChannels, proposed0?.channel ?? snapshot.channel))}
-      ${kvRow("決済方法", sel("req_payment", optPaymentMethods, proposed0?.paymentMethod ?? snapshot.paymentMethod))}
-      ${kvRow("開催場所", sel("req_venue", optVenues, proposed0?.venue ?? snapshot.venue))}
-      ${kvRow("販売種別", sel("req_kind", optKinds, proposed0?.kind ?? snapshot.kind))}
-      ${kvRow("メモ", area("req_memo", proposed0?.memo ?? snapshot.memo, "修正理由や補足"))}
-
-      <div class="sectionTitle" style="margin-top:14px;">商品明細</div>
-      <div id="req_items"></div>
-
-      <div class="sectionTitle" style="margin-top:14px;">合計</div>
-      <div class="kv"><div class="k">合計</div><div class="v"><b id="req_total">${fmtMoney(proposed0?.total ?? snapshot.total)}</b></div></div>
-
-      <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
-        <button class="modalBtn primary" id="req_save" type="button"><span>保存（修正依頼）</span></button>
+      <div class="sectionTitle">打ち間違い修正（スタッフ）</div>
+      <div class="muted" style="margin-bottom:10px;">
+        保存すると <b>差分sales（patch）</b> を作成します。表示は「旧→新　申請中」になります。
       </div>
 
-      <div class="smallNote">※管理者がFirebase側で sales を修正します。修正後「完了」にチェックが入ると、この明細に「修正済み」が表示されます。</div>
+      ${kvRow("購入者", inp("fx_buyer", proposed0?.buyerName ?? snapshot.buyerName, "例：山田 太郎"))}
+      ${kvRow("購入日付", dateInp("fx_date", proposed0?.orderDate ?? snapshot.orderDate))}
+      ${kvRow("販売方法", selId("fx_channel", optChannels, proposed0?.channelId ?? snapshot.channelId, "選択"))}
+      ${kvRow("決済方法", selId("fx_payment", optPaymentMethods, proposed0?.paymentId ?? snapshot.paymentId, "選択"))}
+      ${kvRow("開催場所（マルシェのみ）", selId("fx_venue", optVenues, proposed0?.venueId ?? snapshot.venueId, "選択"))}
+      ${kvRow("販売種別", selId("fx_kind", optKinds, proposed0?.kindId ?? snapshot.kindId, "選択"))}
+
+      <div class="sectionTitle" style="margin-top:14px;">商品明細</div>
+      <div id="fx_items"></div>
+
+      <div class="sectionTitle" style="margin-top:14px;">合計</div>
+      <div class="kv"><div class="k">合計</div><div class="v"><b id="fx_total">${fmtMoney(0)}</b></div></div>
+
+      <div class="sectionTitle" style="margin-top:14px;">差分</div>
+      <div id="fx_diff">${hasPatch ? buildDiffHtml(snapshot, proposed0) : `<div class="empty">保存すると差分が表示されます</div>`}</div>
+
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="modalBtn" id="fx_back" type="button"><span>戻る</span></button>
+        <button class="modalBtn primary" id="fx_save" type="button"><span>保存（修正申請）</span></button>
+      </div>
+
+      <div class="smallNote">※管理者が Firebase で sales を直接修正します。管理者が「完了」で保存すると反映されます。</div>
     `;
-    renderItems();
+
+    // venue enable only if channel is marche
+    const chSel = body.querySelector("#fx_channel");
+    const vnSel = body.querySelector("#fx_venue");
+    function applyVenueEnable(){
+      const ch = chSel?.value || "";
+      const enable = (ch === "marche"); // channels_bundle.json の id
+      if(!vnSel) return;
+      vnSel.disabled = !enable;
+      vnSel.style.opacity = enable ? "1" : "0.45";
+      if(!enable) vnSel.value = "";
+    }
+    if(chSel) chSel.addEventListener("change", ()=>{
+      applyVenueEnable();
+      // diff redraw
+      const diffEl = body.querySelector("#fx_diff");
+      if(diffEl) diffEl.innerHTML = buildDiffHtml(snapshot, collectProposedFromUI());
+    });
+
+    ["fx_buyer","fx_date","fx_payment","fx_kind","fx_venue"].forEach(id=>{
+      const node = body.querySelector("#"+id);
+      if(node) node.addEventListener("change", ()=>{
+        const diffEl = body.querySelector("#fx_diff");
+        if(diffEl) diffEl.innerHTML = buildDiffHtml(snapshot, collectProposedFromUI());
+      });
+      if(node && node.tagName==="INPUT") node.addEventListener("input", ()=>{
+        const diffEl = body.querySelector("#fx_diff");
+        if(diffEl) diffEl.innerHTML = buildDiffHtml(snapshot, collectProposedFromUI());
+      });
+    });
+
+    function collectProposedFromUI(){
+      const buyerName = body.querySelector("#fx_buyer")?.value?.trim() || "";
+      const orderDate = body.querySelector("#fx_date")?.value?.trim() || "";
+      const channelId = body.querySelector("#fx_channel")?.value || "";
+      const paymentId = body.querySelector("#fx_payment")?.value || "";
+      const venueId   = body.querySelector("#fx_venue")?.value || "";
+      const kindId    = body.querySelector("#fx_kind")?.value || "";
+      return { buyerName, orderDate, channelId, paymentId, venueId, kindId, items };
+    }
+
+    body.querySelector("#fx_back").onclick = ()=> openSaleDrawer(sale);
+
+    // render items
+    renderItemsEditable();
+    // initial calc + venue enable + diff
     recalc();
+    applyVenueEnable();
+    const diffEl0 = body.querySelector("#fx_diff");
+    if(diffEl0 && hasPatch) diffEl0.innerHTML = buildDiffHtml(snapshot, proposed0);
 
-    body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
-
-    body.querySelector("#req_save").onclick = async ()=>{
-      const proposed = {
-        buyerName: body.querySelector("#req_buyer").value.trim(),
-        orderDate: body.querySelector("#req_date").value.trim(),
-        channel: body.querySelector("#req_channel").value || "",
-        paymentMethod: body.querySelector("#req_payment").value || "",
-        venue: body.querySelector("#req_venue").value || "",
-        kind: body.querySelector("#req_kind").value || "",
-        memo: body.querySelector("#req_memo").value || "",
-        items: items.map(it=>({ name:String(it.name||"").trim(), qty:Number(it.qty||0), price:Number(it.price||0), subtotal:Math.round(Number(it.qty||0)*Number(it.price||0)) })),
-        total: recalc()
-      };
-
-      const diffKeys = computeDiffKeys(snapshot, proposed);
-      const payload = {
-        saleId,
-        status: diffKeys.length ? "依頼中" : "依頼中",
-        diffKeys,
-        doneKeys: [],
-        snapshot,
-        proposed,
-        createdAt: (existing?.createdAt || serverTimestamp()),
-        updatedAt: serverTimestamp(),
-        createdBy: (auth?.currentUser?.email || auth?.currentUser?.uid || ""),
-        createdByUid: (auth?.currentUser?.uid || ""),
-        createdByEmail: (auth?.currentUser?.email || "")
-      };
+    body.querySelector("#fx_save").onclick = async ()=>{
+      const proposed = collectProposedFromUI();
+      const diffKeys = [];
+      if(!jsonEq(snapshot.buyerName, proposed.buyerName)) diffKeys.push("buyerName");
+      if(!jsonEq(snapshot.orderDate, proposed.orderDate)) diffKeys.push("orderDate");
+      if(!jsonEq(snapshot.channelId, proposed.channelId)) diffKeys.push("channelId");
+      if(!jsonEq(snapshot.paymentId, proposed.paymentId)) diffKeys.push("paymentId");
+      if(!jsonEq(snapshot.venueId, proposed.venueId)) diffKeys.push("venueId");
+      if(!jsonEq(snapshot.kindId, proposed.kindId)) diffKeys.push("kindId");
+      if(!jsonEq(snapshot.items, proposed.items)) diffKeys.push("items");
 
       if(diffKeys.length === 0){
         toast("変更がありません");
         return;
       }
 
+      const payload = {
+        saleId,
+        status: "申請中",
+        diffKeys,
+        snapshot,
+        proposed: {
+          ...proposed,
+          total: recalc()
+        },
+        createdAt: (patch?.createdAt || serverTimestamp()),
+        updatedAt: serverTimestamp(),
+        createdByUid: (auth?.currentUser?.uid || ""),
+        createdByEmail: (auth?.currentUser?.email || "")
+      };
+
       try{
-        await setDoc(reqRef, payload, { merge: true });
-        toast("修正依頼を保存しました");
+        await setDoc(patchRef, payload, { merge: true });
+        toast("修正申請を保存しました");
         await loadFixRequests();
-        openSaleDrawer(sale);
+        // diff反映
+        const diffEl = body.querySelector("#fx_diff");
+        if(diffEl) diffEl.innerHTML = buildDiffHtml(snapshot, payload.proposed);
       }catch(err){
         console.error(err);
         toast(`保存失敗（${err?.code||"error"}）`);
@@ -2435,76 +2594,138 @@ async function openFixEditor(sale){
     return;
   }
 
-  // ---- admin view
-  const fr = existing || fixReqBySaleId.get(saleId);
-  if(!fr){
+  // =========================
+  // admin view
+  // =========================
+  if(!patch){
     body.innerHTML = `
-      <div class="sectionTitle">修正依頼</div>
-      <div class="empty">この明細には修正依頼がありません。</div>
+      <div class="sectionTitle">打ち間違い修正（管理者）</div>
+      <div class="empty">この明細には修正申請がありません。</div>
       <div style="display:flex; gap:10px; margin-top:14px;">
-        <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
+        <button class="modalBtn" id="fx_back" type="button"><span>戻る</span></button>
       </div>
     `;
-    body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
+    body.querySelector("#fx_back").onclick = ()=> openSaleDrawer(sale);
     return;
   }
 
-  const diffKeys = Array.isArray(fr.diffKeys) ? fr.diffKeys : computeDiffKeys(fr.snapshot||snapshot, fr.proposed||proposed0);
-  const doneKeys = Array.isArray(fr.doneKeys) ? fr.doneKeys : [];
+  const status = safeStr(patch.status || "申請中");
 
   body.innerHTML = `
-    <div class="sectionTitle">修正依頼（管理者）</div>
-    <div class="muted" style="margin-bottom:10px;">管理者は <b>Firebaseで sales を修正</b> → この画面で「完了」にチェックを入れてください。</div>
+    <div class="sectionTitle">打ち間違い修正（管理者）</div>
+    <div class="muted" style="margin-bottom:10px;">
+      ☑完了で保存すると、<b>元のsalesを新で上書き</b>します。
+      ${isBundled ? `<br><b style="color:rgba(208,100,99,.92);">※バンドル由来です。直接修正ください</b>` : ""}
+    </div>
 
     <div class="approveBox">
       <div class="approveHead">旧 → 新　☑完了</div>
-      <div class="approveNote">完了を全てONにするとステータスが「修正済み」になります。</div>
-      <div id="req_diff"></div>
-      <div style="padding-top:10px; text-align:right; font-weight:900;">ステータス：<span id="req_status">${escapeHtml(fr.status||"依頼中")}</span></div>
+      <div id="fx_diff">${buildDiffHtml(snapshot, patch.proposed || proposed0)}</div>
+      <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+        <label class="okChk"><input type="checkbox" id="fx_done" /> 完了</label>
+      </div>
+      <div style="padding-top:10px; text-align:right; font-weight:900;">ステータス：<span id="fx_status">${escapeHtml(status)}</span></div>
     </div>
 
+    <div class="sectionTitle" style="margin-top:14px;">商品明細（新）</div>
+    <div id="fx_items"></div>
+
+    <div class="sectionTitle" style="margin-top:14px;">合計（新）</div>
+    <div class="kv"><div class="k">合計</div><div class="v"><b id="fx_total">${fmtMoney(patch?.proposed?.total ?? 0)}</b></div></div>
+
     <div style="display:flex; gap:10px; margin-top:14px;">
-      <button class="modalBtn" id="req_back" type="button"><span>戻る</span></button>
+      <button class="modalBtn" id="fx_back" type="button"><span>戻る</span></button>
+      <button class="modalBtn primary" id="fx_apply" type="button" disabled style="opacity:.45;"><span>保存（上書き）</span></button>
     </div>
   `;
 
-  const diffWrap = body.querySelector("#req_diff");
-  const doneSet = new Set(doneKeys);
-  diffWrap.innerHTML = diffKeys.map(k=>renderDiffRow(k, (fr.snapshot||snapshot)[k], (fr.proposed||proposed0)[k], doneSet.has(k))).join("");
+  // render items readonly (proposed)
+  renderItemsReadonly(patch?.proposed?.items || proposed0?.items || []);
+  // total
+  const tEl = body.querySelector("#fx_total");
+  if(tEl) tEl.textContent = fmtMoney(patch?.proposed?.total ?? recalc());
 
-  body.querySelector("#req_back").onclick = ()=> openSaleDrawer(sale);
+  body.querySelector("#fx_back").onclick = ()=> openSaleDrawer(sale);
 
-  diffWrap.querySelectorAll(".diffrow").forEach(row=>{
-    const key = row.getAttribute("data-key");
-    const chk = row.querySelector(".doneChk");
-    chk.addEventListener("change", async ()=>{
-      const cur = (await getDoc(reqRef)).data() || fr;
-      const dk = Array.isArray(cur.diffKeys) ? cur.diffKeys : computeDiffKeys(cur.snapshot||snapshot, cur.proposed||proposed0);
-      const set = new Set(Array.isArray(cur.doneKeys) ? cur.doneKeys : []);
-      if(chk.checked) set.add(key); else set.delete(key);
-      const nextDone = Array.from(set).filter(k=> dk.includes(k));
-      const nextStatus = (dk.length>0 && dk.every(k=> nextDone.includes(k))) ? "修正済み" : "修正中";
-      try{
-        await updateDoc(reqRef, { doneKeys: nextDone, status: nextStatus, updatedAt: serverTimestamp(), ...(nextStatus==="修正済み" ? { resolvedAt: serverTimestamp(), resolvedBy: (auth?.currentUser?.email || "") } : {}) });
-        const stEl = body.querySelector("#req_status");
-        if(stEl) stEl.textContent = nextStatus;
-        await loadFixRequests();
-
-        // すべて完了になった瞬間のトースト
-        if(nextStatus === "修正済み"){
-          toast("sales_sub を削除してください（運用）");
-        }
-      }catch(err){
-        console.error(err);
-        chk.checked = !chk.checked;
-        toast(`更新失敗（${err?.code||"error"}）`);
-      }
-    });
+  const doneChk = body.querySelector("#fx_done");
+  const applyBtn = body.querySelector("#fx_apply");
+  doneChk.addEventListener("change", ()=>{
+    const ok = doneChk.checked;
+    applyBtn.disabled = !ok;
+    applyBtn.style.opacity = ok ? "1" : "0.45";
   });
+
+  applyBtn.onclick = async ()=>{
+    if(isBundled){
+      toast("バンドル由来です。直接修正ください");
+      return;
+    }
+    if(!doneChk.checked){
+      toast("完了にチェックしてください");
+      return;
+    }
+
+    const prop = patch.proposed || proposed0;
+    const channelId = String(prop.channelId||"").trim();
+    const paymentId = String(prop.paymentId||"").trim();
+    const venueId   = String(prop.venueId||"").trim();
+    const kindId    = String(prop.kindId||"").trim();
+
+    const channelLabel = channelLabelById[channelId] || "";
+    const paymentLabel = paymentLabelById[paymentId] || "";
+    const venueLabel   = venueLabelById[venueId] || "";
+    const kindLabel    = kindLabelById[kindId] || "";
+
+    // salesの上書き（管理者のみ許可される想定）
+    const salesRef = doc(db, "sales", saleId);
+
+    const itemsOut = (Array.isArray(prop.items) ? prop.items : []).map(it=>{
+      const qty = Number(it.qty||0);
+      const unitPrice = Number(it.unitPrice ?? it.price ?? 0);
+      return {
+        name: String(it.name||"").trim(),
+        qty,
+        unitPrice,
+        price: unitPrice, // 互換
+        subtotal: Math.round(qty * unitPrice)
+      };
+    });
+    const totalOut = itemsOut.reduce((a,it)=>a+Number(it.subtotal||0),0);
+
+    const patchUpdate = {
+      buyerName: String(prop.buyerName||"").trim(),
+      orderDate: String(prop.orderDate||"").trim(),
+      orderDateMs: msAtLocalMidnight(String(prop.orderDate||"").trim()),
+      channelId, channelLabel,
+      channel: channelLabel || channelId, // 互換
+      paymentId, paymentLabel,
+      paymentMethod: paymentLabel || paymentId, // 互換
+      venueId, venueLabel,
+      venue: venueLabel || venueId, // 互換
+      kindId, kindLabel,
+      kind: kindId || kindLabel || "", // 互換
+      items: itemsOut,
+      total: totalOut,
+      updatedAt: serverTimestamp()
+    };
+
+    try{
+      await updateDoc(salesRef, patchUpdate);
+      await updateDoc(patchRef, { status: "完了", updatedAt: serverTimestamp(), resolvedAt: serverTimestamp(), resolvedByEmail: (auth?.currentUser?.email||"") });
+      toast("上書き保存しました");
+      await loadAll(true);
+      // 明細へ戻る（最新表示）
+      openSaleDrawer({ ...sale, ...patchUpdate, items: itemsOut, total: totalOut, isBundled:false });
+    }catch(err){
+      console.error(err);
+      toast(`保存失敗（${err?.code||"error"}）`);
+    }
+  };
 }
 
 
 // ---- クレーム返金処理（未実装：必要なら実装します）
+（未実装：必要なら実装します）
   function openClaimEditor(sale){
     toast("クレーム返金処理はこの版では未実装です（必要なら追加します）");
   }
