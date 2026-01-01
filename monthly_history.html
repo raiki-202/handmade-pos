@@ -2614,7 +2614,7 @@ async function openFixEditor(sale){
   body.innerHTML = `
     <div class="sectionTitle">打ち間違い修正（管理者）</div>
     <div class="muted" style="margin-bottom:10px;">
-      ☑完了にして保存すると、<b>この修正申請を「完了」</b>にします。（sales本体は管理者がFirebase側で直接修正してください）
+      ☑完了で保存すると、<b>元のsalesを新で上書き</b>します。
       ${isBundled ? `<br><b style="color:rgba(208,100,99,.92);">※バンドル由来です。直接修正ください</b>` : ""}
     </div>
 
@@ -2635,7 +2635,7 @@ async function openFixEditor(sale){
 
     <div style="display:flex; gap:10px; margin-top:14px;">
       <button class="modalBtn" id="fx_back" type="button"><span>戻る</span></button>
-      <button class="modalBtn primary" id="fx_apply" type="button" disabled style="opacity:.45;"><span>完了にする</span></button>
+      <button class="modalBtn primary" id="fx_apply" type="button" disabled style="opacity:.45;"><span>保存（上書き）</span></button>
     </div>
   `;
 
@@ -2656,39 +2656,239 @@ async function openFixEditor(sale){
   });
 
   applyBtn.onclick = async ()=>{
+    if(isBundled){
+      toast("バンドル由来です。直接修正ください");
+      return;
+    }
     if(!doneChk.checked){
       toast("完了にチェックしてください");
       return;
     }
 
-    // ✅ sales本体はWebから更新しない（管理者がFirebase側で直接修正）
-    // ここでは「申請中 → 完了」へのステータス更新のみ行う
+    const prop = patch.proposed || proposed0;
+    const channelId = String(prop.channelId||"").trim();
+    const paymentId = String(prop.paymentId||"").trim();
+    const venueId   = String(prop.venueId||"").trim();
+    const kindId    = String(prop.kindId||"").trim();
+
+    const channelLabel = channelLabelById[channelId] || "";
+    const paymentLabel = paymentLabelById[paymentId] || "";
+    const venueLabel   = venueLabelById[venueId] || "";
+    const kindLabel    = kindLabelById[kindId] || "";
+
+    // salesの上書き（管理者のみ許可される想定）
+    const salesRef = doc(db, "sales", saleId);
+
+    const itemsOut = (Array.isArray(prop.items) ? prop.items : []).map(it=>{
+      const qty = Number(it.qty||0);
+      const unitPrice = Number(it.unitPrice ?? it.price ?? 0);
+      return {
+        name: String(it.name||"").trim(),
+        qty,
+        unitPrice,
+        price: unitPrice, // 互換
+        subtotal: Math.round(qty * unitPrice)
+      };
+    });
+    const totalOut = itemsOut.reduce((a,it)=>a+Number(it.subtotal||0),0);
+
+    const patchUpdate = {
+      buyerName: String(prop.buyerName||"").trim(),
+      orderDate: String(prop.orderDate||"").trim(),
+      orderDateMs: msAtLocalMidnight(String(prop.orderDate||"").trim()),
+      channelId, channelLabel,
+      channel: channelLabel || channelId, // 互換
+      paymentId, paymentLabel,
+      paymentMethod: paymentLabel || paymentId, // 互換
+      venueId, venueLabel,
+      venue: venueLabel || venueId, // 互換
+      kindId, kindLabel,
+      kind: kindId || kindLabel || "", // 互換
+      items: itemsOut,
+      total: totalOut,
+      updatedAt: serverTimestamp()
+    };
+
     try{
-      await updateDoc(patchRef, {
-        status: "完了",
-        updatedAt: serverTimestamp(),
-        resolvedAt: serverTimestamp(),
-        resolvedByEmail: (auth?.currentUser?.email || "")
-      });
-      toast("完了にしました");
-      await loadFixRequests();
+      await updateDoc(salesRef, patchUpdate);
+      await updateDoc(patchRef, { status: "完了", updatedAt: serverTimestamp(), resolvedAt: serverTimestamp(), resolvedByEmail: (auth?.currentUser?.email||"") });
+      toast("上書き保存しました");
       await loadAll(true);
-      // 明細へ戻る（表示更新）
-      openSaleDrawer(sale);
+      // 明細へ戻る（最新表示）
+      openSaleDrawer({ ...sale, ...patchUpdate, items: itemsOut, total: totalOut, isBundled:false });
     }catch(err){
       console.error(err);
-      toast(`更新失敗（${err?.code||"error"}）`);
+      toast(`保存失敗（${err?.code||"error"}）`);
     }
   };
 }
 
-// ---- クレーム返金処理（未実装：必要なら実装します）
-// （未実装：必要なら実装します）
-  function openClaimEditor(sale){
-    toast("クレーム返金処理はこの版では未実装です（必要なら追加します）");
-  }
+
+// ---- クレーム返金処理
+// 仕様：マイナスの sales を新規作成（元の sales は保持）
+async function openClaimEditor(sale){
+  ensureDrawer();
+
+  const saleId = String(sale?.id || "").trim();
+  if(!saleId){ toast("saleIdがありません"); return; }
+
+  // 返金額デフォルト（合計）
+  const saleTotal = Number(sale?.total ?? 0) || 0;
+
+  // ---- master maps
+  const channelLabelById = Object.fromEntries((optChannels||[]).map(o=>[o.id,o.label]));
+  const paymentLabelById = Object.fromEntries((optPaymentMethods||[]).map(o=>[o.id,o.label]));
+  const venueLabelById   = Object.fromEntries((optVenues||[]).map(o=>[o.id,o.label]));
+  const kindLabelById    = Object.fromEntries((optKinds||[]).map(o=>[o.id,o.label]));
+
+  // ---- snapshot（元）
+  const snapshot = {
+    buyerName: sale?.buyerName ?? "",
+    orderDate: sale?.orderDate ?? (sale?.date ? fmtYMD(sale.date) : ""),
+    channelId: sale?.channelId ?? resolveId(optChannels, (sale?.channelLabel || sale?.channel || "")),
+    paymentId: sale?.paymentId ?? resolveId(optPaymentMethods, (sale?.paymentLabel || sale?.paymentMethod || "")),
+    venueId: sale?.venueId ?? resolveId(optVenues, (sale?.venueLabel || sale?.venue || "")),
+    kindId: sale?.kindId ?? resolveId(optKinds, (sale?.kindLabel || sale?.kind || "")),
+  };
+
+  // ---- UI
+  drawerEl.querySelector("#drawerBig").textContent = "クレーム返金";
+  drawerEl.querySelector("#drawerSub").textContent = `${snapshot.orderDate}${snapshot.buyerName ? " / "+snapshot.buyerName : ""}`;
+
+  const body = drawerEl.querySelector("#drawerBody");
+
+  const today = fmtYMD(new Date());
+  const html = `
+    <div class="muted" style="margin-bottom:10px;">
+      返金は <b>マイナスの売上</b> を新規作成します（元の sales は保持）。
+    </div>
+
+    <div class="panel" style="padding:14px;">
+      <div class="kv editKv">
+        <div class="k">返金日</div>
+        <div class="v"><input id="claimDate" class="inp" type="date" value="${escapeHtml(today)}"></div>
+      </div>
+
+      <div class="kv editKv">
+        <div class="k">返金額</div>
+        <div class="v">
+          <input id="claimAmount" class="inp" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(String(Math.abs(saleTotal)||0))}">
+          <div class="muted" style="margin-top:6px;">※ 合計 ${fmtJPY(saleTotal)} を初期値にしています（必要なら変更）</div>
+        </div>
+      </div>
+
+      <div class="kv editKv">
+        <div class="k">決済方法</div>
+        <div class="v">
+          <select id="claimPayment" class="sel">
+            ${(optPaymentMethods||[]).filter(o=>o?.active!==false).map(o=>{
+              const sel = (String(o.id)===String(snapshot.paymentId)) ? "selected" : "";
+              return `<option value="${escapeHtml(o.id)}" ${sel}>${escapeHtml(o.label)}</option>`;
+            }).join("")}
+          </select>
+        </div>
+      </div>
+
+      <div class="kv editKv">
+        <div class="k">メモ</div>
+        <div class="v"><textarea id="claimMemo" class="txt" rows="3" placeholder="例：破損のため返金 / クレーム対応 など"></textarea></div>
+      </div>
+    </div>
+
+    <div class="panel" style="padding:14px; margin-top:12px;">
+      <div class="muted" style="margin-bottom:6px;">作成される売上（返金）</div>
+      <div class="kv"><div class="k">元saleId</div><div class="v">${escapeHtml(saleId)}</div></div>
+      <div class="kv"><div class="k">購入者</div><div class="v">${escapeHtml(snapshot.buyerName || "-")}</div></div>
+      <div class="kv"><div class="k">販売方法</div><div class="v">${escapeHtml(channelLabelById[snapshot.channelId] || snapshot.channelId || "-")}</div></div>
+      <div class="kv"><div class="k">開催場所</div><div class="v">${escapeHtml(venueLabelById[snapshot.venueId] || snapshot.venueId || "-")}</div></div>
+      <div class="kv"><div class="k">販売種別</div><div class="v">${escapeHtml(kindLabelById[snapshot.kindId] || snapshot.kindId || "-")}</div></div>
+    </div>
+
+    <div class="btnRow" style="margin-top:14px;">
+      <button class="btn ghost" id="claimCancel">キャンセル</button>
+      <button class="btn danger" id="claimSave">返金を作成</button>
+    </div>
+  `;
+
+  body.innerHTML = html;
+
+  const cancelBtn = body.querySelector("#claimCancel");
+  const saveBtn   = body.querySelector("#claimSave");
+  if(cancelBtn) cancelBtn.onclick = ()=> openSaleDrawer(sale);
+
+  if(saveBtn) saveBtn.onclick = async ()=>{
+    const dateStr = String(body.querySelector("#claimDate")?.value || "").trim() || today;
+    const amt = Number(body.querySelector("#claimAmount")?.value || 0);
+    if(!Number.isFinite(amt) || amt <= 0){
+      toast("返金額を入力してください");
+      return;
+    }
+    const paymentId = String(body.querySelector("#claimPayment")?.value || "").trim();
+    const paymentLabel = paymentLabelById[paymentId] || paymentId || "";
+    const memo = String(body.querySelector("#claimMemo")?.value || "").trim();
+
+    // 返金は「負の売上」として登録
+    const total = -Math.round(amt);
+
+    // 返金用のitems（単一明細）
+    const itemsOut = [{
+      name: "返金",
+      qty: 1,
+      unitPrice: total,   // unitPrice を負数にして subtotal=total
+      price: total,       // 互換
+      subtotal: total
+    }];
+
+    const docOut = {
+      // link
+      originalSaleId: saleId,
+      isRefund: true,
+
+      // main
+      buyerName: String(snapshot.buyerName||"").trim(),
+      orderDate: dateStr,
+      orderDateMs: msAtLocalMidnight(dateStr),
+
+      channelId: snapshot.channelId || "",
+      channelLabel: channelLabelById[snapshot.channelId] || "",
+      channel: (channelLabelById[snapshot.channelId] || snapshot.channelId || ""), // 互換
+
+      paymentId,
+      paymentLabel,
+      paymentMethod: paymentLabel || paymentId, // 互換
+
+      venueId: snapshot.venueId || "",
+      venueLabel: venueLabelById[snapshot.venueId] || "",
+      venue: (venueLabelById[snapshot.venueId] || snapshot.venueId || ""), // 互換
+
+      kindId: snapshot.kindId || "",
+      kindLabel: kindLabelById[snapshot.kindId] || "",
+      kind: (snapshot.kindId || kindLabelById[snapshot.kindId] || ""), // 互換
+
+      items: itemsOut,
+      total,
+
+      memo: memo || "",
+      createdAt: serverTimestamp(),
+      clientCreatedAt: Date.now(),
+      isBundled: false
+    };
+
+    try{
+      await addDoc(collection(db, "sales"), docOut);
+      toast("返金を作成しました");
+      await loadAll(true);
+      // 元saleへ戻す
+      openSaleDrawer(sale);
+    }catch(err){
+      console.error(err);
+      toast(`作成失敗（${err?.code||"error"}）`);
+    }
+  };
+}
 
 // ---- auth gate (ログインしてなければ login.html へ)
+ (ログインしてなければ login.html へ)
   onAuthStateChanged(auth, (user)=>{
     if(!user){
       authStateEl.textContent = "未ログイン → login.html へ";
