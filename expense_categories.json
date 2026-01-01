@@ -2,35 +2,23 @@
   "categories": [
     {
       "id": "misc",
-      "label": "雑費",
-      "active": true,
-      "order": 1
+      "label": "雑費"
     },
     {
       "id": "parking",
-      "label": "駐車場代",
-      "active": true,
-      "order": 2
+      "label": "駐車場代"
     },
     {
       "id": "booth",
-      "label": "出店料",
-      "active": true,
-      "order": 3
+      "label": "出店料"
     },
     {
       "id": "materials",
-      "label": "材料費",
-      "active": true,
-      "order": 4
+      "label": "材料費"
     },
     {
       "id": "salary",
-      "label": "給料",
-      "active": true,
-      "order": 5
+      "label": "給料"
     }
-  ],
-  "version": 1,
-  "updatedAt": "2026-01-01"
+  ]
 }
