@@ -2614,7 +2614,7 @@ async function openFixEditor(sale){
   body.innerHTML = `
     <div class="sectionTitle">打ち間違い修正（管理者）</div>
     <div class="muted" style="margin-bottom:10px;">
-      ☑完了で保存すると、<b>元のsalesを新で上書き</b>します。
+      ☑完了にして保存すると、<b>この修正申請を「完了」</b>にします。（sales本体は管理者がFirebase側で直接修正してください）
       ${isBundled ? `<br><b style="color:rgba(208,100,99,.92);">※バンドル由来です。直接修正ください</b>` : ""}
     </div>
 
@@ -2635,7 +2635,7 @@ async function openFixEditor(sale){
 
     <div style="display:flex; gap:10px; margin-top:14px;">
       <button class="modalBtn" id="fx_back" type="button"><span>戻る</span></button>
-      <button class="modalBtn primary" id="fx_apply" type="button" disabled style="opacity:.45;"><span>保存（上書き）</span></button>
+      <button class="modalBtn primary" id="fx_apply" type="button" disabled style="opacity:.45;"><span>完了にする</span></button>
     </div>
   `;
 
@@ -2656,73 +2656,31 @@ async function openFixEditor(sale){
   });
 
   applyBtn.onclick = async ()=>{
-    if(isBundled){
-      toast("バンドル由来です。直接修正ください");
-      return;
-    }
     if(!doneChk.checked){
       toast("完了にチェックしてください");
       return;
     }
 
-    const prop = patch.proposed || proposed0;
-    const channelId = String(prop.channelId||"").trim();
-    const paymentId = String(prop.paymentId||"").trim();
-    const venueId   = String(prop.venueId||"").trim();
-    const kindId    = String(prop.kindId||"").trim();
-
-    const channelLabel = channelLabelById[channelId] || "";
-    const paymentLabel = paymentLabelById[paymentId] || "";
-    const venueLabel   = venueLabelById[venueId] || "";
-    const kindLabel    = kindLabelById[kindId] || "";
-
-    // salesの上書き（管理者のみ許可される想定）
-    const salesRef = doc(db, "sales", saleId);
-
-    const itemsOut = (Array.isArray(prop.items) ? prop.items : []).map(it=>{
-      const qty = Number(it.qty||0);
-      const unitPrice = Number(it.unitPrice ?? it.price ?? 0);
-      return {
-        name: String(it.name||"").trim(),
-        qty,
-        unitPrice,
-        price: unitPrice, // 互換
-        subtotal: Math.round(qty * unitPrice)
-      };
-    });
-    const totalOut = itemsOut.reduce((a,it)=>a+Number(it.subtotal||0),0);
-
-    const patchUpdate = {
-      buyerName: String(prop.buyerName||"").trim(),
-      orderDate: String(prop.orderDate||"").trim(),
-      orderDateMs: msAtLocalMidnight(String(prop.orderDate||"").trim()),
-      channelId, channelLabel,
-      channel: channelLabel || channelId, // 互換
-      paymentId, paymentLabel,
-      paymentMethod: paymentLabel || paymentId, // 互換
-      venueId, venueLabel,
-      venue: venueLabel || venueId, // 互換
-      kindId, kindLabel,
-      kind: kindId || kindLabel || "", // 互換
-      items: itemsOut,
-      total: totalOut,
-      updatedAt: serverTimestamp()
-    };
-
+    // ✅ sales本体はWebから更新しない（管理者がFirebase側で直接修正）
+    // ここでは「申請中 → 完了」へのステータス更新のみ行う
     try{
-      await updateDoc(salesRef, patchUpdate);
-      await updateDoc(patchRef, { status: "完了", updatedAt: serverTimestamp(), resolvedAt: serverTimestamp(), resolvedByEmail: (auth?.currentUser?.email||"") });
-      toast("上書き保存しました");
+      await updateDoc(patchRef, {
+        status: "完了",
+        updatedAt: serverTimestamp(),
+        resolvedAt: serverTimestamp(),
+        resolvedByEmail: (auth?.currentUser?.email || "")
+      });
+      toast("完了にしました");
+      await loadFixRequests();
       await loadAll(true);
-      // 明細へ戻る（最新表示）
-      openSaleDrawer({ ...sale, ...patchUpdate, items: itemsOut, total: totalOut, isBundled:false });
+      // 明細へ戻る（表示更新）
+      openSaleDrawer(sale);
     }catch(err){
       console.error(err);
-      toast(`保存失敗（${err?.code||"error"}）`);
+      toast(`更新失敗（${err?.code||"error"}）`);
     }
   };
 }
-
 
 // ---- クレーム返金処理（未実装：必要なら実装します）
 // （未実装：必要なら実装します）
