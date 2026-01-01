@@ -6,42 +6,38 @@
   <title>e.nue 支出管理</title>
   <style>
     :root{
-      --bg1:#e3ddd4;
-      --bg2:#d4ccc1;
+      --bg0:#0b0d12;
+      --bg1:#0f121a;
+      --bg2:#151a24;
 
-      --glass-bg: rgba(255,255,255,.86);
-      --glass-bg2: rgba(255,255,255,.78);
-      --glass-border: rgba(0,0,0,.06);
-      --line-soft: rgba(0,0,0,.10);
-      --shadow: 0 18px 45px rgba(0,0,0,.14);
+      --glass: rgba(255,255,255,.06);
+      --glass2: rgba(255,255,255,.04);
+      --line: rgba(255,255,255,.10);
+      --line2: rgba(255,255,255,.14);
+      --shadow: 0 18px 50px rgba(0,0,0,.45);
 
-      --text-main:#222222;
-      --text-sub:#555555;
-      --muted: rgba(34,34,34,.55);
+      --text:#e9edf7;
+      --sub: rgba(233,237,247,.70);
+      --muted: rgba(233,237,247,.52);
 
-      --accent:#e18a6a;
-      --accent2:#d06463;
-
-      --ok:#2fbf7a;
-      --wait:#f0a33a;
-      --done:#6d78d8;
-      --todo:#9097a6;
+      --accent:#8be3ff;
+      --good:#38d9a9;
+      --warn:#ffb020;
 
       --r:18px;
       --maxw:980px;
     }
 
     *{ box-sizing:border-box; }
-    html, body{ height:100%; }
-
+    html,body{ height:100%; }
     body{
       margin:0;
       font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
-      color:var(--text-main);
+      color:var(--text);
       background:
-        radial-gradient(1200px 800px at 18% 8%, rgba(225,138,106,.18), transparent 55%),
-        radial-gradient(1200px 800px at 88% 0%, rgba(208,100,99,.14), transparent 52%),
-        linear-gradient(135deg,var(--bg1),var(--bg2));
+        radial-gradient(1200px 800px at 20% 10%, rgba(255,255,255,.08), transparent 55%),
+        radial-gradient(1200px 800px at 90% 0%, rgba(255,255,255,.06), transparent 52%),
+        linear-gradient(135deg,var(--bg0),var(--bg2));
     }
 
     .safe{
@@ -50,287 +46,157 @@
       margin:0 auto;
     }
 
-    .topbar{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      margin:6px 0 14px;
-      gap:10px;
-    }
-    .brand{ font-weight:900; letter-spacing:.02em; }
+    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:6px 0 14px; }
+    .brand{ font-weight:1000; letter-spacing:.06em; }
 
-    .topActions{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-    }
-
-    .pillBtn{
+    .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .pill{
       appearance:none;
-      border:1px solid rgba(0,0,0,.10);
-      background:rgba(255,255,255,.70);
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
       border-radius:999px;
       padding:10px 12px;
       font-weight:900;
       font-size:12px;
-      box-shadow: 0 10px 18px rgba(0,0,0,.10);
       cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.25);
       -webkit-tap-highlight-color: transparent;
     }
-    .pillBtn:active{ transform: translateY(1px); }
-    .pillBtnPrimary{
-      background: rgba(17,17,17,.92);
-      color:#fff;
-      border-color: rgba(17,17,17,.92);
-    }
-
-    .grid{ display:flex; flex-direction:column; gap:14px; }
+    .pill:active{ transform: translateY(1px); }
+    .pillPrimary{ background:rgba(255,255,255,.92); color:#0b0d12; border-color: rgba(255,255,255,.92); }
 
     .card{
-      background:linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
-      border:1px solid var(--glass-border);
+      background:linear-gradient(180deg,var(--glass),var(--glass2));
+      border:1px solid var(--line);
       border-radius:var(--r);
       box-shadow:var(--shadow);
       overflow:hidden;
-      backdrop-filter:blur(10px);
-      -webkit-backdrop-filter:blur(10px);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
+    .head{ padding:14px 14px 10px; border-bottom:1px solid rgba(255,255,255,.08); display:flex; justify-content:space-between; gap:10px; }
+    .h1{ font-weight:1000; font-size:14px; letter-spacing:.06em; }
+    .sub{ font-size:12px; color:var(--muted); margin-top:2px; }
 
-    .cardHead{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-start;
-      gap:10px;
-      padding:14px 14px 10px;
-      border-bottom:1px solid rgba(0,0,0,.06);
-    }
-    .title .h{ font-weight:1000; font-size:14px; letter-spacing:.06em; }
-    .title .s{ font-size:12px; color:rgba(34,34,34,.6); margin-top:2px; }
-
-    .filters{
-      padding:12px 14px 14px;
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-
+    .filters{ padding:12px 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
     .field{
-      display:flex;
-      gap:8px;
-      align-items:center;
-      background:rgba(255,255,255,.68);
-      border:1px solid rgba(0,0,0,.10);
+      display:flex; gap:8px; align-items:center;
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
       border-radius:14px;
       padding:10px 10px;
-      box-shadow: 0 10px 18px rgba(0,0,0,.08);
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
     }
-    .field label{
-      font-weight:1000;
-      font-size:12px;
-      color:rgba(34,34,34,.70);
-      white-space:nowrap;
-    }
-    .field input, .field select{
+    .field label{ font-weight:1000; font-size:12px; color:var(--sub); white-space:nowrap; }
+    .field input,.field select{
       appearance:none;
-      border:1px solid rgba(0,0,0,.12);
-      background:rgba(255,255,255,.92);
+      border:1px solid var(--line2);
+      background:rgba(0,0,0,.25);
+      color:var(--text);
       border-radius:12px;
       padding:10px 10px;
       font-weight:900;
       font-size:12px;
       outline:none;
     }
+    .field select{ min-width: 150px; }
     .field input{ min-width: 140px; }
-    .field select{ min-width: 160px; }
 
-    .sumRow{
-      padding:0 14px 14px;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      align-items:flex-end;
-      flex-wrap:wrap;
-    }
+    .sumRow{ padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; }
     .sumBox{
-      background:rgba(255,255,255,.72);
-      border:1px solid rgba(0,0,0,.10);
+      background:rgba(255,255,255,.06);
+      border:1px solid var(--line);
       border-radius:16px;
       padding:10px 12px;
-      box-shadow: 0 10px 18px rgba(0,0,0,.08);
       min-width: 210px;
+      box-shadow: 0 10px 22px rgba(0,0,0,.22);
     }
-    .sumBox .k{ font-size:11px; font-weight:1000; color:rgba(34,34,34,.55); }
+    .sumBox .k{ font-size:11px; font-weight:1000; color:var(--muted); }
     .sumBox .v{ font-size:18px; font-weight:1100; margin-top:2px; }
 
-    /* table */
-    .tableWrap{
-      display:block;
-      width:100%;
-      box-sizing:border-box;
-      padding:0 22px 16px;
-      overflow-x:auto;
-      overflow-y:hidden;
-      -webkit-overflow-scrolling:touch;
+    .tableWrap{ padding:0 22px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table{ width:100%; border-collapse:collapse; table-layout:fixed; min-width:880px; }
+    th,td{ padding:10px; font-size:13px; vertical-align:middle; white-space:nowrap; }
+    th{ text-align:left; background:rgba(255,255,255,.06); position:sticky; top:0; z-index:1; }
+    tr+tr td{ border-top:1px solid rgba(255,255,255,.08); }
+    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; }
+    .mutedText{ color:var(--muted); font-weight:900; }
+    .badge{
+      display:inline-flex; align-items:center; gap:6px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.06);
+      font-size:12px;
+      font-weight:900;
+      color:var(--sub);
     }
-    table{
-      width:100%;
-      border-collapse:collapse;
-      table-layout:fixed;
-      min-width:780px; /* iPhone: 横スクロール */
-    }
-    th, td{
-      padding:10px;
-      font-size:13px;
-      vertical-align:middle;
-      white-space:nowrap;
-    }
-    th{
-      text-align:left;
-      background:#f3f3f3;
-      position:sticky;
-      top:0;
-      z-index:1;
-    }
-    tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+    .badge.good{ border-color: rgba(56,217,169,.35); color: rgba(56,217,169,.95); background: rgba(56,217,169,.10); }
+    .badge.warn{ border-color: rgba(255,176,32,.35); color: rgba(255,176,32,.95); background: rgba(255,176,32,.10); }
 
     .tap{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
+      display:inline-flex; align-items:center; gap:6px;
       padding:8px 10px;
       border-radius:999px;
-      border:1px solid rgba(0,0,0,.14);
-      background:rgba(255,255,255,.88);
-      font-weight:900;
+      border:1px solid var(--line2);
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      font-weight:1000;
       cursor:pointer;
       user-select:none;
     }
     .tap:active{ transform: translateY(1px); }
 
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; }
-    .muted{ color: rgba(34,34,34,.55); font-weight:900; }
-
-    .empty{
-      padding:18px 14px;
-      color:rgba(0,0,0,.55);
-      font-weight:900;
-    }
+    .empty{ padding:18px 14px; color:var(--muted); font-weight:900; }
 
     /* Bottom sheet */
-    .overlay{
-      position:fixed; inset:0;
-      background:rgba(0,0,0,.35);
-      display:none;
-      align-items:flex-end;
-      z-index:999;
-      padding:10px;
-    }
+    .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:999; padding:10px; }
     .overlay.show{ display:flex; }
-
-    .sheet{
-      width:min(720px,100%);
-      margin:0 auto;
-      background:#fff;
-      border-radius:22px;
-      box-shadow:0 30px 80px rgba(0,0,0,.35);
-      overflow:hidden;
-    }
-    .sheetHead{
-      padding:12px 14px;
-      border-bottom:1px solid rgba(0,0,0,.08);
-      display:flex; align-items:center; justify-content:space-between; gap:10px;
-      font-weight:1000;
-    }
+    .sheet{ width:min(820px,100%); margin:0 auto; background: #0c0f16; border:1px solid var(--line); border-radius:22px; box-shadow:0 30px 90px rgba(0,0,0,.55); overflow:hidden; }
+    .sheetHead{ padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.10); display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:1000; }
     .sheetBody{ padding:12px 14px; }
-    .sheetFoot{
-      padding:12px 14px;
-      border-top:1px solid rgba(0,0,0,.08);
-      display:flex; gap:10px;
-    }
-    .btn{
-      flex:1;
-      border:none;
-      border-radius:14px;
-      padding:12px 12px;
-      font-weight:1000;
-      cursor:pointer;
-    }
-    .btnGhost{ background:rgba(0,0,0,.06); }
-    .btnPrimary{ background:#111; color:#fff; }
-    .btnDanger{ background:rgba(208,100,99,.18); color:#9a2f2c; }
+    .sheetFoot{ padding:12px 14px; border-top:1px solid rgba(255,255,255,.10); display:flex; gap:10px; }
+    .btn{ flex:1; border:none; border-radius:14px; padding:12px 12px; font-weight:1000; cursor:pointer; }
+    .btnGhost{ background:rgba(255,255,255,.08); color:var(--text); }
+    .btnPrimary{ background:rgba(255,255,255,.92); color:#0b0d12; }
+    .btnDanger{ background:rgba(255,107,107,.18); color:#ffb3b3; border:1px solid rgba(255,107,107,.30); }
     .btn:active{ transform: translateY(1px); }
 
-    .form{
-      display:grid;
-      grid-template-columns: 110px 1fr;
-      gap:10px 12px;
-      font-size:13px;
-      align-items:center;
-    }
-    .form .k{ color:rgba(0,0,0,.55); font-weight:1000; }
-    .form input, .form select, .form textarea{
+    .grid2{ display:grid; grid-template-columns: 120px 1fr; gap:10px 12px; font-size:13px; align-items:center; }
+    .grid2 .k{ color:var(--muted); font-weight:1000; }
+    .grid2 input, .grid2 select, .grid2 textarea{
       appearance:none;
-      border:1px solid rgba(0,0,0,.14);
+      border:1px solid var(--line2);
+      background:rgba(0,0,0,.25);
+      color:var(--text);
       border-radius:12px;
       padding:10px 10px;
-      background: rgba(255,255,255,.95);
       font-weight:900;
       font-size:13px;
       outline:none;
       width:100%;
     }
-    .form textarea{ min-height: 84px; resize: vertical; font-weight:800; }
+    .grid2 textarea{ min-height: 76px; resize: vertical; font-weight:800; }
 
-    .helpRow{
-      margin-top:10px;
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-    }
-    .hint{
-      font-size:11px;
-      color:rgba(0,0,0,.55);
-      font-weight:900;
-    }
+    .lines{ margin-top:12px; border-top:1px solid rgba(255,255,255,.10); padding-top:12px; }
+    .lineHead{ display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .lineTitle{ font-weight:1000; font-size:13px; color:var(--sub); }
+    .lineTableWrap{ overflow-x:auto; -webkit-overflow-scrolling:touch; margin-top:10px; }
+    .lineTable{ width:100%; min-width: 820px; border-collapse:collapse; table-layout:fixed; }
+    .lineTable th,.lineTable td{ padding:8px; font-size:12px; white-space:nowrap; }
+    .lineTable th{ background:rgba(255,255,255,.06); }
+    .lineTable tr+tr td{ border-top:1px solid rgba(255,255,255,.08); }
+    .lineInp{ width:100%; }
+    .mini{ padding:8px 10px; border-radius:12px; border:1px solid var(--line2); background:rgba(255,255,255,.06); color:var(--text); font-weight:900; cursor:pointer; }
+    .mini:active{ transform: translateY(1px); }
 
-    .optList{ display:grid; gap:10px; }
-    .opt{
-      display:flex; align-items:center; justify-content:space-between;
-      padding:12px 12px;
-      border-radius:16px;
-      border:1px solid rgba(0,0,0,.12);
-      cursor:pointer;
-      user-select:none;
-    }
-    .opt:active{ transform: translateY(1px); }
-    .opt .left{ display:flex; align-items:center; gap:10px; font-weight:1000; }
-    .opt .right{ color:rgba(0,0,0,.55); font-weight:900; font-size:12px; }
-
-    .toggle{
-      width:18px; height:18px;
-      border-radius:6px;
-      border:2px solid rgba(0,0,0,.25);
-      display:inline-flex; align-items:center; justify-content:center;
-      font-size:12px; font-weight:1000;
-    }
-    .toggle.on{ background:#111; border-color:#111; color:#fff; }
-
-    .rowLine{
-      display:flex; gap:8px; flex-wrap:wrap;
-      align-items:center;
-      margin-top:12px;
-      padding-top:12px;
-      border-top:1px solid rgba(0,0,0,.08);
-    }
+    .checkRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .check{ display:flex; gap:8px; align-items:center; border:1px solid var(--line); background:rgba(255,255,255,.06); padding:10px 12px; border-radius:14px; font-weight:1000; }
+    .check input{ width:18px; height:18px; }
 
     @media (max-width: 420px){
-      .form{ grid-template-columns: 1fr; }
-      .form .k{ font-size:12px; }
+      .grid2{ grid-template-columns: 1fr; }
       .field input{ min-width: 120px; }
       .field select{ min-width: 140px; }
       .sumBox{ min-width: 180px; }
@@ -341,76 +207,70 @@
   <div class="safe">
     <div class="topbar">
       <div class="brand">e.nue</div>
-      <div class="topActions">
-        <button class="pillBtn" id="backBtn" type="button">← 戻る</button>
-        <button class="pillBtn" id="catBtn" type="button">⚙ カテゴリー</button>
-        <button class="pillBtn" id="payBtn" type="button">💴 支払方法</button>
-        <button class="pillBtn" id="csvBtn" type="button">⬇ CSV</button>
-        <button class="pillBtn pillBtnPrimary" id="addBtn" type="button">＋ 支出追加</button>
+      <div class="actions">
+        <button class="pill" id="backBtn" type="button">← 戻る</button>
+        <button class="pill" id="claimsBtn" type="button">🧾 領収申請</button>
+        <button class="pill pillPrimary" id="addBtn" type="button">＋ レシート追加</button>
       </div>
     </div>
 
-    <main class="grid">
-      <section class="card">
-        <div class="cardHead">
-          <div class="title">
-            <div class="h">支出管理</div>
-            <div class="s">当月表示 / 追加・編集 / カテゴリーは自由に編集（将来バンドル対応）</div>
-          </div>
+    <main class="card">
+      <div class="head">
+        <div>
+          <div class="h1">支出管理（レシート単位）</div>
+          <div class="sub">購入店ごとにレシートを登録 → 明細行にカテゴリを付与</div>
         </div>
+      </div>
 
-        <div class="filters">
-          <div class="field">
-            <label for="monthInput">月</label>
-            <input id="monthInput" type="month" />
-          </div>
-          <div class="field">
-            <label for="catFilter">カテゴリ</label>
-            <select id="catFilter"></select>
-          </div>
-          <div class="field">
-            <label for="qInput">検索</label>
-            <input id="qInput" type="text" placeholder="メモ/支払方法" />
-          </div>
-          <button class="pillBtn" id="refreshBtn" type="button">更新</button>
+      <div class="filters">
+        <div class="field">
+          <label for="yearSel">年</label>
+          <select id="yearSel"></select>
         </div>
+        <div class="field">
+          <label for="monthSel">月</label>
+          <select id="monthSel"></select>
+        </div>
+        <div class="field">
+          <label for="qInput">検索</label>
+          <input id="qInput" type="text" placeholder="店名/メモ/明細名" />
+        </div>
+        <button class="pill" id="refreshBtn" type="button">更新</button>
+      </div>
 
-        <div class="sumRow">
-          <div class="sumBox">
-            <div class="k">表示中 合計</div>
-            <div class="v" id="sumAmount">—</div>
-          </div>
-          <div class="sumBox">
-            <div class="k">表示件数</div>
-            <div class="v" id="sumCount">—</div>
-          </div>
+      <div class="sumRow">
+        <div class="sumBox">
+          <div class="k">表示中 合計</div>
+          <div class="v" id="sumAmount">—</div>
         </div>
+        <div class="sumBox">
+          <div class="k">表示件数（レシート）</div>
+          <div class="v" id="sumCount">—</div>
+        </div>
+      </div>
 
-        <div class="tableWrap">
-          <table aria-label="expenses table">
-            <colgroup>
-              <col style="width: 12%;" />
-              <col style="width: 14%;" />
-              <col style="width: 18%;" />
-              <col style="width: 28%;" />
-              <col style="width: 16%;" />
-              <col style="width: 12%;" />
-            </colgroup>
-            <thead>
-              <tr>
-                <th>日付</th>
-                <th>金額</th>
-                <th>カテゴリー</th>
-                <th>内容</th>
-                <th>支払方法</th>
-                <th style="text-align:right;">編集</th>
-              </tr>
-            </thead>
-            <tbody id="tbody"></tbody>
-          </table>
-          <div class="empty" id="empty" style="display:none;">表示できる支出がありません</div>
-        </div>
-      </section>
+      <div class="tableWrap">
+        <table aria-label="receipts table">
+          <colgroup>
+            <col style="width: 14%;" />
+            <col style="width: 20%;" />
+            <col style="width: 14%;" />
+            <col style="width: 34%;" />
+            <col style="width: 18%;" />
+          </colgroup>
+          <thead>
+            <tr>
+              <th>日付</th>
+              <th>購入店</th>
+              <th>合計</th>
+              <th>メモ</th>
+              <th style="text-align:right;">操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+        <div class="empty" id="empty" style="display:none;">表示できる支出がありません</div>
+      </div>
     </main>
   </div>
 
@@ -438,8 +298,6 @@
       doc,
       getDocs,
       addDoc,
-      setDoc,
-      writeBatch,
       updateDoc,
       deleteDoc,
       query,
@@ -449,7 +307,7 @@
       serverTimestamp
     } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-    /* ===== Firebase (本番) ===== */
+    /* ===== Firebase ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
       authDomain: "handmade-pos.firebaseapp.com",
@@ -465,16 +323,12 @@
 
     /* ===== DOM ===== */
     const backBtn = document.getElementById("backBtn");
+    const claimsBtn = document.getElementById("claimsBtn");
     const addBtn = document.getElementById("addBtn");
-    const catBtn = document.getElementById("catBtn");
-    const payBtn = document.getElementById("payBtn");
-    const csvBtn = document.getElementById("csvBtn");
     const refreshBtn = document.getElementById("refreshBtn");
-
-    const monthInput = document.getElementById("monthInput");
-    const catFilter = document.getElementById("catFilter");
+    const yearSel = document.getElementById("yearSel");
+    const monthSel = document.getElementById("monthSel");
     const qInput = document.getElementById("qInput");
-
     const tbody = document.getElementById("tbody");
     const empty = document.getElementById("empty");
     const sumAmount = document.getElementById("sumAmount");
@@ -490,30 +344,15 @@
 
     /* ===== helpers ===== */
     const pad2 = n => String(n).padStart(2,"0");
-    const ymd = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    const ym = (d) => `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
-
-    function toDate(v){
-      try{
-        if(!v) return null;
-        if(typeof v.toDate === "function") return v.toDate();
-        if(v instanceof Date) return v;
-        if(typeof v === "number") return new Date(v);
-        if(typeof v === "string"){ const d=new Date(v); return isNaN(d.getTime())?null:d; }
-        return null;
-      }catch{ return null; }
-    }
-
-    const formatJPY = (n)=> "¥" + Math.round(n||0).toLocaleString("ja-JP");
-    const safeText = (v)=> (v===null||v===undefined) ? "-" : (String(v).trim()||"-");
-
-    function monthRange(ymStr){
-      // ymStr: "YYYY-MM"
-      const [Y,M] = ymStr.split("-").map(Number);
-      const start = new Date(Y, M-1, 1);
-      const end = new Date(Y, M, 1);
-      return { start, end };
-    }
+    const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+    const formatJPY = n => "¥" + Math.round(n||0).toLocaleString("ja-JP");
+    const safeText = v => (v===null||v===undefined) ? "" : String(v);
+    const esc = (s)=> String(s)
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
 
     function openOverlay(){
       overlay.classList.add("show");
@@ -535,138 +374,86 @@
       saveBtn.onclick = onSave;
     }
 
-    function escapeHtml(s){
-      return String(s)
-        .replaceAll("&","&amp;")
-        .replaceAll("<","&lt;")
-        .replaceAll(">","&gt;")
-        .replaceAll('"',"&quot;")
-        .replaceAll("'","&#39;");
+    /* ===== categories from JSON (GitHub) ===== */
+    let categories = []; // {id,label,active,order}
+    async function loadCategories(){
+      // 1) repo同階層: data/expense_categories.json に置く想定
+      const urls = [
+        "data/expense_categories.json",
+        "expense_categories.json"
+      ];
+      for(const u of urls){
+        try{
+          const res = await fetch(u, { cache:"no-store" });
+          if(!res.ok) continue;
+          const js = await res.json();
+          const list = Array.isArray(js?.categories) ? js.categories : [];
+          categories = list.map(x=>({
+            id: safeText(x.id).trim(),
+            label: safeText(x.label).trim(),
+            active: (x.active===false)?false:true,
+            order: Number.isFinite(Number(x.order)) ? Number(x.order) : 9999
+          })).filter(x=>x.id && x.label);
+          categories.sort((a,b)=> (a.order-b.order) || a.label.localeCompare(b.label,"ja"));
+          return;
+        }catch(_e){}
+      }
+      // fallback
+      categories = [
+        { id:"misc", label:"雑費", active:true, order:1 },
+        { id:"parking", label:"駐車場代", active:true, order:2 },
+        { id:"booth", label:"出店料", active:true, order:3 },
+        { id:"materials", label:"材料費", active:true, order:4 },
+        { id:"salary", label:"給料", active:true, order:5 }
+      ];
+    }
+
+    function buildCatOptions(selectedId){
+      const opts = categories.filter(c=>c.active).map(c=>
+        `<option value="${esc(c.id)}">${esc(c.label)}</option>`
+      ).join("");
+      return opts || `<option value="misc">雑費</option>`;
     }
 
     /* ===== state ===== */
-    let categories = []; // {id, name, order, active}
-    let paymentMethods = []; // {id, name, order, active}
-    let expenses = [];   // {id, date, amount, categoryId, categoryName, memo, paymentMethod, createdAt}
+    const COL = "expense_receipts";
+    let receipts = []; // normalized
     let currentUser = null;
 
-    /* ===== Category ===== */
-    async function loadCategories(){
-      const qy = query(collection(db, "expense_categories"), orderBy("order","asc"), orderBy("name","asc"), limit(500));
-      const snap = await getDocs(qy);
-      categories = snap.docs.map(d=>({ id:d.id, ...d.data() }))
-        .map(c=>({
-          id:c.id,
-          name: (c.name ?? "").toString().trim() || "(未設定)",
-          order: Number.isFinite(Number(c.order)) ? Number(c.order) : 9999,
-          active: (c.active === false) ? false : true
-        }));
-    }
-
-    function buildCatFilter(){
-      catFilter.innerHTML = "";
-      const optAll = document.createElement("option");
-      optAll.value = "";
-      optAll.textContent = "すべて";
-      catFilter.appendChild(optAll);
-
-      categories.filter(c=>c.active).forEach(c=>{
-        const opt = document.createElement("option");
-        opt.value = c.id;
-        opt.textContent = c.name;
-        catFilter.appendChild(opt);
-      });
-    }
-
-    async function ensureDefaultCategories(){
-      // 初回用：カテゴリが0件なら最低限だけ作る（邪魔なら消してOK）
-      if(categories.length) return;
-      const seeds = ["材料費","外注費","送料","交通費","消耗品","広告","その他"];
-      for(let i=0;i<seeds.length;i++){
-        await addDoc(collection(db, "expense_categories"), {
-          name: seeds[i],
-          order: i+1,
-          active: true,
-          createdAt: serverTimestamp()
-        });
-      }
-      await loadCategories();
-    }
-
-    
-    /* ===== Payment Method ===== */
-    async function loadPaymentMethods(){
-      const qy = query(collection(db, "expense_payment_methods"), orderBy("order","asc"), orderBy("name","asc"), limit(200));
-      const snap = await getDocs(qy);
-      paymentMethods = snap.docs.map(d=>({ id:d.id, ...d.data() }))
-        .map(p=>({
-          id:p.id,
-          name: (p.name ?? "").toString().trim() || "(未設定)",
-          order: Number.isFinite(Number(p.order)) ? Number(p.order) : 9999,
-          active: (p.active === false) ? false : true
-        }));
-    }
-
-    async function ensureDefaultPaymentMethods(){
-      // 初回用：0件なら「現金」「PayPay」だけ作る（邪魔なら消してOK）
-      if(paymentMethods.length) return;
-      const seeds = ["現金","PayPay"];
-      for(let i=0;i<seeds.length;i++){
-        await addDoc(collection(db, "expense_payment_methods"), {
-          name: seeds[i],
-          order: i+1,
-          active: true,
-          createdAt: serverTimestamp()
-        });
-      }
-      await loadPaymentMethods();
-    }
-
-/* ===== Expenses ===== */
-    async function loadExpensesForMonth(ymStr){
-      const { start, end } = monthRange(ymStr);
-
-      // Firestoreの "date" は "YYYY-MM-DD" 文字列で保存（バンドル化しやすい）
-      const startKey = ymd(start);
-      const endKey = ymd(new Date(end.getFullYear(), end.getMonth(), end.getDate()-1)); // 月末
-      const qy = query(
-        collection(db, "expenses"),
-        where("date", ">=", startKey),
-        where("date", "<=", endKey),
-        orderBy("date","desc"),
-        limit(500)
-      );
-
-      const snap = await getDocs(qy);
-      expenses = snap.docs.map(d=>({ id:d.id, ...d.data() })).map(x=>({
-        id:x.id,
-        date: safeText(x.date),
-        amount: Number(x.amount || 0),
-        categoryId: x.categoryId || "",
-        categoryName: (x.categoryName ?? "").toString().trim() || "(未設定)",
-        memo: (x.memo ?? "").toString(),
-        paymentMethodId: x.paymentMethodId || "",
-        paymentMethodName: (x.paymentMethodName ?? "").toString().trim() || (x.paymentMethod ?? "").toString().trim(),
-        paymentMethod: (x.paymentMethod ?? "").toString(), // legacy
-        createdAt: x.createdAt
-      }));
+    function normalizeDoc(d){
+      const x = d.data();
+      const lines = Array.isArray(x.lines) ? x.lines : [];
+      const sum = Number(x.sum || 0);
+      return {
+        id: d.id,
+        date: safeText(x.date).trim() || "",
+        year: Number(x.year || 0),
+        month: Number(x.month || 0),
+        store: safeText(x.store).trim() || "(未設定)",
+        memo: safeText(x.memo),
+        claimKawahara: !!x.claimKawahara,
+        claimFujiwara: !!x.claimFujiwara,
+        sum,
+        lines: lines.map(li=>({
+          name: safeText(li.name).trim(),
+          categoryId: safeText(li.categoryId).trim(),
+          categoryLabel: safeText(li.categoryLabel).trim(),
+          qty: Number(li.qty || 0),
+          unitPrice: Number(li.unitPrice || 0),
+          total: Number(li.total || 0),
+          memo: safeText(li.memo || "")
+        }))
+      };
     }
 
     function applyFilters(){
-      const catId = catFilter.value || "";
       const q = (qInput.value || "").trim().toLowerCase();
+      let list = [...receipts];
 
-      let list = [...expenses];
-
-      if(catId){
-        list = list.filter(x=>x.categoryId === catId);
-      }
       if(q){
-        list = list.filter(x=>{
-          const a = (x.memo || "").toLowerCase();
-          const b = (x.paymentMethodName || x.paymentMethod || "").toLowerCase();
-          const c = (x.categoryName || "").toLowerCase();
-          return a.includes(q) || b.includes(q) || c.includes(q);
+        list = list.filter(r=>{
+          const s = `${r.store} ${r.memo} ${(r.lines||[]).map(x=>x.name).join(" ")}`.toLowerCase();
+          return s.includes(q);
         });
       }
       return list;
@@ -675,159 +462,248 @@
     function render(){
       const list = applyFilters();
       tbody.innerHTML = "";
-
-      if(list.length === 0){
-        empty.style.display = "";
-      }else{
-        empty.style.display = "none";
-      }
+      empty.style.display = list.length ? "none" : "";
 
       let sum = 0;
-      list.forEach(x=> sum += (Number(x.amount) || 0));
+      for(const r of list) sum += (Number(r.sum)||0);
       sumAmount.textContent = formatJPY(sum);
       sumCount.textContent = String(list.length);
 
-      for(const x of list){
+      for(const r of list){
         const tr = document.createElement("tr");
 
         const tdDate = document.createElement("td");
-        tdDate.textContent = safeText(x.date);
+        tdDate.textContent = r.date || "-";
 
-        const tdAmt = document.createElement("td");
-        tdAmt.innerHTML = `<span class="mono">${escapeHtml(formatJPY(x.amount))}</span>`;
+        const tdStore = document.createElement("td");
+        tdStore.innerHTML = `<span class="mono">${esc(r.store)}</span>`;
 
-        const tdCat = document.createElement("td");
-        tdCat.textContent = safeText(x.categoryName);
+        const tdSum = document.createElement("td");
+        tdSum.innerHTML = `<span class="mono">${esc(formatJPY(r.sum))}</span>`;
 
         const tdMemo = document.createElement("td");
-        tdMemo.textContent = safeText(x.memo);
+        const badges = [];
+        if(r.claimKawahara) badges.push(`<span class="badge warn">領収(川原)</span>`);
+        if(r.claimFujiwara) badges.push(`<span class="badge warn">領収(藤原)</span>`);
+        tdMemo.innerHTML = `${badges.join(" ")} <span class="mutedText">${esc((r.memo||"").slice(0,40))}</span>`;
 
-        const tdPay = document.createElement("td");
-        tdPay.textContent = safeText(x.paymentMethodName || x.paymentMethod);
-
-        const tdEdit = document.createElement("td");
-        tdEdit.style.textAlign = "right";
-        const btn = document.createElement("div");
-        btn.className = "tap";
-        btn.textContent = "編集";
-        btn.onclick = ()=> openExpenseEditor(x);
-        tdEdit.appendChild(btn);
+        const tdAct = document.createElement("td");
+        tdAct.style.textAlign = "right";
+        const b1 = document.createElement("button");
+        b1.className = "tap";
+        b1.type = "button";
+        b1.textContent = "編集";
+        b1.onclick = ()=> openReceiptEditor(r);
+        tdAct.appendChild(b1);
 
         tr.appendChild(tdDate);
-        tr.appendChild(tdAmt);
-        tr.appendChild(tdCat);
+        tr.appendChild(tdStore);
+        tr.appendChild(tdSum);
         tr.appendChild(tdMemo);
-        tr.appendChild(tdPay);
-        tr.appendChild(tdEdit);
+        tr.appendChild(tdAct);
         tbody.appendChild(tr);
       }
     }
 
-    /* ===== Sheets ===== */
-    function openExpenseEditor(row){
+    /* ===== Firestore load ===== */
+    async function loadReceipts(){
+      const y = Number(yearSel.value);
+      const m = monthSel.value;
+
+      let qy;
+      if(m === "all"){
+        qy = query(
+          collection(db, COL),
+          where("year","==", y),
+          orderBy("date","desc"),
+          limit(600)
+        );
+      }else{
+        const mm = Number(m);
+        qy = query(
+          collection(db, COL),
+          where("year","==", y),
+          where("month","==", mm),
+          orderBy("date","desc"),
+          limit(600)
+        );
+      }
+
+      const snap = await getDocs(qy);
+      receipts = snap.docs.map(normalizeDoc);
+    }
+
+    /* ===== editor ===== */
+    function openReceiptEditor(row){
       const isNew = !row;
       const now = new Date();
       const defaultDate = ymd(now);
 
-      const activeCats = categories.filter(c=>c.active);
-      const catOptions = activeCats.map(c=>`<option value="${escapeHtml(c.id)}">${escapeHtml(c.name)}</option>`).join("");
-
-      const activePays = paymentMethods.filter(p=>p.active);
-      const payOptions = activePays.map(p=>`<option value="${escapeHtml(p.id)}">${escapeHtml(p.name)}</option>`).join("");
-
       const initial = row || {
         id: null,
         date: defaultDate,
-        amount: 0,
-        categoryId: activeCats[0]?.id || "",
-        categoryName: activeCats[0]?.name || "(未設定)",
+        store: "",
         memo: "",
-        paymentMethodId: activePays[0]?.id || "",
-        paymentMethodName: activePays[0]?.name || "",
-        paymentMethod: "" // legacy
+        claimKawahara: false,
+        claimFujiwara: false,
+        lines: [
+          { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:0, total:0, memo:"" }
+        ],
+        sum: 0
       };
 
-      sheetTitle.textContent = isNew ? "支出を追加" : "支出を編集";
+      sheetTitle.textContent = isNew ? "レシートを追加" : "レシートを編集";
+
+      const catOpts = buildCatOptions();
+
+      function lineRowHTML(li, idx){
+        return `
+          <tr data-idx="${idx}">
+            <td><input class="lineInp" data-k="name" type="text" value="${esc(li.name||"")}" placeholder="例：包装紙"></td>
+            <td>
+              <select class="lineInp" data-k="categoryId">
+                ${catOpts}
+              </select>
+            </td>
+            <td><input class="lineInp" data-k="qty" type="number" inputmode="numeric" value="${esc(String(li.qty??0))}" style="width:90px"></td>
+            <td><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc(String(li.unitPrice??0))}" style="width:120px"></td>
+            <td class="mono" data-k="total">${esc(formatJPY(li.total||0))}</td>
+            <td><input class="lineInp" data-k="memo" type="text" value="${esc(li.memo||"")}" placeholder="メモ"></td>
+            <td style="text-align:right;">
+              <button class="mini" type="button" data-act="del">削除</button>
+            </td>
+          </tr>
+        `;
+      }
+
       sheetBody.innerHTML = `
-        <div class="form">
+        <div class="grid2">
           <div class="k">日付</div>
-          <div><input id="fDate" type="date" value="${escapeHtml(initial.date)}"></div>
+          <div><input id="fDate" type="date" value="${esc(initial.date)}"></div>
 
-          <div class="k">金額</div>
-          <div><input id="fAmount" type="number" inputmode="numeric" value="${escapeHtml(String(initial.amount||0))}" placeholder="例：1200"></div>
+          <div class="k">購入店</div>
+          <div><input id="fStore" type="text" value="${esc(initial.store||"")}" placeholder="例：ダイソー / コーナン"></div>
 
-          <div class="k">カテゴリー</div>
-          <div>
-            <select id="fCategory">
-              ${catOptions || `<option value="">(未設定)</option>`}
-            </select>
-            <div class="helpRow" style="margin-top:8px;">
-              <div class="hint">※カテゴリは右上「⚙ カテゴリー」で追加・修正できます</div>
-              <button class="pillBtn" id="miniCatBtn" type="button" style="padding:9px 10px;">⚙ 管理</button>
-            </div>
+          <div class="k">メモ</div>
+          <div><textarea id="fMemo" placeholder="レシート全体のメモ（任意）">${esc(initial.memo||"")}</textarea></div>
+
+          <div class="k">領収申請</div>
+          <div class="checkRow">
+            <label class="check"><input id="fClaimF" type="checkbox" ${initial.claimFujiwara ? "checked":""}>領収申請(藤原)</label>
+            <label class="check"><input id="fClaimK" type="checkbox" ${initial.claimKawahara ? "checked":""}>領収申請(川原)</label>
           </div>
-
-          <div class="k">支払方法</div>
-          <div>
-            <select id="fPay">
-              ${payOptions || `<option value="">(未設定)</option>`}
-            </select>
-            <div class="helpRow" style="margin-top:8px;">
-              <div class="hint">※支払方法は右上「💴 支払方法」で追加・修正できます</div>
-              <button class="pillBtn" id="miniPayBtn" type="button" style="padding:9px 10px;">💴 管理</button>
-            </div>
-          </div>
-
-          <div class="k">内容</div>
-          <div><textarea id="fMemo" placeholder="メモ（任意）">${escapeHtml(initial.memo)}</textarea></div>
         </div>
 
-        ${!isNew ? `
-          <div class="rowLine">
-            <button class="btn btnDanger" id="delBtn" type="button" style="flex:0 0 auto; padding:12px 14px;">削除</button>
-            <div class="hint">※削除は取り消せません</div>
+        <div class="lines">
+          <div class="lineHead">
+            <div class="lineTitle">明細</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <span class="badge good" id="sumBadge">合計：—</span>
+              <button class="mini" id="addLineBtn" type="button">＋ 明細追加</button>
+            </div>
           </div>
-        ` : ""}
+
+          <div class="lineTableWrap">
+            <table class="lineTable" aria-label="line items">
+              <colgroup>
+                <col style="width: 22%;" />
+                <col style="width: 16%;" />
+                <col style="width: 10%;" />
+                <col style="width: 14%;" />
+                <col style="width: 12%;" />
+                <col style="width: 18%;" />
+                <col style="width: 8%;" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th>名前</th>
+                  <th>カテゴリ</th>
+                  <th>数量</th>
+                  <th>単価</th>
+                  <th>合計</th>
+                  <th>メモ書き</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="lineTbody">
+                ${(initial.lines||[]).map(lineRowHTML).join("")}
+              </tbody>
+            </table>
+          </div>
+
+          ${!isNew ? `
+            <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center; gap:10px; border-top:1px solid rgba(255,255,255,.10); padding-top:12px;">
+              <button class="btn btnDanger" id="delReceiptBtn" type="button" style="flex:0 0 auto; padding:10px 14px;">このレシートを削除</button>
+              <div class="mutedText">※削除は取り消せません（必要なら管理者運用に）</div>
+            </div>
+          ` : ""}
+        </div>
       `;
 
-      // set selected
-      const sel = sheetBody.querySelector("#fCategory");
-      if(sel){
-        sel.value = initial.categoryId || "";
-        if(!sel.value && activeCats[0]?.id) sel.value = activeCats[0].id;
-      }
-
-      const paySel = sheetBody.querySelector("#fPay");
-      if(paySel){
-        // 既存がIDならそれ優先。無ければ名前マッチを試す
-        const id = initial.paymentMethodId || "";
-        const name = (initial.paymentMethodName || initial.paymentMethod || "").trim();
-        if(id){
-          paySel.value = id;
-        }else if(name){
-          const hit = activePays.find(p=>p.name===name);
-          paySel.value = hit ? hit.id : (activePays[0]?.id || "");
-        }else{
-          paySel.value = activePays[0]?.id || "";
+      // set category selects
+      const lineTbody = sheetBody.querySelector("#lineTbody");
+      [...lineTbody.querySelectorAll("tr")].forEach((tr, idx)=>{
+        const li = initial.lines[idx];
+        const sel = tr.querySelector('select[data-k="categoryId"]');
+        if(sel){
+          sel.value = li.categoryId || (categories[0]?.id || "misc");
+          if(!sel.value) sel.value = categories[0]?.id || "misc";
         }
+      });
+
+      function recompute(){
+        // read all lines from DOM
+        const rows = [...lineTbody.querySelectorAll("tr")];
+        const out = [];
+        let sum = 0;
+
+        for(const tr of rows){
+          const name = tr.querySelector('[data-k="name"]').value || "";
+          const categoryId = tr.querySelector('select[data-k="categoryId"]').value || "";
+          const categoryLabel = categories.find(c=>c.id===categoryId)?.label || "";
+          const qty = Number(tr.querySelector('[data-k="qty"]').value || 0);
+          const unitPrice = Number(tr.querySelector('[data-k="unitPrice"]').value || 0);
+          const memo = tr.querySelector('[data-k="memo"]').value || "";
+          const total = Math.round((qty||0) * (unitPrice||0));
+          tr.querySelector('[data-k="total"]').textContent = formatJPY(total);
+          sum += total;
+
+          out.push({ name, categoryId, categoryLabel, qty, unitPrice, total, memo });
+        }
+
+        sheetBody.querySelector("#sumBadge").textContent = "合計：" + formatJPY(sum);
+        return { lines: out, sum };
       }
 
-      const miniCatBtn = sheetBody.querySelector("#miniCatBtn");
-      if(miniCatBtn){
-        miniCatBtn.onclick = (e)=>{ e.stopPropagation(); closeOverlay(); openCategoryManager(); };
+      // attach listeners
+      function attachRowHandlers(tr){
+        tr.addEventListener("input", ()=>{ recompute(); });
+        const del = tr.querySelector('[data-act="del"]');
+        del.onclick = ()=>{ tr.remove(); recompute(); };
       }
+      [...lineTbody.querySelectorAll("tr")].forEach(attachRowHandlers);
 
-      const miniPayBtn = sheetBody.querySelector("#miniPayBtn");
-      if(miniPayBtn){
-        miniPayBtn.onclick = (e)=>{ e.stopPropagation(); closeOverlay(); openPaymentManager(); };
-      }
+      sheetBody.querySelector("#addLineBtn").onclick = ()=>{
+        const idx = lineTbody.querySelectorAll("tr").length;
+        const li = { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:0, total:0, memo:"" };
+        const temp = document.createElement("tbody");
+        temp.innerHTML = lineRowHTML(li, idx);
+        const tr = temp.firstElementChild;
+        lineTbody.appendChild(tr);
+        // set select
+        const sel = tr.querySelector('select[data-k="categoryId"]');
+        if(sel) sel.value = li.categoryId;
+        attachRowHandlers(tr);
+        recompute();
+      };
 
-      const delBtn = sheetBody.querySelector("#delBtn");
-      if(delBtn){
-        delBtn.onclick = async ()=>{
-          if(!confirm("この支出を削除します。よろしいですか？")) return;
+      // delete receipt
+      const delReceiptBtn = sheetBody.querySelector("#delReceiptBtn");
+      if(delReceiptBtn){
+        delReceiptBtn.onclick = async ()=>{
+          if(!confirm("このレシートを削除します。よろしいですか？")) return;
           try{
-            await deleteDoc(doc(db, "expenses", initial.id));
+            await deleteDoc(doc(db, COL, initial.id));
             closeOverlay();
             await refreshAll();
           }catch(e){
@@ -837,45 +713,67 @@
         };
       }
 
+      // initial compute
+      recompute();
+
       showFooter(
         ()=> closeOverlay(),
         async ()=>{
           try{
-            const date = sheetBody.querySelector("#fDate").value || defaultDate;
-            const amount = Number(sheetBody.querySelector("#fAmount").value || 0);
-            const categoryId = sheetBody.querySelector("#fCategory").value || "";
-            const categoryName = (categories.find(c=>c.id===categoryId)?.name) || "(未設定)";
-            const paymentMethodId = sheetBody.querySelector("#fPay").value || "";
-            const paymentMethodName = (paymentMethods.find(p=>p.id===paymentMethodId)?.name) || "";
-            const paymentMethod = paymentMethodName || ""; // legacy
+            const d = sheetBody.querySelector("#fDate").value || defaultDate;
+            const dt = new Date(d);
+            if(isNaN(dt.getTime())) throw new Error("invalid date");
+
+            const store = (sheetBody.querySelector("#fStore").value || "").trim();
             const memo = sheetBody.querySelector("#fMemo").value || "";
+            const claimFujiwara = !!sheetBody.querySelector("#fClaimF").checked;
+            const claimKawahara = !!sheetBody.querySelector("#fClaimK").checked;
+
+            const { lines, sum } = recompute();
+
+            // 空行除去（名前が空の行は捨てる）
+            const cleaned = lines
+              .map(x=>({
+                ...x,
+                name: (x.name||"").trim(),
+                categoryId: (x.categoryId||"").trim(),
+                categoryLabel: (x.categoryLabel||"").trim(),
+                memo: (x.memo||"")
+              }))
+              .filter(x=> x.name || x.total || x.memo);
+
+            const year = dt.getFullYear();
+            const month = dt.getMonth()+1;
 
             const payload = {
-              date,
-              amount,
-              categoryId,
-              categoryName, // 冗長保持（将来バンドル用）
-              paymentMethodId,
-              paymentMethodName,
-              paymentMethod,
+              date: d,
+              year,
+              month,
+              store: store || "(未設定)",
               memo,
-              updatedAt: serverTimestamp()
+              lines: cleaned,
+              sum: Math.round(sum||0),
+              claimFujiwara,
+              claimKawahara,
+              updatedAt: serverTimestamp(),
+              updatedBy: currentUser?.uid || ""
             };
 
             if(isNew){
-              await addDoc(collection(db, "expenses"), {
+              await addDoc(collection(db, COL), {
                 ...payload,
-                createdAt: serverTimestamp()
+                createdAt: serverTimestamp(),
+                createdBy: currentUser?.uid || ""
               });
             }else{
-              await updateDoc(doc(db, "expenses", initial.id), payload);
+              await updateDoc(doc(db, COL, initial.id), payload);
             }
 
             closeOverlay();
             await refreshAll();
           }catch(e){
             console.error(e);
-            alert("保存に失敗しました（権限/入力/ネットワーク確認）");
+            alert("保存に失敗しました（入力/権限/ネットワーク確認）");
           }
         }
       );
@@ -883,578 +781,39 @@
       openOverlay();
     }
 
-    function openCategoryManager(){
-      sheetTitle.textContent = "カテゴリー管理";
-      sheetBody.innerHTML = `
-        <div class="hint">追加 / 名称変更 / 表示ONOFF / 並び順（小さいほど上）</div>
-        <div class="rowLine" style="border-top:none; padding-top:0; margin-top:10px;">
-          <input id="newCatName" type="text" placeholder="新規カテゴリー名" style="flex:1; border:1px solid rgba(0,0,0,.14); border-radius:12px; padding:12px 10px; font-weight:900;">
-          <button class="pillBtn pillBtnPrimary" id="addCatDo" type="button" style="padding:12px 12px;">追加</button>
-        </div>
-        <div class="optList" id="catList" style="margin-top:12px;"></div>
-      `;
+    /* ===== init selects ===== */
+    function initYearMonth(){
+      const now = new Date();
+      const curY = now.getFullYear();
+      const years = [];
+      for(let y=curY-2; y<=curY+1; y++) years.push(y);
 
-      const catList = sheetBody.querySelector("#catList");
+      yearSel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join("");
+      yearSel.value = String(curY);
 
-      function renderCats(){
-        catList.innerHTML = "";
-        const list = [...categories].sort((a,b)=> (a.order-b.order) || a.name.localeCompare(b.name,"ja"));
-        for(const c of list){
-          const row = document.createElement("div");
-          row.className = "opt";
-          row.innerHTML = `
-            <div class="left">
-              <span class="toggle ${c.active ? "on" : ""}">${c.active ? "✓" : ""}</span>
-              <span>${escapeHtml(c.name)}</span>
-            </div>
-            <div class="right">
-              <span class="muted">order</span>
-              <span class="mono">${escapeHtml(String(c.order))}</span>
-            </div>
-          `;
-          row.onclick = ()=> openCategoryEditor(c);
-          catList.appendChild(row);
-        }
-      }
-
-      async function addCategory(){
-        const nameEl = sheetBody.querySelector("#newCatName");
-        const name = (nameEl.value || "").trim();
-        if(!name){ alert("カテゴリー名を入力してください"); return; }
-
-        const maxOrder = categories.reduce((m,c)=> Math.max(m, Number(c.order)||0), 0);
-        try{
-          await addDoc(collection(db, "expense_categories"), {
-            name,
-            order: maxOrder + 1,
-            active: true,
-            createdAt: serverTimestamp()
-          });
-          nameEl.value = "";
-          await loadCategories();
-          buildCatFilter();
-          renderCats();
-        }catch(e){
-          console.error(e);
-          alert("追加に失敗しました（権限/ネットワーク確認）");
-        }
-      }
-
-      sheetBody.querySelector("#addCatDo").onclick = addCategory;
-
-      // footer: close only
-      sheetFoot.style.display = "none";
-      openOverlay();
-      renderCats();
-    }
-
-    function openCategoryEditor(cat){
-      sheetTitle.textContent = "カテゴリーを編集";
-      sheetBody.innerHTML = `
-        <div class="form">
-          <div class="k">名称</div>
-          <div><input id="cName" type="text" value="${escapeHtml(cat.name)}"></div>
-
-          <div class="k">order</div>
-          <div><input id="cOrder" type="number" inputmode="numeric" value="${escapeHtml(String(cat.order))}"></div>
-
-          <div class="k">表示</div>
-          <div>
-            <select id="cActive">
-              <option value="true">表示</option>
-              <option value="false">非表示</option>
-            </select>
-            <div class="hint" style="margin-top:6px;">※非表示にしても過去支出の categoryName は残ります</div>
-          </div>
-        </div>
-      `;
-
-      const sel = sheetBody.querySelector("#cActive");
-      sel.value = cat.active ? "true" : "false";
-
-      showFooter(
-        ()=>{ closeOverlay(); openCategoryManager(); },
-        async ()=>{
-          try{
-            const name = (sheetBody.querySelector("#cName").value || "").trim() || "(未設定)";
-            const order = Number(sheetBody.querySelector("#cOrder").value || 9999);
-            const active = (sheetBody.querySelector("#cActive").value === "true");
-
-            await updateDoc(doc(db, "expense_categories", cat.id), {
-              name, order, active, updatedAt: serverTimestamp()
-            });
-
-            closeOverlay();
-            await loadCategories();
-            buildCatFilter();
-            // 注意：既存支出の categoryName は更新しない（冗長保持思想）
-            await refreshAll();
-          }catch(e){
-            console.error(e);
-            alert("保存に失敗しました（権限/ネットワーク確認）");
-          }
-        }
-      );
-
-      openOverlay();
-    }
-
-
-    /* ===== Payment Method Sheets ===== */
-    function openPaymentManager(){
-      sheetTitle.textContent = "支払方法 管理";
-      sheetBody.innerHTML = `
-        <div class="hint">追加 / 名称変更 / 表示ONOFF / 並び順（小さいほど上）</div>
-        <div class="rowLine" style="border-top:none; padding-top:0; margin-top:10px;">
-          <input id="newPayName" type="text" placeholder="新規 支払方法名" style="flex:1; border:1px solid rgba(0,0,0,.14); border-radius:12px; padding:12px 10px; font-weight:900;">
-          <button class="pillBtn pillBtnPrimary" id="addPayDo" type="button" style="padding:12px 12px;">追加</button>
-        </div>
-        <div class="optList" id="payList" style="margin-top:12px;"></div>
-      `;
-
-      const payList = sheetBody.querySelector("#payList");
-
-      function renderPays(){
-        payList.innerHTML = "";
-        const list = [...paymentMethods].sort((a,b)=> (a.order-b.order) || a.name.localeCompare(b.name,"ja"));
-        for(const p of list){
-          const row = document.createElement("div");
-          row.className = "opt";
-          row.innerHTML = `
-            <div class="left">
-              <span class="toggle ${p.active ? "on" : ""}">${p.active ? "✓" : ""}</span>
-              <span>${escapeHtml(p.name)}</span>
-            </div>
-            <div class="right">
-              <span class="muted">order</span>
-              <span class="mono">${escapeHtml(String(p.order))}</span>
-            </div>
-          `;
-          row.onclick = ()=> openPaymentEditor(p);
-          payList.appendChild(row);
-        }
-      }
-
-      async function addPay(){
-        const nameEl = sheetBody.querySelector("#newPayName");
-        const name = (nameEl.value || "").trim();
-        if(!name){ alert("支払方法名を入力してください"); return; }
-
-        const maxOrder = paymentMethods.reduce((m,p)=> Math.max(m, Number(p.order)||0), 0);
-        try{
-          await addDoc(collection(db, "expense_payment_methods"), {
-            name,
-            order: maxOrder + 1,
-            active: true,
-            createdAt: serverTimestamp()
-          });
-          nameEl.value = "";
-          await loadPaymentMethods();
-          renderPays();
-        }catch(e){
-          console.error(e);
-          alert("追加に失敗しました（権限/ネットワーク確認）");
-        }
-      }
-
-      sheetBody.querySelector("#addPayDo").onclick = addPay;
-
-      sheetFoot.style.display = "none";
-      openOverlay();
-      renderPays();
-    }
-
-    function openPaymentEditor(pay){
-      sheetTitle.textContent = "支払方法を編集";
-      sheetBody.innerHTML = `
-        <div class="form">
-          <div class="k">名称</div>
-          <div><input id="pName" type="text" value="${escapeHtml(pay.name)}"></div>
-
-          <div class="k">order</div>
-          <div><input id="pOrder" type="number" inputmode="numeric" value="${escapeHtml(String(pay.order))}"></div>
-
-          <div class="k">表示</div>
-          <div>
-            <select id="pActive">
-              <option value="true">表示</option>
-              <option value="false">非表示</option>
-            </select>
-            <div class="hint" style="margin-top:6px;">※非表示にしても過去支出の paymentMethodName は残ります</div>
-          </div>
-        </div>
-      `;
-
-      const sel = sheetBody.querySelector("#pActive");
-      sel.value = pay.active ? "true" : "false";
-
-      showFooter(
-        ()=>{ closeOverlay(); openPaymentManager(); },
-        async ()=>{
-          try{
-            const name = (sheetBody.querySelector("#pName").value || "").trim() || "(未設定)";
-            const order = Number(sheetBody.querySelector("#pOrder").value || 9999);
-            const active = (sheetBody.querySelector("#pActive").value === "true");
-
-            await updateDoc(doc(db, "expense_payment_methods", pay.id), {
-              name, order, active, updatedAt: serverTimestamp()
-            });
-
-            closeOverlay();
-            await loadPaymentMethods();
-            await refreshAll();
-          }catch(e){
-            console.error(e);
-            alert("保存に失敗しました（権限/ネットワーク確認）");
-          }
-        }
-      );
-
-      openOverlay();
-    }
-
-
-    /* ===== CSV ===== */
-    function csvEscape(v){
-      const s = (v===null||v===undefined) ? "" : String(v);
-      // keep line breaks inside quotes
-      if(/[",\n\r]/.test(s)){
-        return '"' + s.replaceAll('"','""') + '"';
-      }
-      return s;
-    }
-
-    function buildCSV(headers, rows){
-      const lines = [];
-      lines.push(headers.map(csvEscape).join(","));
-      for(const r of rows){
-        lines.push(headers.map(h=>csvEscape(r[h])).join(","));
-      }
-      // Excel対策BOM
-      return "\ufeff" + lines.join("\r\n");
-    }
-
-    function downloadText(filename, text, mime="text/csv"){
-      const blob = new Blob([text], { type: `${mime};charset=utf-8` });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(()=> URL.revokeObjectURL(url), 1500);
-    }
-
-    function parseCSV(text){
-      // RFC4180簡易：カンマ/改行/ダブルクォート対応
-      const s = (text || "").replace(/^\ufeff/,"");
-      const rows = [];
-      let row = [];
-      let cur = "";
-      let i = 0;
-      let inQ = false;
-
-      const pushCell = ()=>{ row.push(cur); cur=""; };
-      const pushRow  = ()=>{ rows.push(row); row=[]; };
-
-      while(i < s.length){
-        const ch = s[i];
-
-        if(inQ){
-          if(ch === '"'){
-            if(s[i+1] === '"'){ cur += '"'; i += 2; continue; }
-            inQ = false; i++; continue;
-          }else{
-            cur += ch; i++; continue;
-          }
-        }else{
-          if(ch === '"'){ inQ = true; i++; continue; }
-          if(ch === ","){ pushCell(); i++; continue; }
-          if(ch === "\r"){
-            if(s[i+1] === "\n"){ pushCell(); pushRow(); i += 2; continue; }
-            pushCell(); pushRow(); i++; continue;
-          }
-          if(ch === "\n"){ pushCell(); pushRow(); i++; continue; }
-          cur += ch; i++; continue;
-        }
-      }
-      pushCell();
-      pushRow();
-
-      // 末尾の空行を除去
-      while(rows.length && rows[rows.length-1].every(c=> String(c||"").trim()==="")){
-        rows.pop();
-      }
-      return rows;
-    }
-
-    function normalizeHeader(h){
-      const x = (h||"").trim();
-      // 日本語ヘッダ互換
-      const map = {
-        "日付":"date",
-        "金額":"amount",
-        "カテゴリー":"categoryName",
-        "内容":"memo",
-        "支払方法":"paymentMethodName",
-        "id":"id",
-        "date":"date",
-        "amount":"amount",
-        "categoryId":"categoryId",
-        "categoryName":"categoryName",
-        "memo":"memo",
-        "paymentMethodId":"paymentMethodId",
-        "paymentMethodName":"paymentMethodName",
-        "createdAt":"createdAt"
-      };
-      return map[x] || x;
-    }
-
-    function rowsToObjects(parsed){
-      if(!parsed || parsed.length < 2) return [];
-      const headersRaw = parsed[0];
-      const headers = headersRaw.map(normalizeHeader);
-      const out = [];
-      for(let r=1;r<parsed.length;r++){
-        const obj = {};
-        for(let c=0;c<headers.length;c++){
-          obj[headers[c]] = parsed[r][c] ?? "";
-        }
-        out.push(obj);
-      }
-      return out;
-    }
-
-    function exportCSV(mode){
-      // mode: "month" | "filtered"
-      const ymStr = monthInput.value || ym(new Date());
-      const list = (mode==="filtered") ? applyFilters() : [...expenses];
-
-      const headers = [
-        "id","date","amount","categoryId","categoryName","memo",
-        "paymentMethodId","paymentMethodName","createdAt"
+      const months = [
+        {v:"all", t:"すべて（年合計）"},
+        ...Array.from({length:12}, (_,i)=>({v:String(i+1), t:`${i+1}月`}))
       ];
-
-      const rows = list
-        .slice()
-        .sort((a,b)=> (a.date||"").localeCompare(b.date||"ja") || String(a.id||"").localeCompare(String(b.id||"")))
-        .map(x=>({
-          id: x.id || "",
-          date: safeText(x.date),
-          amount: Number(x.amount||0),
-          categoryId: x.categoryId || "",
-          categoryName: safeText(x.categoryName),
-          memo: (x.memo ?? ""),
-          paymentMethodId: x.paymentMethodId || "",
-          paymentMethodName: safeText(x.paymentMethodName || x.paymentMethod),
-          createdAt: (()=> {
-            const d = toDate(x.createdAt);
-            return d ? d.toISOString() : "";
-          })()
-        }));
-
-      const csv = buildCSV(headers, rows);
-      const suffix = (mode==="filtered") ? "filtered" : "month";
-      downloadText(`expenses_${ymStr}_${suffix}.csv`, csv);
+      monthSel.innerHTML = months.map(m=>`<option value="${m.v}">${m.t}</option>`).join("");
+      monthSel.value = String(now.getMonth()+1);
     }
 
-    async function importCSVFile(file){
-      const text = await file.text();
-      const parsed = parseCSV(text);
-      const objs = rowsToObjects(parsed);
-
-      if(!objs.length){
-        alert("CSVにデータがありません");
-        return;
-      }
-
-      // 最新カテゴリ/支払方法を読み直す（名前マッチ用）
-      await loadCategories();
-      await ensureDefaultCategories();
-      await loadPaymentMethods();
-      await ensureDefaultPaymentMethods();
-
-      // 名前→ID補完（無い場合は自動追加）
-      async function ensureCategoryByName(name){
-        const nm = (name||"").trim();
-        if(!nm) return { id:"", name:"(未設定)" };
-        let hit = categories.find(c=>c.name===nm);
-        if(hit) return { id: hit.id, name: hit.name };
-
-        // 自動追加（順番は末尾）
-        const maxOrder = categories.reduce((m,c)=> Math.max(m, Number(c.order)||0), 0);
-        const ref = await addDoc(collection(db, "expense_categories"), {
-          name: nm, order: maxOrder+1, active: true, createdAt: serverTimestamp()
-        });
-        await loadCategories();
-        hit = categories.find(c=>c.id===ref.id);
-        return { id: hit?.id || "", name: hit?.name || nm };
-      }
-
-      async function ensurePayByName(name){
-        const nm = (name||"").trim();
-        if(!nm) return { id:"", name:"" };
-        let hit = paymentMethods.find(p=>p.name===nm);
-        if(hit) return { id: hit.id, name: hit.name };
-
-        const maxOrder = paymentMethods.reduce((m,p)=> Math.max(m, Number(p.order)||0), 0);
-        const ref = await addDoc(collection(db, "expense_payment_methods"), {
-          name: nm, order: maxOrder+1, active: true, createdAt: serverTimestamp()
-        });
-        await loadPaymentMethods();
-        hit = paymentMethods.find(p=>p.id===ref.id);
-        return { id: hit?.id || "", name: hit?.name || nm };
-      }
-
-      // 書き込み（400件ずつバッチ）
-      const total = objs.length;
-      let done = 0;
-
-      for(let offset=0; offset<total; offset+=400){
-        const batch = writeBatch(db);
-        const chunk = objs.slice(offset, offset+400);
-
-        for(const r of chunk){
-          const date = (r.date || "").trim();
-          if(!date) continue;
-
-          const amount = Number(String(r.amount||"0").replace(/,/g,"")) || 0;
-          const memo = (r.memo || "").toString();
-
-          // category
-          let categoryId = (r.categoryId || "").trim();
-          let categoryName = (r.categoryName || "").trim();
-          if(!categoryId && categoryName){
-            const c = await ensureCategoryByName(categoryName);
-            categoryId = c.id;
-            categoryName = c.name;
-          }else if(categoryId && !categoryName){
-            categoryName = (categories.find(c=>c.id===categoryId)?.name) || "(未設定)";
-          }else if(!categoryId && !categoryName){
-            categoryName = "(未設定)";
-          }
-
-          // payment
-          let paymentMethodId = (r.paymentMethodId || "").trim();
-          let paymentMethodName = (r.paymentMethodName || "").trim();
-          if(!paymentMethodId && paymentMethodName){
-            const p = await ensurePayByName(paymentMethodName);
-            paymentMethodId = p.id;
-            paymentMethodName = p.name;
-          }else if(paymentMethodId && !paymentMethodName){
-            paymentMethodName = (paymentMethods.find(p=>p.id===paymentMethodId)?.name) || "";
-          }
-
-          const payload = {
-            date,
-            amount,
-            categoryId,
-            categoryName,
-            paymentMethodId,
-            paymentMethodName,
-            paymentMethod: paymentMethodName || "",
-            memo,
-            updatedAt: serverTimestamp()
-          };
-
-          const id = (r.id || "").trim();
-          if(id){
-            // id指定：上書き（merge）
-            const ref = doc(db, "expenses", id);
-            batch.set(ref, payload, { merge:true });
-          }else{
-            // id無し：新規
-            const ref = doc(collection(db, "expenses"));
-            batch.set(ref, { ...payload, createdAt: serverTimestamp() });
-          }
-        }
-
-        await batch.commit();
-        done += chunk.length;
-      }
-
-      alert(`CSV取込 完了：${done}件（空行は除外）`);
-      await refreshAll();
-    }
-
-    function openCSVManager(){
-      sheetTitle.textContent = "CSV";
-      const ymStr = monthInput.value || ym(new Date());
-
-      sheetBody.innerHTML = `
-        <div class="hint">
-          過去分を「月ごとにCSVで退避 → 必要時に復元」しやすいように、CSV出力/取込を用意しました。
-        </div>
-
-        <div class="rowLine" style="border-top:none; padding-top:0; margin-top:12px;">
-          <button class="pillBtn pillBtnPrimary" id="csvExportMonth" type="button" style="padding:12px 12px;">この月をCSV出力</button>
-          <button class="pillBtn" id="csvExportFiltered" type="button" style="padding:12px 12px;">表示中(フィルタ)をCSV出力</button>
-        </div>
-
-        <div class="rowLine" style="justify-content:flex-start;">
-          <div class="hint">対象月：<span class="mono">${escapeHtml(ymStr)}</span></div>
-        </div>
-
-        <div class="rowLine" style="justify-content:flex-start;">
-          <input id="csvFile" type="file" accept=".csv,text/csv" style="flex:1;">
-          <button class="pillBtn" id="csvImportDo" type="button" style="padding:12px 12px;">CSV取込</button>
-        </div>
-
-        <div class="hint" style="margin-top:10px;">
-          ※取込は <span class="mono">date/amount/categoryId/categoryName/memo/paymentMethodId/paymentMethodName</span> を読みます。<br/>
-          ※「日付/金額/カテゴリー/内容/支払方法」の日本語ヘッダでもOK（カテゴリー/支払方法は名前で紐づけ）。
-        </div>
-      `;
-
-      sheetFoot.style.display = "none";
-      openOverlay();
-
-      sheetBody.querySelector("#csvExportMonth").onclick = ()=> exportCSV("month");
-      sheetBody.querySelector("#csvExportFiltered").onclick = ()=> exportCSV("filtered");
-
-      sheetBody.querySelector("#csvImportDo").onclick = async ()=>{
-        const f = sheetBody.querySelector("#csvFile").files?.[0];
-        if(!f){ alert("CSVファイルを選択してください"); return; }
-        if(!confirm("CSVを取り込みます。重複がある場合は id 指定の行のみ上書き（merge）されます。続けますか？")) return;
-        try{
-          await importCSVFile(f);
-          closeOverlay();
-        }catch(e){
-          console.error(e);
-          alert("CSV取込に失敗しました（形式/権限/ネットワーク確認）");
-        }
-      };
-    }
-
-
-    /* ===== refresh ===== */
     async function refreshAll(){
-      const ymStr = monthInput.value || ym(new Date());
-      await loadCategories();
-      await ensureDefaultCategories();
-      buildCatFilter();
-
-      await loadPaymentMethods();
-      await ensureDefaultPaymentMethods();
-
-      await loadExpensesForMonth(ymStr);
+      await loadReceipts();
       render();
     }
 
-    /* ===== Events ===== */
+    /* ===== events ===== */
     backBtn.onclick = ()=> location.href = "index.html";
-    addBtn.onclick = ()=> openExpenseEditor(null);
-    catBtn.onclick = ()=> openCategoryManager();
-    payBtn.onclick = ()=> openPaymentManager();
-    csvBtn.onclick = ()=> openCSVManager();
+    claimsBtn.onclick = ()=> location.href = "receipt_claims.html";
+    addBtn.onclick = ()=> openReceiptEditor(null);
     refreshBtn.onclick = ()=> refreshAll();
-
     qInput.addEventListener("input", ()=> render());
-    catFilter.addEventListener("change", ()=> render());
-    monthInput.addEventListener("change", ()=> refreshAll());
+    yearSel.addEventListener("change", ()=> refreshAll());
+    monthSel.addEventListener("change", ()=> refreshAll());
 
-    /* ===== Auth gate ===== */
+    /* ===== auth gate ===== */
     onAuthStateChanged(auth, async (user)=>{
       if(!user){
         const redirect = encodeURIComponent("expenses.html");
@@ -1463,8 +822,8 @@
       }
       currentUser = user;
 
-      // default month = current
-      monthInput.value = ym(new Date());
+      initYearMonth();
+      await loadCategories();
 
       try{
         await refreshAll();
