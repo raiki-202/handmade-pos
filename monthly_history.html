@@ -1406,7 +1406,7 @@ const close = ()=>{
     const isBundled = Boolean(
       data.isBundled ?? data.bundled ?? (safeStr(data.source).toLowerCase()==="bundle") ?? false
     ) || (safeStr(data.kind).toLowerCase()==="bundle");
-    const parentSaleId = data.parentSaleId ?? data.parentId ?? "";
+    const parentSaleId = data.parentSaleId ?? data.originalSaleId ?? data.parentId ?? "";
 
     const isRefund = Boolean(data.isRefund ?? false) || (safeStr(data.channel).toLowerCase()==="refund") || (Number(data.total ?? data.totalAmount ?? data.grandTotal ?? data.amount ?? 0) < 0 && parentSaleId);
 
@@ -2773,7 +2773,7 @@ async function openClaimEditor(sale){
         <div class="k">返金額</div>
         <div class="v">
           <input id="claimAmount" class="inp" type="number" inputmode="numeric" min="0" step="1" value="${escapeHtml(String(Math.abs(saleTotal)||0))}">
-          <div class="muted" style="margin-top:6px;">※ 合計 ${fmtJPY(saleTotal)} を初期値にしています（必要なら変更）</div>
+          <div class="muted" style="margin-top:6px;">※ 合計 ${fmtMoney(saleTotal)} を初期値にしています（必要なら変更）</div>
         </div>
       </div>
 
@@ -2841,6 +2841,7 @@ async function openClaimEditor(sale){
 
     const docOut = {
       // link
+      parentSaleId: saleId,
       originalSaleId: saleId,
       isRefund: true,
 
@@ -2888,7 +2889,7 @@ async function openClaimEditor(sale){
 }
 
 // ---- auth gate (ログインしてなければ login.html へ)
- (ログインしてなければ login.html へ)
+// (ログインしてなければ login.html へ)
   onAuthStateChanged(auth, (user)=>{
     if(!user){
       authStateEl.textContent = "未ログイン → login.html へ";
