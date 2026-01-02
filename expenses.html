@@ -464,6 +464,51 @@ body{
       return opts || `<option value="misc">雑費</option>`;
     }
 
+    /* ===== receipt statuses from JSON (GitHub) ===== */
+    // 領収申請ステータス（レシート単位）
+    // 例: applying(申請中) / payer_confirm(精算者確認) / received_confirm(受取確認)
+    let receiptStatuses = []; // {id,label,active,order}
+    async function loadReceiptStatuses(){
+      const urls = [
+        "data/receipt_statuses.json",
+        "receipt_statuses.json"
+      ];
+      for(const u of urls){
+        try{
+          const res = await fetch(u, { cache:"no-store" });
+          if(!res.ok) continue;
+          const js = await res.json();
+          const list = Array.isArray(js?.statuses) ? js.statuses : [];
+          receiptStatuses = list.map(x=>({
+            id: safeText(x.id).trim(),
+            label: safeText(x.label).trim(),
+            active: (x.active===false)?false:true,
+            order: Number.isFinite(Number(x.order)) ? Number(x.order) : 9999
+          })).filter(x=>x.id && x.label);
+          receiptStatuses.sort((a,b)=> (a.order-b.order) || a.label.localeCompare(b.label,"ja"));
+          return;
+        }catch(_e){}
+      }
+      // fallback
+      receiptStatuses = [
+        { id:"applying", label:"申請中", active:true, order:1 },
+        { id:"payer_confirm", label:"精算者確認", active:true, order:2 },
+        { id:"received_confirm", label:"受取確認", active:true, order:3 }
+      ];
+    }
+
+    function statusLabel(id){
+      return receiptStatuses.find(s=>s.id===id)?.label || "";
+    }
+
+    function buildStatusOptions(selectedId){
+      const opts = receiptStatuses.filter(s=>s.active).map(s=>
+        `<option value="${esc(s.id)}">${esc(s.label)}</option>`
+      ).join("");
+      // 空（未設定）も選べるようにする
+      return `<option value="">(未設定)</option>` + (opts || "");
+    }
+
     /* ===== state ===== */
     const COL = "expense_receipts";
     let receipts = []; // normalized
@@ -482,6 +527,7 @@ body{
         memo: safeText(x.memo),
         claimKawahara: !!x.claimKawahara,
         claimFujiwara: !!x.claimFujiwara,
+        receiptStatus: safeText(x.receiptStatus).trim() || "",
         sum,
         lines: lines.map(li=>({
           name: safeText(li.name).trim(),
@@ -534,6 +580,9 @@ body{
         const badges = [];
         if(r.claimKawahara) badges.push(`<span class="badge warn">領収(川原)</span>`);
         if(r.claimFujiwara) badges.push(`<span class="badge warn">領収(藤原)</span>`);
+        if(r.receiptStatus){
+          badges.push(`<span class="badge good">${esc(statusLabel(r.receiptStatus) || r.receiptStatus)}</span>`);
+        }
         tdMemo.innerHTML = `${badges.join(" ")} <span class="mutedText">${esc((r.memo||"").slice(0,40))}</span>`;
 
         const tdAct = document.createElement("td");
@@ -604,6 +653,7 @@ body{
       sheetTitle.textContent = isNew ? "レシートを追加" : "レシートを編集";
 
       const catOpts = buildCatOptions();
+      const statusOpts = buildStatusOptions();
 
       function lineRowHTML(li, idx){
         return `
@@ -649,6 +699,15 @@ body{
               領収申請(川原)
             </label>
           </div>
+
+          <div class="k">ステータス</div>
+          <div>
+            <select id="fStatus">
+              ${statusOpts}
+            </select>
+            <div class="sub" style="margin-top:6px;">※領収申請にチェックがある場合のみ有効（保存時に未設定なら「申請中」になります）</div>
+          </div>
+</div>
         </div>
 
         <div class="lines">
@@ -707,6 +766,13 @@ body{
           if(!sel.value) sel.value = categories[0]?.id || "misc";
         }
       });
+
+
+      // set status select
+      const statusSel = sheetBody.querySelector("#fStatus");
+      if(statusSel){
+        statusSel.value = initial.receiptStatus || "";
+      }
 
       function recompute(){
         // read all lines from DOM
@@ -785,6 +851,7 @@ body{
             const memo = sheetBody.querySelector("#fMemo").value || "";
             const claimFujiwara = !!sheetBody.querySelector("#fClaimF").checked;
             const claimKawahara = !!sheetBody.querySelector("#fClaimK").checked;
+            const pickedStatus = (sheetBody.querySelector("#fStatus")?.value || "").trim();
 
             const { lines, sum } = recompute();
 
@@ -802,6 +869,15 @@ body{
             const year = dt.getFullYear();
             const month = dt.getMonth()+1;
 
+            // 領収申請ステータス：領収申請がONのときのみ保持
+            let receiptStatus = pickedStatus;
+            const claimed = (claimFujiwara || claimKawahara);
+            if(claimed){
+              if(!receiptStatus) receiptStatus = "applying"; // 未設定なら申請中
+            }else{
+              receiptStatus = ""; // 領収申請なしならクリア
+            }
+
             const payload = {
               date: d,
               year,
@@ -812,6 +888,7 @@ body{
               sum: Math.round(sum||0),
               claimFujiwara,
               claimKawahara,
+              receiptStatus,
               updatedAt: serverTimestamp(),
               updatedBy: currentUser?.uid || ""
             };
@@ -881,6 +958,7 @@ body{
 
       initYearMonth();
       await loadCategories();
+      await loadReceiptStatuses();
 
       try{
         await refreshAll();
