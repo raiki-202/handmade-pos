@@ -1106,20 +1106,28 @@ function buildLast12Months(){
 function saleToDateMs(d){
   try{
     if(!d) return 0;
-    // Firestore Timestamp
+
+    // ① 受注日（最優先）
+    if(typeof d.orderDateMs === "number" && Number.isFinite(d.orderDateMs)) return d.orderDateMs;
+
+    if(typeof d.orderDate === "string" && d.orderDate.trim()){
+      const t = Date.parse(d.orderDate.trim());
+      if(Number.isFinite(t)) return t;
+    }
+
+    // ② createdAt（フォールバック）
     if(typeof d.createdAt?.toDate === "function"){
       const t = d.createdAt.toDate();
       return t?.getTime?.() || 0;
     }
-    // object {seconds, nanoseconds}
     if(d.createdAt && typeof d.createdAt.seconds === "number"){
       return d.createdAt.seconds*1000;
     }
-    // explicit ms
+
+    // ③ その他の候補（保険）
     const msCand = [
       d.createdAtMs,
       d.clientCreatedAt,
-      d.orderDateMs,
       d.createdAt
     ];
     for(const v of msCand){
@@ -1164,41 +1172,68 @@ async function loadBundleSalesForChart(){
 }
 
 async function loadSalesForChart(){
-  // bundle + delta (monthly_history と同じ「read節約」思想)
+  // bundle + firebase（monthly_history と同じ「read節約」思想）
   const bundle = await loadBundleSalesForChart();
   const bundleList = bundle.list || [];
-  const throughMs = Number(bundle.throughMs || 0);
+
+  // 直近12ヶ月の開始（月初）を基準に取得（受注日基準でブレないように）
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth()-11, 1);
+  start.setHours(0,0,0,0);
+  const startMs = start.getTime();
 
   let fbList = [];
+
+  // ① orderDateMs があるデータは、受注日で範囲取得（推奨）
   try{
-    const since = Timestamp.fromMillis(throughMs || 0);
-    const qy = query(
+    const q1 = query(
       collection(db, "sales"),
-      where("createdAt", ">", since),
+      where("orderDateMs", ">=", startMs),
+      orderBy("orderDateMs", "asc"),
+      limit(5000)
+    );
+    const snap1 = await getDocs(q1);
+    snap1.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const ms = saleToDateMs(d);
+      fbList.push({ id: docSnap.id, ms, raw: d });
+    });
+  }catch(e){
+    // orderDateMs が未整備 / インデックス等で失敗してもページは死なない
+    // console.warn("orderDateMs query failed", e);
+  }
+
+  // ② orderDateMs が無い古いデータ保険：createdAt で直近を補完
+  try{
+    const since = Timestamp.fromMillis(startMs);
+    const q2 = query(
+      collection(db, "sales"),
+      where("createdAt", ">=", since),
       orderBy("createdAt", "asc"),
       limit(5000)
     );
-    const snap = await getDocs(qy);
-    snap.forEach(docSnap=>{
+    const snap2 = await getDocs(q2);
+    snap2.forEach(docSnap=>{
       const d = docSnap.data() || {};
       const ms = saleToDateMs(d) || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0);
       fbList.push({ id: docSnap.id, ms, raw: d });
     });
   }catch(e){
-    // フォールバック（ページが死なないように）
+    // さらにフォールバック（最低限）
     try{
-      const q2 = query(collection(db, "sales"), orderBy("createdAt", "desc"), limit(200));
-      const snap2 = await getDocs(q2);
-      snap2.forEach(docSnap=>{
+      const q3 = query(collection(db, "sales"), orderBy("createdAt", "desc"), limit(300));
+      const snap3 = await getDocs(q3);
+      snap3.forEach(docSnap=>{
         const d = docSnap.data() || {};
         const ms = saleToDateMs(d) || 0;
-        if(ms > throughMs) fbList.push({ id: docSnap.id, ms, raw: d });
+        if(ms >= startMs) fbList.push({ id: docSnap.id, ms, raw: d });
       });
     }catch(_e){
       fbList = [];
     }
   }
 
+  // bundle + firebase を id で統合（firebase側を優先）
   const map = new Map();
   for(const s of bundleList) map.set(s.id, s);
   for(const s of fbList) map.set(s.id, s);
