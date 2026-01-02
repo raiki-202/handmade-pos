@@ -200,6 +200,23 @@ body{
     .lineTable tr+tr td{ border-top:1px solid var(--line); }
     .lineInp{ width:100%; }
     .mini{ padding:8px 10px; border-radius:12px; border:1px solid var(--line2); background:rgba(255,255,255,.85); color:var(--text); font-weight:900; cursor:pointer; }
+
+    .unitWrap{ display:flex; align-items:center; gap:6px; }
+    .signBtn{
+      flex:0 0 auto;
+      width:34px;
+      height:34px;
+      border-radius:12px;
+      border:1px solid var(--line2);
+      background:rgba(255,255,255,.90);
+      color:var(--text);
+      font-weight:1100;
+      cursor:pointer;
+      box-shadow: 0 10px 22px rgba(0,0,0,.12);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .signBtn:active{ transform: translateY(1px); }
+
     .mini:active{ transform: translateY(1px); }
 
     .checkRow{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
@@ -250,7 +267,17 @@ body{
       .field select{ min-width: 140px; }
       .sumBox{ min-width: 180px; }
     }
-  </style>
+  
+.unit-price.vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.unit-price.vertical .pm-btn {
+  align-self: flex-start;
+}
+</style>
+
 </head>
 <body>
   <div class="safe">
@@ -394,7 +421,11 @@ body{
     /* ===== helpers ===== */
     const pad2 = n => String(n).padStart(2,"0");
     const ymd = d => `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
-    const formatJPY = n => "¥" + Math.round(n||0).toLocaleString("ja-JP");
+    const formatJPY = n => {
+      const v = Math.round(Number(n||0));
+      const abs = Math.abs(v).toLocaleString("ja-JP");
+      return (v<0) ? ("-¥" + abs) : ("¥" + abs);
+    };
     const safeText = v => (v===null||v===undefined) ? "" : String(v);
     const esc = (s)=> String(s)
       .replaceAll("&","&amp;")
@@ -664,8 +695,8 @@ body{
                 ${catOpts}
               </select>
             </td>
-            <td><input class="lineInp" data-k="qty" type="number" inputmode="numeric" value="${esc(String(li.qty??0))}" style="width:90px"></td>
-            <td><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc((li.unitPrice===0||li.unitPrice===null||li.unitPrice===undefined||li.unitPrice==="") ? "" : String(li.unitPrice))}" style="width:120px"></td>
+            <td><input class="lineInp" data-k="qty" type="number" inputmode="numeric" value="${esc(String(li.qty??0))}" style="width:50px"></td>
+            <td><div class="unitWrap"><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc((li.unitPrice===0||li.unitPrice===null||li.unitPrice===undefined||li.unitPrice==="") ? "" : String(li.unitPrice))}" style="width:120px"><button class="signBtn" type="button" data-act="toggleSign">±</button></div></td>
             <td class="mono" data-k="total">${esc(formatJPY(li.total||0))}</td>
             <td><input class="lineInp" data-k="memo" type="text" value="${esc(li.memo||"")}" placeholder="メモ"></td>
             <td style="text-align:right;">
@@ -801,6 +832,27 @@ body{
       // attach listeners
       function attachRowHandlers(tr){
         tr.addEventListener("input", ()=>{ recompute(); });
+
+        // ± ボタン：単価をマイナス表記に切替（再タップで戻す）
+        const sign = tr.querySelector('[data-act="toggleSign"]');
+        if(sign){
+          sign.onclick = ()=>{
+            const inp = tr.querySelector('[data-k="unitPrice"]');
+            if(!inp) return;
+            const raw = (inp.value ?? "").toString().trim();
+            if(raw === ""){
+              // 空の時は -0 を入れてから編集しやすくする
+              inp.value = "-0";
+              inp.focus();
+            }else{
+              const v = Number(raw);
+              // NaN の場合は何もしない
+              if(Number.isFinite(v)) inp.value = String(-v);
+            }
+            recompute();
+          };
+        }
+
         const del = tr.querySelector('[data-act="del"]');
         del.onclick = ()=>{ tr.remove(); recompute(); };
       }
