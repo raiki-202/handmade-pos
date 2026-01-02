@@ -936,7 +936,7 @@ body{
 <thead class="thead">
 <tr>
 <th style="width:46%;">名前</th>
-<th style="width:22%;">期日</th>
+<th style="width:22%;">受注日</th>
 <th style="width:20%;">進捗</th>
 <th style="width:12%; text-align:right;">担当</th>
 </tr>
@@ -956,7 +956,7 @@ body{
 <thead class="thead">
 <tr>
 <th style="width:46%;">名前</th>
-<th style="width:22%;">期日</th>
+<th style="width:22%;">受注日</th>
 <th style="width:20%;">進捗</th>
 <th style="width:12%; text-align:right;">担当</th>
 </tr>
@@ -1604,6 +1604,7 @@ function openAssigneeSheet(row){
   window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") overlay.classList.remove("show"); }, { once:true });
 }
 
+
 function renderRows(tbodyId, rows, kind){
   const tb = document.getElementById(tbodyId);
   if(!tb) return;
@@ -1612,38 +1613,39 @@ function renderRows(tbodyId, rows, kind){
   for(const r of rows){
     const tr = document.createElement("tr");
 
+    // 名前
     const tdName = document.createElement("td");
-    tdName.textContent = safeText(r.customerName || r.name || r.buyerName);
+    tdName.className = "cellName";
+    tdName.textContent = (r.customerName || r.buyerName || r.name || "—");
 
+    // 受注日
     const tdDue = document.createElement("td");
-    const due = toDate(r.dueDate || r.deadline || r.deliveryDate || r.date);
-    tdDue.textContent = fmtDate(due);
+    tdDue.className = "cellDue";
+    const ms = (typeof r.orderDateMs === "number" && Number.isFinite(r.orderDateMs)) ? r.orderDateMs : saleToDateMs(r);
+    tdDue.textContent = fmtDate(ms);
 
+    // 進捗（status）
     const tdProg = document.createElement("td");
-    const progTap = document.createElement("div");
-    progTap.className = "tap";
-    progTap.role = "button";
-    progTap.tabIndex = 0;
-    progTap.textContent = safeText((r.progress || "未着手"));
-    progTap.onclick = ()=> openProgressSheet(kind, r);
-    progTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openProgressSheet(kind, r); } };
+    tdProg.className = "cellProg";
+    const progTap = document.createElement("button");
+    progTap.type = "button";
+    progTap.className = "tapPill";
+    progTap.textContent = (r.statusLabel || r.statusId || "—");
+    progTap.onclick = ()=> openStatusSheet(r, kind);
+    progTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openStatusSheet(r, kind); } };
     tdProg.appendChild(progTap);
 
+    // 担当（複数）
     const tdAss = document.createElement("td");
-    tdAss.style.textAlign = "right";
-    const assTap = document.createElement("div");
-    assTap.className = "tap";
-    assTap.role = "button";
-    assTap.tabIndex = 0;
-
-    const showAss = Array.isArray(r.assignees) && r.assignees.length
-      ? r.assignees.join(" / ")
-      : "-";
-
+    tdAss.className = "cellAss";
+    const assTap = document.createElement("button");
+    assTap.type = "button";
+    assTap.className = "tapPill tapPillRight";
+    const ass = Array.isArray(r.assignees) ? r.assignees : (Array.isArray(r.assignee) ? r.assignee : (r.assignee ? [r.assignee] : []));
+    const showAss = ass.length ? ass.join(" / ") : "—";
     assTap.textContent = showAss;
-    assTap.onclick = ()=> openAssigneeSheet(r);
-    assTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openAssigneeSheet(r); } };
-
+    assTap.onclick = ()=> openAssigneeSheet(r, kind);
+    assTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openAssigneeSheet(r, kind); } };
     tdAss.appendChild(assTap);
 
     tr.appendChild(tdName);
@@ -1655,32 +1657,224 @@ function renderRows(tbodyId, rows, kind){
 }
 
 
+
+
+/* ===== Orders status bundles (stock/order) ===== */
+const STATUS_BUNDLES = { stock: [], order: [] };
+const STATUS_MAP = { stock: new Map(), order: new Map() };
+
+async function loadStatusBundle(kind){
+  const file = (kind === "stock") ? "status_stock_bundle.json" : "status_order_bundle.json";
+  const candidates = [
+    `./${file}`,
+    file,
+    `./bundle/${file}`,
+    `bundle/${file}`
+  ];
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache:"no-store" });
+      if(!res.ok) continue;
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : (Array.isArray(json.statuses) ? json.statuses : []);
+      const list = arr
+        .filter(s => s && (s.active ?? true))
+        .map(s => ({ id: String(s.id ?? ""), label: String(s.label ?? "") }))
+        .filter(s => s.id || s.label);
+      if(list.length){
+        STATUS_BUNDLES[kind] = list;
+        STATUS_MAP[kind] = new Map(list.map(s => [s.id, s.label]));
+        return;
+      }
+    }catch(_e){}
+  }
+  // fallback (最低限)
+  if(kind==="stock"){
+    STATUS_BUNDLES.stock = [
+      { id:"not_started", label:"未着手" },
+      { id:"packed", label:"梱包済み" },
+      { id:"shipped", label:"発送完了" }
+    ];
+    STATUS_MAP.stock = new Map(STATUS_BUNDLES.stock.map(s=>[s.id,s.label]));
+  }else{
+    STATUS_BUNDLES.order = [
+      { id:"not_started", label:"未着手" },
+      { id:"making", label:"作成中" },
+      { id:"shipped", label:"発送完了" }
+    ];
+    STATUS_MAP.order = new Map(STATUS_BUNDLES.order.map(s=>[s.id,s.label]));
+  }
+}
+
+function normalizeStatus(kind, row){
+  const id = (row.statusId ?? row.status ?? "").toString().trim();
+  let label = (row.statusLabel ?? "").toString().trim();
+
+  if(!label && id){
+    label = STATUS_MAP[kind].get(id) || id;
+  }
+  if(!id && label){
+    const hit = (STATUS_BUNDLES[kind] || []).find(s => s.label === label);
+    if(hit) return { statusId: hit.id, statusLabel: hit.label };
+  }
+  if(!id && !label){
+    // default
+    return { statusId:"not_started", statusLabel:"未着手" };
+  }
+  return { statusId: id || "not_started", statusLabel: label || id || "—" };
+}
+
+function isDoneStatus(row){
+  const id = (row.statusId ?? "").toString();
+  const label = (row.statusLabel ?? "").toString();
+  return id === "shipped" || id === "delivered" || label === "発送完了";
+}
+
+function isVisibleOutstanding(kind, row){
+  const st = normalizeStatus(kind, row);
+  const id = st.statusId;
+  const label = st.statusLabel;
+
+  if(isDoneStatus({statusId:id,statusLabel:label})) return false;
+
+  if(kind === "stock"){
+    // 未着手 or 梱包済み
+    return (id === "not_started" || id === "packed" || label === "未着手" || label === "梱包済み");
+  }
+  // order: 未着手 or 作成中
+  return (id === "not_started" || id === "making" || label === "未着手" || label === "作成中");
+}
+
+async function openStatusSheet(row, kind){
+  ensureOrdersOverlayBase();
+  state.editing = { kind, row, mode:"status" };
+
+  sheetTitle.textContent = `進捗変更（${kind}）`;
+  sheetFoot.style.display = "none";
+
+  const opts = STATUS_BUNDLES[kind] || [];
+  sheetBody.innerHTML = `
+    <div class="sheetList">
+      ${opts.map(s=>{
+        const cur = (row.statusId === s.id) || (row.statusLabel === s.label);
+        return `<button type="button" class="sheetItem ${cur ? "active":""}" data-id="${escapeHtml(s.id)}">
+          <div class="sheetMain">${escapeHtml(s.label)}</div>
+          <div class="sheetSub">${escapeHtml(s.id)}</div>
+        </button>`;
+      }).join("")}
+    </div>
+    <div class="sheetNote">「発送完了」にすると一覧から消えます。</div>
+  `;
+
+  sheetBody.querySelectorAll(".sheetItem").forEach(btn=>{
+    btn.addEventListener("click", async ()=>{
+      const id = btn.getAttribute("data-id") || "";
+      const label = STATUS_MAP[kind].get(id) || id || "—";
+      try{
+        setLoading("更新中…");
+        await updateDoc(doc(db,"sales", row.id), { statusId: id, statusLabel: label });
+        await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
+      }catch(e){
+        console.error(e);
+        alert("更新に失敗しました（権限/ルール確認）");
+      }finally{
+        setLoading("");
+        closeOrdersSheet();
+      }
+    });
+  });
+
+  openOrdersSheet();
+}
+
+async function openAssigneeSheet(row, kind){
+  ensureOrdersOverlayBase();
+  state.editing = { kind, row, mode:"assignee", draft: { assignees: Array.isArray(row.assignees) ? [...row.assignees] : [] } };
+
+  sheetTitle.textContent = `担当変更（${kind}）`;
+  sheetFoot.style.display = "flex";
+
+  const cur = new Set(state.editing.draft.assignees || []);
+  sheetBody.innerHTML = `
+    <div class="sheetList">
+      ${ASSIGNEE_OPTIONS.map(name=>{
+        const on = cur.has(name);
+        return `<button type="button" class="sheetItem ${on ? "active":""}" data-name="${escapeHtml(name)}">
+          <div class="sheetMain">${escapeHtml(name)}</div>
+        </button>`;
+      }).join("")}
+    </div>
+    <div class="sheetNote">複数選択OK。保存で反映。</div>
+  `;
+
+  sheetBody.querySelectorAll(".sheetItem").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const name = btn.getAttribute("data-name");
+      if(!name) return;
+      if(cur.has(name)) cur.delete(name); else cur.add(name);
+      btn.classList.toggle("active");
+      state.editing.draft.assignees = [...cur];
+    });
+  });
+
+  // 保存
+  saveBtn.onclick = async ()=>{
+    try{
+      setLoading("更新中…");
+      await updateDoc(doc(db,"sales", row.id), { assignees: state.editing.draft.assignees });
+      await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
+    }catch(e){
+      console.error(e);
+      alert("更新に失敗しました（権限/ルール確認）");
+    }finally{
+      setLoading("");
+      closeOrdersSheet();
+    }
+  };
+
+  cancelBtn.onclick = ()=> closeOrdersSheet();
+
+  openOrdersSheet();
+}
+
 async function loadSalesByKind(kind, tbodyId, emptyId){
   clearTable(tbodyId);
   hideEmpty(emptyId);
 
   try{
-    // createdAt は POS 側で serverTimestamp() の想定
-    const qy = query(
-      collection(db, "sales"),
-      where("kind", "==", kind),
-      orderBy("createdAt", "desc"),
-      limit(200)
-    );
+    // kind は kind / kindId どちらでも来る可能性があるので保険で両対応
+    let snap = null;
 
-    const snap = await getDocs(qy);
+    try{
+      const qy = query(
+        collection(db, "sales"),
+        where("kind", "==", kind),
+        orderBy("createdAt", "desc"),
+        limit(300)
+      );
+      snap = await getDocs(qy);
+    }catch(_e){
+      const qy2 = query(
+        collection(db, "sales"),
+        where("kindId", "==", kind),
+        orderBy("createdAt", "desc"),
+        limit(300)
+      );
+      snap = await getDocs(qy2);
+    }
+
     let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // progress が「完了」のものは除外（フィールドが無い場合は表示）
-    rows = rows.filter(r => {
-      const p = (r.progress ?? "").toString().trim();
-      return p !== "完了";
-    });
+    // status 正規化 + 受注残フィルタ
+    rows = rows.map(r=>{
+      const st = normalizeStatus(kind, r);
+      return { ...r, ...st };
+    }).filter(r => isVisibleOutstanding(kind, r));
 
-    // 期日っぽいフィールドがあればそれ優先で昇順に並べ替え
+    // 受注日（orderDate/orderDateMs）優先で昇順
     rows.sort((a,b)=>{
-      const da = toDate(a.dueDate || a.deadline || a.deliveryDate || a.date) || new Date(8640000000000000);
-      const dbb = toDate(b.dueDate || b.deadline || b.deliveryDate || b.date) || new Date(8640000000000000);
+      const da = (typeof a.orderDateMs === "number" ? a.orderDateMs : saleToDateMs(a)) || 9e15;
+      const dbb = (typeof b.orderDateMs === "number" ? b.orderDateMs : saleToDateMs(b)) || 9e15;
       return da - dbb;
     });
 
@@ -1705,6 +1899,9 @@ onAuthStateChanged(auth, async (user) => {
 
   // ログイン済み：受注残を読み込む
   setLoading("読み込み中…");
+
+  // ステータスマスタ読込（bundle）
+  await Promise.all([loadStatusBundle("stock"), loadStatusBundle("order")]);
 
   // 受注一覧 ＋ 上部グラフデータ（本データ）を同時に読む
   const [chart] = await Promise.all([
