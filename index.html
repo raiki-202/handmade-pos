@@ -1497,6 +1497,32 @@ function ensureOrdersOverlayBase(){
   return { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn };
 }
 
+// ===== Orders sheet state/helpers =====
+const ordersState = { editing: null };
+
+function setLoading(msg){
+  // シート内ローディング表示（必要なら拡張）
+  const el = document.getElementById("ordersLoading");
+  if(!el) return;
+  el.textContent = msg || "";
+  el.style.display = msg ? "block" : "none";
+}
+
+function openOrdersSheet(){
+  const { overlay, closeBtn } = ensureOrdersOverlayBase();
+  if(!overlay) return;
+  overlay.classList.add("show");
+  if(closeBtn) closeBtn.onclick = ()=> closeOrdersSheet();
+  overlay.onclick = (e)=>{ if(e.target === overlay) closeOrdersSheet(); };
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closeOrdersSheet(); }, { once:true });
+}
+
+function closeOrdersSheet(){
+  const { overlay } = ensureOrdersOverlayBase();
+  if(!overlay) return;
+  overlay.classList.remove("show");
+}
+
 async function refreshOrdersTables(){
   await Promise.all([
     loadSalesByKind("stock", "tbodyStock", "emptyStock"),
@@ -1688,40 +1714,46 @@ function isVisibleOutstanding(kind, row){
 }
 
 async function openStatusSheet(row, kind){
-  ensureOrdersOverlayBase();
-  state.editing = { kind, row, mode:"status" };
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody) return;
+
+  ordersState.editing = { kind, row, mode:"status" };
 
   sheetTitle.textContent = `進捗変更（${kind}）`;
-  sheetFoot.style.display = "none";
+  if(sheetFoot) sheetFoot.style.display = "none";
 
-  const opts = STATUS_BUNDLES[kind] || [];
+  const current = normalizeStatus(kind, row);
+  const opts = (STATUS_BUNDLES[kind] || []).filter(s => s && s.id && s.label);
+
   sheetBody.innerHTML = `
     <div class="sheetList">
       ${opts.map(s=>{
-        const cur = (row.statusId === s.id) || (row.statusLabel === s.label);
-        return `<button type="button" class="sheetItem ${cur ? "active":""}" data-id="${escapeHtml(s.id)}">
+        const on = (current.statusId === s.id) || (current.statusLabel === s.label);
+        return `<button type="button" class="sheetItem ${on ? "active":""}" data-id="${escapeHtml(s.id)}" data-label="${escapeHtml(s.label)}">
           <div class="sheetMain">${escapeHtml(s.label)}</div>
           <div class="sheetSub">${escapeHtml(s.id)}</div>
         </button>`;
       }).join("")}
     </div>
-    <div class="sheetNote">「発送完了」にすると一覧から消えます。</div>
+    <div class="sheetNote">タップで即保存します。</div>
   `;
 
   sheetBody.querySelectorAll(".sheetItem").forEach(btn=>{
     btn.addEventListener("click", async ()=>{
       const id = btn.getAttribute("data-id") || "";
-      const label = STATUS_MAP[kind].get(id) || id || "—";
+      const label = btn.getAttribute("data-label") || id;
+      if(!row?.id) return;
+
       try{
         setLoading("更新中…");
-        await updateDoc(doc(db,"sales", row.id), { statusId: id, statusLabel: label });
+        await updateDoc(doc(db, "sales", row.id), { statusId: id, statusLabel: label });
+        closeOrdersSheet();
         await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
       }catch(e){
         console.error(e);
-        alert("更新に失敗しました（権限/ルール確認）");
+        alert("進捗の保存に失敗しました（権限/ルール確認）");
       }finally{
         setLoading("");
-        closeOrdersSheet();
       }
     });
   });
@@ -1730,13 +1762,19 @@ async function openStatusSheet(row, kind){
 }
 
 async function openAssigneeSheet(row, kind){
-  ensureOrdersOverlayBase();
-  state.editing = { kind, row, mode:"assignee", draft: { assignees: Array.isArray(row.assignees) ? [...row.assignees] : [] } };
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody || !sheetFoot || !cancelBtn || !saveBtn) return;
+
+  const current = Array.isArray(row.assignees)
+    ? [...row.assignees]
+    : (row.assignee ? [row.assignee] : []);
+
+  const cur = new Set(current);
+  ordersState.editing = { kind, row, mode:"assignee", draft: { assignees: [...cur] } };
 
   sheetTitle.textContent = `担当変更（${kind}）`;
   sheetFoot.style.display = "flex";
 
-  const cur = new Set(state.editing.draft.assignees || []);
   sheetBody.innerHTML = `
     <div class="sheetList">
       ${ASSIGNEE_OPTIONS.map(name=>{
@@ -1755,22 +1793,21 @@ async function openAssigneeSheet(row, kind){
       if(!name) return;
       if(cur.has(name)) cur.delete(name); else cur.add(name);
       btn.classList.toggle("active");
-      state.editing.draft.assignees = [...cur];
+      ordersState.editing.draft.assignees = [...cur];
     });
   });
 
-  // 保存
   saveBtn.onclick = async ()=>{
     try{
       setLoading("更新中…");
-      await updateDoc(doc(db,"sales", row.id), { assignees: state.editing.draft.assignees });
+      await updateDoc(doc(db,"sales", row.id), { assignees: ordersState.editing.draft.assignees });
+      closeOrdersSheet();
       await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
     }catch(e){
       console.error(e);
-      alert("更新に失敗しました（権限/ルール確認）");
+      alert("担当の保存に失敗しました（権限/ルール確認）");
     }finally{
       setLoading("");
-      closeOrdersSheet();
     }
   };
 
