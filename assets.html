@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>e.nue 資産管理</title>
+  <title>e.nue 収支集計</title>
 
   <style>
     :root{
@@ -303,8 +303,8 @@
 
       <div class="topbar">
         <div class="brand">
-          <div class="title">資産管理</div>
-          <div class="sub">売上（sales）− 支出（expenses）で「現状総資産」を表示</div>
+          <div class="title">収支集計</div>
+          <div class="sub">売上（sales）− 支出（expense_receipts）を集計</div>
         </div>
 
         <div class="navBtns">
@@ -372,7 +372,7 @@
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
   import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
   import {
-    getFirestore, collection, query, where, orderBy, getDocs, limit
+    getFirestore, collection, query, where, orderBy, getDocs, limit, Timestamp
   } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   // ✅ 本番（既存ページと同じ）
@@ -429,12 +429,10 @@
     toastEl.classList.add("on");
     setTimeout(()=>toastEl.classList.remove("on"), 1400);
   }
-
   function cls(el, on, c){
     if(on) el.classList.add(c);
     else el.classList.remove(c);
   }
-
   function toDate(v){
     try{
       if(!v) return null;
@@ -445,14 +443,12 @@
       return null;
     }catch{ return null; }
   }
-
   function monthRange(ymStr){
     const [Y,M] = ymStr.split("-").map(Number);
     const start = new Date(Y, M-1, 1, 0,0,0,0);
     const end = new Date(Y, M, 1, 0,0,0,0);
     return { start, end };
   }
-
   function fillYearOptions(nowY, years){
     const arr = (years?.length ? years : []);
     const set = new Set(arr);
@@ -469,70 +465,163 @@
     yearSel.value = String(nowY);
   }
 
-  // state
-  let currentUser = null;
-  let mode = "year"; // "year" | "month"
-  let cacheYear = new Map(); // year -> { sales, expenses, byMonth }
-  let cacheMonth = new Map(); // "YYYY-MM" -> { sales, expenses, net, breakdowns }
+  // ---- Data (sales: bundle + firebase) -----------------
+  let rawSalesAll = [];  // normalized [{id,date,total,channel,_ym,isBundled}]
+  let lastSourceCounts = { json: 0, firebase: 0 };
 
-  // ---- Firestore loaders
-  async function loadSalesByRange(start, end){
-    // createdAt: Timestamp を想定
-    // Firestore: 範囲 + orderBy(createdAt) はOK（必要ならインデックス作成）
+  function safeStr(v){ return (v==null) ? "" : String(v); }
+
+  function normalizeSale(docLike){
+    // docLike: { id, data:()=>{...} } or Firestore docSnap
+    const id = safeStr(docLike?.id || "").trim() || ("sale_" + Math.random().toString(36).slice(2,9));
+    const d = (typeof docLike?.data === "function") ? (docLike.data()||{}) : (docLike||{});
+    const total = Number(d.total ?? d.totalAmount ?? d.grandTotal ?? d.amount ?? 0) || 0;
+
+    const date =
+      toDate(d.createdAt) ||
+      (Number.isFinite(Number(d.orderDateMs)) ? new Date(Number(d.orderDateMs)) : null) ||
+      (Number.isFinite(Number(d.clientCreatedAt)) ? new Date(Number(d.clientCreatedAt)) : null) ||
+      (safeStr(d.orderDate) ? new Date(safeStr(d.orderDate)) : null) ||
+      new Date(0);
+
+    const channel = safeStr(d.channelLabel ?? d.channel ?? d.channelId ?? "").trim();
+    const sale = { id, date, total, channel, isBundled: !!d.isBundled };
+    sale._ym = ymKey(date);
+    return sale;
+  }
+
+  async function loadBundleSales(){
+    // monthly_history.html と同じ候補（read節約用）
+    const candidates = [
+      "./sales_bundle.json",
+      "sales_bundle.json",
+      "./bundle/sales_bundle.json",
+      "bundle/sales_bundle.json"
+    ];
+
+    for(const url of candidates){
+      try{
+        const res = await fetch(url, { cache: "no-store" });
+        if(!res.ok) continue;
+        const json = await res.json();
+        const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
+        if(!arr.length) return { list: [], throughMs: 0 };
+
+        const list = arr.map((d, idx)=>{
+          const id = safeStr(d.id || d.saleId || "").trim() || `bundle_${idx}`;
+          const data = { ...d, id, isBundled: true, source: "bundle" };
+          return normalizeSale({ id, data: ()=>data });
+        });
+
+        let throughMs = 0;
+        for(const s of list){
+          const t = Math.max(
+            Number(deref(s, "clientCreatedAt")||0),
+            Number(deref(s, "orderDateMs")||0),
+            Number(s.date?.getTime ? s.date.getTime() : 0)
+          );
+          if(t > throughMs) throughMs = t;
+        }
+        return { list, throughMs };
+      }catch(e){
+        // try next
+      }
+    }
+    return { list: [], throughMs: 0 };
+  }
+
+  function deref(obj, key){
+    try{ return obj?.[key]; }catch{ return undefined; }
+  }
+
+  async function loadSalesAll(){
+    // 1) bundle
+    const bundle = await loadBundleSales();
+    const bundleList = bundle.list || [];
+    const throughMs = Number(bundle.throughMs || 0);
+
+    // 2) firestore delta (createdAt > throughMs)
+    let fbList = [];
+    try{
+      const since = Timestamp.fromMillis(throughMs || 0);
+      const qy = query(
+        collection(db, "sales"),
+        where("createdAt", ">", since),
+        orderBy("createdAt", "asc"),
+        limit(5000)
+      );
+      const snap = await getDocs(qy);
+      snap.forEach(d=> fbList.push(normalizeSale(d)));
+    }catch(e){
+      // fallback: 最新を薄く読む（ページが死なないように）
+      try{
+        const q2 = query(collection(db,"sales"), orderBy("createdAt","desc"), limit(200));
+        const snap2 = await getDocs(q2);
+        const tmp = [];
+        snap2.forEach(d=> tmp.push(normalizeSale(d)));
+        fbList = tmp.filter(s=> (s.date?.getTime?.()||0) > throughMs);
+      }catch(_e){
+        fbList = [];
+      }
+    }
+
+    // merge (id unique)
+    const map = new Map();
+    for(const s of bundleList) map.set(s.id, s);
+    for(const s of fbList) map.set(s.id, s);
+
+    rawSalesAll = [...map.values()];
+    // source counts
+    lastSourceCounts = { json: bundleList.length, firebase: fbList.length };
+    return rawSalesAll;
+  }
+
+  // ---- expense_receipts loaders -----------------------
+  function receiptToRow(docSnap){
+    const d = docSnap.data() || {};
+    return {
+      id: docSnap.id,
+      date: safeStr(d.date || ""),     // "YYYY-MM-DD"
+      year: Number(d.year || 0) || 0,
+      month: Number(d.month || 0) || 0,
+      store: safeStr(d.store || "").trim() || "(未設定)",
+      sum: Number(d.sum || 0) || 0,
+      memo: safeStr(d.memo || "")
+    };
+  }
+
+  async function loadExpenseReceiptsByYear(year){
     const qy = query(
-      collection(db, "sales"),
-      where("createdAt", ">=", start),
-      where("createdAt", "<", end),
-      orderBy("createdAt","asc"),
-      limit(5000)
+      collection(db, "expense_receipts"),
+      where("year", "==", Number(year)),
+      limit(8000)
     );
     const snap = await getDocs(qy);
-
     let total = 0;
     const rows = [];
     snap.forEach(docSnap=>{
-      const d = docSnap.data();
-      const createdAt = toDate(d.createdAt) || new Date(0);
-      const t = Number(d.total ?? d.totalAmount ?? d.grandTotal ?? d.amount ?? 0);
-      total += (Number.isFinite(t) ? t : 0);
-      rows.push({
-        id: docSnap.id,
-        date: createdAt,
-        total: Number.isFinite(t) ? t : 0,
-        channel: (d.channel ?? "").toString(),
-        paymentMethod: (d.paymentMethod ?? "").toString(),
-      });
+      const r = receiptToRow(docSnap);
+      total += (Number.isFinite(r.sum) ? r.sum : 0);
+      rows.push(r);
     });
-
     return { total, rows };
   }
 
-  async function loadExpensesByDateKeyRange(startKey, endKey){
-    // expenses.date: "YYYY-MM-DD" 文字列
+  async function loadExpenseReceiptsByMonth(year, month){
     const qy = query(
-      collection(db, "expenses"),
-      where("date", ">=", startKey),
-      where("date", "<=", endKey),
-      orderBy("date","asc"),
-      limit(6000)
+      collection(db, "expense_receipts"),
+      where("year", "==", Number(year)),
+      where("month", "==", Number(month)),
+      limit(8000)
     );
     const snap = await getDocs(qy);
-
     let total = 0;
     const rows = [];
     snap.forEach(docSnap=>{
-      const d = docSnap.data();
-      const amt = Number(d.amount || 0);
-      total += (Number.isFinite(amt) ? amt : 0);
-      rows.push({
-        id: docSnap.id,
-        date: (d.date ?? "").toString(),
-        amount: Number.isFinite(amt) ? amt : 0,
-        categoryName: (d.categoryName ?? "").toString() || "(未設定)",
-        paymentMethodName: (d.paymentMethodName ?? d.paymentMethod ?? "").toString()
-      });
+      const r = receiptToRow(docSnap);
+      total += (Number.isFinite(r.sum) ? r.sum : 0);
+      rows.push(r);
     });
-
     return { total, rows };
   }
 
@@ -546,7 +635,6 @@
     }
     return m;
   }
-
   function topN(map, n=5){
     return [...map.entries()]
       .sort((a,b)=> Math.abs(b[1]) - Math.abs(a[1]))
@@ -556,8 +644,8 @@
   // ---- Renderers
   function renderStats({ salesTotal, expensesTotal }){
     const net = Number(salesTotal||0) - Number(expensesTotal||0);
-
     const detailMode = detailSel.value;
+
     statsEl.innerHTML = "";
 
     const mk = (k, v, s, clsName)=>{
@@ -568,11 +656,11 @@
       statsEl.appendChild(d);
     };
 
-    mk("現状 総資産", fmtJPY(net), (mode==="year" ? "年合計" : "月合計"), net<0 ? "neg" : "pos");
+    mk("当月/当年 差引", fmtJPY(net), (mode==="year" ? "年合計" : "月合計"), net<0 ? "neg" : "pos");
 
     if(detailMode==="full"){
-      mk("売上 合計", fmtJPY(salesTotal), "sales.total 合算（返金含む）");
-      mk("支出 合計", fmtJPY(expensesTotal), "expenses.amount 合算");
+      mk("売上 合計", fmtJPY(salesTotal), `sales.total 合算（json:${lastSourceCounts.json} / firebase:${lastSourceCounts.firebase}）`);
+      mk("支出 合計", fmtJPY(expensesTotal), "expense_receipts.sum 合算");
     }
   }
 
@@ -597,7 +685,7 @@
         <tr>
           <th>月</th>
           ${detailMode==="full" ? `<th class="right">売上</th><th class="right">支出</th>` : ``}
-          <th class="right">総資産</th>
+          <th class="right">差引</th>
         </tr>
       </thead>
       <tbody></tbody>
@@ -619,211 +707,258 @@
 
     wrap.appendChild(tbl);
 
-    // breakdown (Top5) - ざっくり
+    // breakdown
     const salesByChannel = sumByKey(salesRows, r=> (r.channel||"(未設定)"), r=> r.total);
-    const expByCat = sumByKey(expRows, r=> (r.categoryName||"(未設定)"), r=> r.amount);
+    const expByStore = sumByKey(expRows, r=> (r.store||"(未設定)"), r=> r.sum);
 
     const extra = document.createElement("div");
     extra.style.marginTop = "12px";
 
-    const mkList = (title, items, isMoney=true)=>{
+    const mkList = (title, items)=>{
       const box = document.createElement("div");
-      box.className = "card";
-      box.style.marginTop = "12px";
-      box.innerHTML = `
-        <div class="cardHead"><div class="h">${title}</div><div class="meta">上位5</div></div>
-        <div class="cardBody"><div id="list"></div></div>
-      `;
-      const list = box.querySelector("#list");
+      box.className = "miniCard";
+      box.innerHTML = `<div class="miniTitle">${title}</div><div class="miniBody"></div>`;
+      const b = box.querySelector(".miniBody");
+
       if(!items.length){
-        list.innerHTML = `<div class="empty">データなし</div>`;
-        return box;
+        b.innerHTML = `<div class="empty">データなし</div>`;
+      }else{
+        const ul = document.createElement("div");
+        ul.className = "miniList";
+        for(const [k,v] of items){
+          const row = document.createElement("div");
+          row.className = "miniRow";
+          row.innerHTML = `<div class="miniK">${escapeHtml(k)}</div><div class="miniV">${fmtJPY(v)}</div>`;
+          ul.appendChild(row);
+        }
+        b.appendChild(ul);
       }
-      const t = document.createElement("table");
-      t.style.minWidth = "0";
-      t.innerHTML = `<thead><tr><th>項目</th><th class="right">金額</th></tr></thead><tbody></tbody>`;
-      const b = t.querySelector("tbody");
-      for(const [k,v] of items){
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${k}</td><td class="right">${fmtJPY(v)}</td>`;
-        b.appendChild(tr);
-      }
-      list.appendChild(t);
       return box;
     };
 
-    extra.appendChild(mkList("売上：チャンネル別", topN(salesByChannel,5)));
-    extra.appendChild(mkList("支出：カテゴリ別", topN(expByCat,5)));
+    extra.appendChild(mkList("売上 Top（channel）", topN(salesByChannel, 5)));
+    extra.appendChild(mkList("支出 Top（store）", topN(expByStore, 5)));
 
+    // output
     detailArea.innerHTML = "";
     detailArea.appendChild(wrap);
-    detailArea.appendChild(extra);
+    if(detailMode==="full") detailArea.appendChild(extra);
   }
 
-  function renderMonthDetail(ymStr, salesRows, expRows){
+  function renderMonthDetail(ym, salesRows, expRows){
     const detailMode = detailSel.value;
+
+    const wrap = document.createElement("div");
+    wrap.className = "tableWrap";
+
+    const sTotal = salesRows.reduce((a,r)=>a+(Number(r.total||0)||0),0);
+    const eTotal = expRows.reduce((a,r)=>a+(Number(r.sum||0)||0),0);
+    const net = sTotal - eTotal;
+
+    const tbl = document.createElement("table");
+    tbl.innerHTML = `
+      <thead>
+        <tr>
+          <th>${ym}</th>
+          ${detailMode==="full" ? `<th class="right">売上</th><th class="right">支出</th>` : ``}
+          <th class="right">差引</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>合計</td>
+          ${detailMode==="full" ? `<td class="right">${fmtJPY(sTotal)}</td><td class="right">${fmtJPY(eTotal)}</td>` : ``}
+          <td class="right ${(net<0)?"neg":"pos"}">${fmtJPY(net)}</td>
+        </tr>
+      </tbody>
+    `;
+    wrap.appendChild(tbl);
 
     // breakdown
     const salesByChannel = sumByKey(salesRows, r=> (r.channel||"(未設定)"), r=> r.total);
-    const expByCat = sumByKey(expRows, r=> (r.categoryName||"(未設定)"), r=> r.amount);
+    const expByStore = sumByKey(expRows, r=> (r.store||"(未設定)"), r=> r.sum);
 
-    const mkBox = (title, items)=>{
+    const extra = document.createElement("div");
+    extra.style.marginTop = "12px";
+
+    const mkList = (title, items)=>{
       const box = document.createElement("div");
-      box.className = "card";
-      box.style.marginTop = "12px";
-      box.innerHTML = `
-        <div class="cardHead"><div class="h">${title}</div><div class="meta">上位5</div></div>
-        <div class="cardBody"><div id="list"></div></div>
-      `;
-      const list = box.querySelector("#list");
+      box.className = "miniCard";
+      box.innerHTML = `<div class="miniTitle">${title}</div><div class="miniBody"></div>`;
+      const b = box.querySelector(".miniBody");
+
       if(!items.length){
-        list.innerHTML = `<div class="empty">データなし</div>`;
-        return box;
+        b.innerHTML = `<div class="empty">データなし</div>`;
+      }else{
+        const ul = document.createElement("div");
+        ul.className = "miniList";
+        for(const [k,v] of items){
+          const row = document.createElement("div");
+          row.className = "miniRow";
+          row.innerHTML = `<div class="miniK">${escapeHtml(k)}</div><div class="miniV">${fmtJPY(v)}</div>`;
+          ul.appendChild(row);
+        }
+        b.appendChild(ul);
       }
-      const t = document.createElement("table");
-      t.style.minWidth = "0";
-      t.innerHTML = `<thead><tr><th>項目</th><th class="right">金額</th></tr></thead><tbody></tbody>`;
-      const b = t.querySelector("tbody");
-      for(const [k,v] of items){
-        const tr = document.createElement("tr");
-        tr.innerHTML = `<td>${k}</td><td class="right">${fmtJPY(v)}</td>`;
-        b.appendChild(tr);
-      }
-      list.appendChild(t);
       return box;
     };
 
+    extra.appendChild(mkList("売上 Top（channel）", topN(salesByChannel, 5)));
+    extra.appendChild(mkList("支出 Top（store）", topN(expByStore, 5)));
+
     detailArea.innerHTML = "";
-    detailArea.appendChild(mkBox(`${ymStr} 売上：チャンネル別`, topN(salesByChannel,5)));
-    detailArea.appendChild(mkBox(`${ymStr} 支出：カテゴリ別`, topN(expByCat,5)));
+    detailArea.appendChild(wrap);
+    if(detailMode==="full") detailArea.appendChild(extra);
   }
 
-  // ---- Main refresh
-  async function refresh(force=false){
-    try{
-      authState.textContent = "読み込み中…";
-      detailArea.innerHTML = "";
-      statsEl.innerHTML = "";
-
-      // mode switch
-      cls(modeYearBtn, mode==="year", "on");
-      cls(modeMonthBtn, mode==="month", "on");
-      yearControls.style.display = (mode==="year") ? "" : "none";
-      monthControls.style.display = (mode==="month") ? "" : "none";
-
-      const now = new Date();
-      const nowY = now.getFullYear();
-
-      // 年候補：直近のsales/expensesからざっくり拾う（軽く）
-      // force=falseなら毎回やり直さずOK
-      if(!yearSel.options.length || force){
-        const years = [nowY, nowY-1, nowY-2, nowY-3];
-        fillYearOptions(nowY, years);
-      }
-
-      if(!monthInput.value){
-        monthInput.value = `${nowY}-${pad2(now.getMonth()+1)}`;
-      }
-
-      if(mode==="year"){
-        const y = Number(yearSel.value || nowY);
-        if(!force && cacheYear.has(y)){
-          const c = cacheYear.get(y);
-          renderStats({ salesTotal: c.salesTotal, expensesTotal: c.expensesTotal });
-          renderYearDetail(y, c.byMonthSales, c.byMonthExpenses, c.salesRows, c.expRows);
-          authState.textContent = `OK（${y}年）`;
-          return;
-        }
-
-        const start = new Date(y,0,1,0,0,0,0);
-        const end   = new Date(y+1,0,1,0,0,0,0);
-
-        const sales = await loadSalesByRange(start, end);
-
-        const startKey = `${y}-01-01`;
-        const endKey   = `${y}-12-31`;
-        const exps = await loadExpensesByDateKeyRange(startKey, endKey);
-
-        const byMonthSales = sumByKey(sales.rows, r=> ymKey(r.date), r=> r.total);
-        const byMonthExpenses = sumByKey(exps.rows, r=> (r.date||"").slice(0,7), r=> r.amount);
-
-        const obj = {
-          salesTotal: sales.total,
-          expensesTotal: exps.total,
-          byMonthSales,
-          byMonthExpenses,
-          salesRows: sales.rows,
-          expRows: exps.rows
-        };
-        cacheYear.set(y, obj);
-
-        renderStats({ salesTotal: obj.salesTotal, expensesTotal: obj.expensesTotal });
-        renderYearDetail(y, obj.byMonthSales, obj.byMonthExpenses, obj.salesRows, obj.expRows);
-        authState.textContent = `OK（${y}年）`;
-
-      }else{
-        const ymStr = monthInput.value; // "YYYY-MM"
-        if(!ymStr){
-          toast("月を選んでね");
-          return;
-        }
-
-        if(!force && cacheMonth.has(ymStr)){
-          const c = cacheMonth.get(ymStr);
-          renderStats({ salesTotal: c.salesTotal, expensesTotal: c.expensesTotal });
-          renderMonthDetail(ymStr, c.salesRows, c.expRows);
-          authState.textContent = `OK（${ymStr}）`;
-          return;
-        }
-
-        const { start, end } = monthRange(ymStr);
-        const sales = await loadSalesByRange(start, end);
-
-        const startKey = `${ymStr}-01`;
-        // 月末：次月1日 - 1日
-        const endDate = new Date(end.getFullYear(), end.getMonth(), 0); // 月末
-        const endKey = `${endDate.getFullYear()}-${pad2(endDate.getMonth()+1)}-${pad2(endDate.getDate())}`;
-        const exps = await loadExpensesByDateKeyRange(startKey, endKey);
-
-        const obj = {
-          salesTotal: sales.total,
-          expensesTotal: exps.total,
-          salesRows: sales.rows,
-          expRows: exps.rows
-        };
-        cacheMonth.set(ymStr, obj);
-
-        renderStats({ salesTotal: obj.salesTotal, expensesTotal: obj.expensesTotal });
-        renderMonthDetail(ymStr, obj.salesRows, obj.expRows);
-        authState.textContent = `OK（${ymStr}）`;
-      }
-    }catch(err){
-      console.error(err);
-      authState.textContent = "読み込み失敗";
-      detailArea.innerHTML = `<div class="empty">読み込みに失敗しました。<br><span style="color:rgba(34,34,34,.55);font-weight:900;">Firestore ルール / インデックス / createdAt の型を確認してね。</span></div>`;
-      toast("読み込み失敗");
-    }
+  function escapeHtml(s){
+    return String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
   }
 
-  // events
-  modeYearBtn.onclick = ()=>{ mode="year"; refresh(false); };
-  modeMonthBtn.onclick = ()=>{ mode="month"; refresh(false); };
-  yearSel.onchange = ()=> refresh(false);
-  monthInput.onchange = ()=> refresh(false);
-  detailSel.onchange = ()=> refresh(false);
+  // ---- UI / state ------------------------------------
+  let currentUser = null;
+  let mode = "year"; // "year" | "month"
 
-  // auth gate
-  onAuthStateChanged(auth, (user)=>{
-    if(!user){
-      const redirect = encodeURIComponent("assets.html");
-      location.href = `login.html?redirect=${redirect}`;
+  let cacheYear = new Map();   // year -> { salesTotal, expTotal, byMonthSales, byMonthExpenses, salesRows, expRows }
+  let cacheMonth = new Map();  // "YYYY-MM" -> { salesTotal, expTotal, salesRows, expRows }
+
+  function setMode(next){
+    mode = next;
+    cls(modeYearBtn, mode==="year", "primary");
+    cls(modeMonthBtn, mode==="month", "primary");
+
+    yearControls.style.display = (mode==="year") ? "" : "none";
+    monthControls.style.display = (mode==="month") ? "" : "none";
+  }
+
+  modeYearBtn.addEventListener("click", ()=>{ setMode("year"); refresh(false); });
+  modeMonthBtn.addEventListener("click", ()=>{ setMode("month"); refresh(false); });
+
+  yearSel.addEventListener("change", ()=> refresh(false));
+  monthInput.addEventListener("change", ()=> refresh(false));
+  detailSel.addEventListener("change", ()=> refresh(false));
+
+  async function refresh(force){
+    if(!currentUser){
+      authState.textContent = "未ログイン";
       return;
     }
+
+    // 初回だけ sales を読み込む（bundle + firebase delta）
+    if(force || rawSalesAll.length===0){
+      try{
+        authState.textContent = "読込中…";
+        await loadSalesAll();
+      }catch(e){
+        console.error(e);
+        toast("sales 読込に失敗");
+      }
+    }
+
+    const now = new Date();
+    const y = Number(yearSel.value || now.getFullYear());
+    const ym = monthInput.value || `${now.getFullYear()}-${pad2(now.getMonth()+1)}`;
+
+    if(mode==="year"){
+      if(!force && cacheYear.has(y)){
+        const cached = cacheYear.get(y);
+        renderStats({ salesTotal: cached.salesTotal, expensesTotal: cached.expTotal });
+        renderYearDetail(y, cached.byMonthSales, cached.byMonthExpenses, cached.salesRows, cached.expRows);
+        authState.textContent = `ログイン中：${currentUser.email || ""}`;
+        return;
+      }
+
+      // sales: filter in memory
+      const salesRows = rawSalesAll.filter(s=> (s.date?.getFullYear?.()===y));
+      const salesTotal = salesRows.reduce((a,r)=>a+(Number(r.total||0)||0),0);
+      const byMonthSales = sumByKey(salesRows, r=> r._ym, r=> r.total);
+
+      // expenses: query by year
+      let expTotal = 0;
+      let expRows = [];
+      try{
+        const ex = await loadExpenseReceiptsByYear(y);
+        expTotal = ex.total;
+        expRows = ex.rows;
+      }catch(e){
+        console.error(e);
+        toast("支出（expense_receipts）読込に失敗");
+      }
+      const byMonthExpenses = new Map();
+      for(const r of expRows){
+        const key = `${y}-${pad2(r.month||0)}`;
+        byMonthExpenses.set(key, (byMonthExpenses.get(key)||0) + (Number(r.sum||0)||0));
+      }
+
+      const cached = { salesTotal, expTotal, byMonthSales, byMonthExpenses, salesRows, expRows };
+      cacheYear.set(y, cached);
+
+      renderStats({ salesTotal, expensesTotal: expTotal });
+      renderYearDetail(y, byMonthSales, byMonthExpenses, salesRows, expRows);
+      authState.textContent = `ログイン中：${currentUser.email || ""}`;
+      return;
+    }
+
+    // month mode
+    if(!force && cacheMonth.has(ym)){
+      const c = cacheMonth.get(ym);
+      renderStats({ salesTotal: c.salesTotal, expensesTotal: c.expTotal });
+      renderMonthDetail(ym, c.salesRows, c.expRows);
+      authState.textContent = `ログイン中：${currentUser.email || ""}`;
+      return;
+    }
+
+    const [Y,M] = ym.split("-").map(Number);
+    const salesRows = rawSalesAll.filter(s=> s._ym === ym);
+    const salesTotal = salesRows.reduce((a,r)=>a+(Number(r.total||0)||0),0);
+
+    let expTotal = 0;
+    let expRows = [];
+    try{
+      const ex = await loadExpenseReceiptsByMonth(Y, M);
+      expTotal = ex.total;
+      expRows = ex.rows;
+    }catch(e){
+      console.error(e);
+      toast("支出（expense_receipts）読込に失敗");
+    }
+
+    const cached = { salesTotal, expTotal, salesRows, expRows };
+    cacheMonth.set(ym, cached);
+
+    renderStats({ salesTotal, expensesTotal: expTotal });
+    renderMonthDetail(ym, salesRows, expRows);
+    authState.textContent = `ログイン中：${currentUser.email || ""}`;
+  }
+
+  // ---- boot ------------------------------------------
+  onAuthStateChanged(auth, async (user)=>{
     currentUser = user;
-    authState.textContent = `ログイン中：${user.email || "user"}`;
-    refresh(false);
+    const now = new Date();
+    const nowY = now.getFullYear();
+
+    fillYearOptions(nowY, [nowY, nowY-1, nowY-2, nowY-3]);
+    monthInput.value = `${nowY}-${pad2(now.getMonth()+1)}`;
+    setMode("year");
+
+    if(!user){
+      authState.textContent = "未ログイン";
+      statsEl.innerHTML = `<div class="empty">ログインしてください</div>`;
+      detailArea.innerHTML = "";
+      return;
+    }
+
+    try{
+      await loadSalesAll();
+    }catch(e){
+      console.error(e);
+      toast("sales 読込に失敗");
+    }
+
+    await refresh(true);
   });
 </script>
+
 
 </body>
 </html>
