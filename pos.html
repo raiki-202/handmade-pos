@@ -1287,6 +1287,7 @@ function todayYMD(){
   const m = String(d.getMonth()+1).padStart(2,"0");
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
+}
 
 
 /* =====================================================
@@ -1329,7 +1330,6 @@ function renderReceiptItemsAndTotal(){
   // ただし、レシート内での検算用に baseTotal も表示したい場合はここで追加できる
 }
 
-}
 
 /* =====================================================
    Firestore write
