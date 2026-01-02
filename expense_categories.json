@@ -13,6 +13,10 @@
       "label": "送料"
     },
     {
+      "id": "discount",
+      "label": "割引"
+    },
+    {
       "id": "parking",
       "label": "駐車場代"
     },
