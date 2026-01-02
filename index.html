@@ -826,6 +826,30 @@ body{
 .itemLine .n{ font-weight:900; }
 .itemLine .q{ color:rgba(0,0,0,.55); font-weight:800; }
 .itemLine .p{ font-weight:900; }
+/* ===== outstanding orders: row click + due note + detail ===== */
+.rowClickable{ cursor:pointer; }
+.rowClickable:hover{ background:rgba(0,0,0,.03); }
+.cellDue .dueMain{ font-weight:900; }
+.cellDue .dueNote{ margin-top:2px; font-size:11px; color:rgba(0,0,0,.55); font-weight:800; }
+
+.detailBox{ background:rgba(255,255,255,.92); border:1px solid rgba(0,0,0,.08); border-radius:18px; padding:12px; }
+.detailHead{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.detailTitle{ font-weight:900; font-size:16px; }
+.detailTotal{ font-weight:900; font-size:16px; }
+.detailRows{ margin-top:10px; display:grid; gap:6px; }
+.detailRow{ display:flex; justify-content:space-between; gap:10px; font-size:13px; }
+.detailRow .k{ color:rgba(0,0,0,.55); font-weight:900; }
+.detailRow .v{ font-weight:900; text-align:right; }
+.detailRow .v.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:800; }
+.detailNote{ font-size:11px; color:rgba(0,0,0,.55); font-weight:800; margin-left:6px; }
+.detailSectionTitle{ margin-top:12px; font-size:12px; font-weight:900; color:rgba(0,0,0,.6); }
+.detailItems{ margin-top:6px; border-top:1px solid rgba(0,0,0,.08); padding-top:8px; }
+.detailItem{ padding:8px 0; border-bottom:1px solid rgba(0,0,0,.06); }
+.detailItem:last-child{ border-bottom:none; }
+.detailItemName{ font-weight:900; font-size:13px; }
+.detailItemMeta{ display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:rgba(0,0,0,.6); font-weight:800; margin-top:2px; }
+.detailItemSub{ color:rgba(0,0,0,.85); font-weight:900; }
+.detailEmpty{ font-size:12px; color:rgba(0,0,0,.55); font-weight:800; padding:8px 0; }
 </style>
 </head>
 <body>
@@ -936,7 +960,7 @@ body{
 <thead class="thead">
 <tr>
 <th style="width:46%;">名前</th>
-<th style="width:22%;">受注日</th>
+<th style="width:22%;">期日</th>
 <th style="width:20%;">進捗</th>
 <th style="width:12%; text-align:right;">担当</th>
 </tr>
@@ -1593,6 +1617,11 @@ function renderRows(tbodyId, rows, kind){
 
   for(const r of rows){
     const tr = document.createElement("tr");
+    tr.classList.add("rowClickable");
+    tr.addEventListener("click", (e)=>{
+      if(e.target.closest("button")) return; // pills are separate actions
+      openSaleDetailSheet(r, kind);
+    });
 
     // 名前
     const tdName = document.createElement("td");
@@ -1602,8 +1631,21 @@ function renderRows(tbodyId, rows, kind){
     // 受注日
     const tdDue = document.createElement("td");
     tdDue.className = "cellDue";
-    const ms = (typeof r.orderDateMs === "number" && Number.isFinite(r.orderDateMs)) ? r.orderDateMs : saleToDateMs(r);
-    tdDue.textContent = fmtDate(ms);
+
+    if(kind === "order"){
+      const due = computeOrderDue(r);
+      tdDue.innerHTML = `
+        <div class="dueMain">${escapeHtml(due.dueText || "—")}</div>
+        ${due.noteText ? `<div class="dueNote">${escapeHtml(due.noteText)}</div>` : ``}
+      `;
+      // 並び替え用に保持（renderRowsでは使わないが、行クリック用に残す）
+      r.__dueMs = due.dueMs;
+      r.__dueText = due.dueText;
+      r.__orderNote = due.noteText;
+    }else{
+      const ms = (typeof r.orderDateMs === "number" && Number.isFinite(r.orderDateMs)) ? r.orderDateMs : saleToDateMs(r);
+      tdDue.textContent = fmtDate(ms);
+    }
 
     // 進捗（status）
     const tdProg = document.createElement("td");
@@ -1685,6 +1727,78 @@ async function loadStatusBundle(kind){
     ];
     STATUS_MAP.order = new Map(STATUS_BUNDLES.order.map(s=>[s.id,s.label]));
   }
+}
+
+/* ===== Urgent options bundle (for order due date) ===== */
+const URGENT_BUNDLE = [];
+const URGENT_MAP = new Map(); // id -> {label, price}
+async function loadUrgentOptionsBundle(){
+  const file = "urgent_options_bundle.json";
+  const candidates = [ `./${file}`, file, `./bundle/${file}`, `bundle/${file}` ];
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache:"no-store" });
+      if(!res.ok) continue;
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : (Array.isArray(json.urgentOptions) ? json.urgentOptions : []);
+      const list = arr
+        .filter(o => o && (o.active ?? true))
+        .map(o => ({ id: String(o.id ?? ""), label: String(o.label ?? ""), price: Number(o.price ?? 0) }))
+        .filter(o => o.id || o.label);
+      if(list.length){
+        URGENT_BUNDLE.splice(0, URGENT_BUNDLE.length, ...list);
+        URGENT_MAP.clear();
+        list.forEach(o => URGENT_MAP.set(o.id, o));
+        return;
+      }
+    }catch(_e){}
+  }
+  // fallback
+  const fallback = [
+    { id:"none", label:"指定なし", price:300 },
+    { id:"within_3_days", label:"3日以内", price:700 },
+    { id:"within_5_days", label:"5日以内", price:500 }
+  ];
+  URGENT_BUNDLE.splice(0, URGENT_BUNDLE.length, ...fallback);
+  URGENT_MAP.clear();
+  fallback.forEach(o => URGENT_MAP.set(o.id, o));
+}
+
+function urgentDaysFromRow(row){
+  const id = (row.urgentOptionId ?? row.urgentOption ?? "").toString().trim();
+  const label = (row.urgentOptionLabel ?? "").toString().trim();
+
+  const v = (id || "").toLowerCase();
+  if(v === "within_3_days") return 3;
+  if(v === "within_5_days") return 5;
+  if(v === "none") return 0;
+
+  // label ベース（保険）
+  if(label.includes("3")) return 3;
+  if(label.includes("5")) return 5;
+  return 0;
+}
+
+function computeOrderDue(row){
+  const orderMs = (typeof row.orderDateMs === "number" && Number.isFinite(row.orderDateMs))
+    ? row.orderDateMs
+    : saleToDateMs(row);
+
+  const days = urgentDaysFromRow(row);
+  if(!days){
+    return {
+      dueMs: null,
+      dueText: "指定なし",
+      noteText: orderMs ? fmtDate(orderMs) : "—"
+    };
+  }
+  // 「当日を含めず」→ orderDate + N日
+  const dueMs = orderMs ? (orderMs + days*24*60*60*1000) : null;
+  return {
+    dueMs,
+    dueText: dueMs ? fmtDate(dueMs) : "—",
+    noteText: null
+  };
 }
 
 function normalizeStatus(kind, row){
@@ -1829,6 +1943,101 @@ async function openAssigneeSheet(row, kind){
   openOrdersSheet();
 }
 
+function yen(n){
+  const v = Number(n);
+  if(!Number.isFinite(v)) return "—";
+  return "¥" + Math.round(v).toLocaleString("ja-JP");
+}
+
+function pickOrderMs(row){
+  return (typeof row.orderDateMs === "number" && Number.isFinite(row.orderDateMs))
+    ? row.orderDateMs
+    : saleToDateMs(row);
+}
+
+function buildItemsHtml(items){
+  const arr = Array.isArray(items) ? items : [];
+  if(!arr.length) return '<div class="detailEmpty">商品明細なし</div>';
+  return `
+    <div class="detailItems">
+      ${arr.map(it=>{
+        const name = it?.name ?? it?.label ?? it?.id ?? "—";
+        const qty = Number(it?.qty ?? 1);
+        const unit = it?.unitPrice ?? it?.price ?? null;
+        const sub = it?.subtotal ?? (Number.isFinite(qty) && Number.isFinite(Number(unit)) ? qty*Number(unit) : null);
+        return `
+          <div class="detailItem">
+            <div class="detailItemName">${escapeHtml(String(name))}</div>
+            <div class="detailItemMeta">
+              <span>${Number.isFinite(qty) ? qty : 1}点</span>
+              ${unit!=null ? `<span>単価 ${escapeHtml(yen(unit))}</span>` : ``}
+              ${sub!=null ? `<span class="detailItemSub">${escapeHtml(yen(sub))}</span>` : ``}
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
+
+async function openSaleDetailSheet(row, kind){
+  const { overlay, sheetTitle, sheetBody, sheetFoot } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody) return;
+
+  ordersState.editing = { kind, row, mode:"detail" };
+  sheetTitle.textContent = `明細（${kind}）`;
+  if(sheetFoot) sheetFoot.style.display = "none";
+
+  const customer = row.customerName || row.buyerName || row.name || "—";
+  const orderMs = pickOrderMs(row);
+  const orderDateText = orderMs ? fmtDate(orderMs) : "—";
+
+  let dueHtml = "";
+  if(kind === "order"){
+    const due = computeOrderDue(row);
+    if(due.dueMs){
+      dueHtml = `<div class="detailRow"><div class="k">期日</div><div class="v">${escapeHtml(due.dueText)}</div></div>`;
+    }else{
+      dueHtml = `<div class="detailRow"><div class="k">期日</div><div class="v">指定なし <span class="detailNote">（受注日 ${escapeHtml(due.noteText || "—")}）</span></div></div>`;
+    }
+  }else{
+    dueHtml = `<div class="detailRow"><div class="k">受注日</div><div class="v">${escapeHtml(orderDateText)}</div></div>`;
+  }
+
+  const status = normalizeStatus(kind, row);
+  const ass = Array.isArray(row.assignees) ? row.assignees : (row.assignee ? [row.assignee] : []);
+  const channel = row.channelLabel || row.channel || "—";
+  const payment = row.paymentLabel || row.paymentMethod || row.paymentId || "—";
+  const urgent = row.urgentOptionLabel || (row.urgentOptionId ? (URGENT_MAP.get(row.urgentOptionId)?.label || row.urgentOptionId) : "");
+
+  const total = (row.total != null) ? row.total : row.sum;
+  const itemsHtml = buildItemsHtml(row.items);
+
+  sheetBody.innerHTML = `
+    <div class="detailBox">
+      <div class="detailHead">
+        <div class="detailTitle">${escapeHtml(String(customer))}</div>
+        ${total!=null ? `<div class="detailTotal">${escapeHtml(yen(total))}</div>` : ``}
+      </div>
+
+      <div class="detailRows">
+        ${dueHtml}
+        <div class="detailRow"><div class="k">進捗</div><div class="v">${escapeHtml(status.statusLabel || status.statusId || "—")}</div></div>
+        <div class="detailRow"><div class="k">担当</div><div class="v">${escapeHtml(ass.length ? ass.join(" / ") : "—")}</div></div>
+        <div class="detailRow"><div class="k">チャネル</div><div class="v">${escapeHtml(String(channel))}</div></div>
+        <div class="detailRow"><div class="k">決済</div><div class="v">${escapeHtml(String(payment))}</div></div>
+        ${kind==="order" ? `<div class="detailRow"><div class="k">販売OP</div><div class="v">${escapeHtml(urgent || "—")}</div></div>` : ``}
+        <div class="detailRow"><div class="k">saleId</div><div class="v mono">${escapeHtml(String(row.id || "—"))}</div></div>
+      </div>
+
+      <div class="detailSectionTitle">商品明細</div>
+      ${itemsHtml}
+    </div>
+  `;
+
+  openOrdersSheet();
+}
+
 async function loadSalesByKind(kind, tbodyId, emptyId){
   clearTable(tbodyId);
   hideEmpty(emptyId);
@@ -1873,12 +2082,27 @@ async function loadSalesByKind(kind, tbodyId, emptyId){
       return { ...r, ...st };
     }).filter(r => isVisibleOutstanding(kind, r));
 
-    // 受注日（orderDate/orderDateMs）優先で昇順
-    rows.sort((a,b)=>{
-      const da = (typeof a.orderDateMs === "number" ? a.orderDateMs : saleToDateMs(a)) || 9e15;
-      const dbb = (typeof b.orderDateMs === "number" ? b.orderDateMs : saleToDateMs(b)) || 9e15;
-      return da - dbb;
-    });
+    if(kind === "order"){
+      // 期日（販売OPから自動計算）で近い順。指定なしは最後（同士は受注日順）
+      rows = rows.map(r=>{
+        const due = computeOrderDue(r);
+        const orderMs = pickOrderMs(r) || 9e15;
+        return { ...r, __dueMs: due.dueMs, __orderMs: orderMs };
+      });
+      rows.sort((a,b)=>{
+        const da = (typeof a.__dueMs === "number" && Number.isFinite(a.__dueMs)) ? a.__dueMs : 9e15;
+        const dbb = (typeof b.__dueMs === "number" && Number.isFinite(b.__dueMs)) ? b.__dueMs : 9e15;
+        if(da !== dbb) return da - dbb;
+        return (a.__orderMs||9e15) - (b.__orderMs||9e15);
+      });
+    }else{
+      // 受注日（orderDate/orderDateMs）優先で昇順
+      rows.sort((a,b)=>{
+        const da = (typeof a.orderDateMs === "number" ? a.orderDateMs : saleToDateMs(a)) || 9e15;
+        const dbb = (typeof b.orderDateMs === "number" ? b.orderDateMs : saleToDateMs(b)) || 9e15;
+        return da - dbb;
+      });
+    }
 
     if(rows.length === 0){
       showEmpty(emptyId, "表示できるデータがありません");
@@ -1903,7 +2127,7 @@ onAuthStateChanged(auth, async (user) => {
   setLoading("読み込み中…");
 
   // ステータスマスタ読込（bundle）
-  await Promise.all([loadStatusBundle("stock"), loadStatusBundle("order")]);
+  await Promise.all([loadStatusBundle("stock"), loadStatusBundle("order"), loadUrgentOptionsBundle()]);
 
   // 受注一覧 ＋ 上部グラフデータ（本データ）を同時に読む
   const [chart] = await Promise.all([
