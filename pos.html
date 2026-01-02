@@ -548,7 +548,8 @@ select {
             <select id="urgentSelect"></select>
           </span>
           <div class="muted" style="margin-top:6px;">※ kind=order のときだけ表示されます</div>
-        
+        </div>
+
         <div id="statusWrap" style="margin-top:10px; display:none;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
             ステータス
@@ -556,7 +557,6 @@ select {
           </span>
           <div class="muted" style="margin-top:6px;">※ マルシェ以外のときだけ表示されます</div>
         </div>
-</div>
 <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -1446,7 +1446,13 @@ async function loadStatusBundles(){
 function applyStatusOptions(kindId){
   if(!$statusSelect) return;
   const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
-  fillSelectWithPlaceholder($statusSelect, list, $statusSelect.value || "", "---");
+  const prev = $statusSelect.value || "";
+  fillSelectWithPlaceholder($statusSelect, list, prev, "---");
+  // 初期値：未着手（not_started）
+  if(!$statusSelect.value){
+    $statusSelect.value = "not_started";
+    if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // 念のため
+  }
 }
 
 function toggleStatusUI(){
