@@ -1205,54 +1205,94 @@ async function loadSalesForChart(){
   return [...map.values()];
 }
 
-function pickNumber(obj, keys){
-  for(const k of keys){
-    const v = obj?.[k];
-    const n = Number(v);
+function pickNumberDeep(obj, paths){
+  // paths: ["a","b.c","d.e.f"]
+  for(const path of paths){
+    if(!path) continue;
+    const parts = String(path).split(".");
+    let cur = obj;
+    for(const k of parts){
+      if(cur == null) { cur = undefined; break; }
+      cur = cur[k];
+    }
+    const n = Number(cur);
     if(Number.isFinite(n)) return n;
   }
   return null;
 }
 
 function guessAssetMonthKey(d){
-  // year/month or ym style
-  const y = Number(d?.year);
-  const m = Number(d?.month);
+  // 1) year/month 形式
+  const y = Number(d?.year ?? d?.Y ?? d?.yyyy);
+  const m = Number(d?.month ?? d?.M ?? d?.mm);
   if(Number.isFinite(y) && Number.isFinite(m) && y>1900 && m>=1 && m<=12){
     return `${y}-${String(m).padStart(2,"0")}`;
   }
-  const ym = String(d?.ym || d?.monthKey || d?.key || d?.id || "").trim();
-  if(/^\d{4}-\d{2}$/.test(ym)) return ym;
-  if(/^\d{6}$/.test(ym)) return `${ym.slice(0,4)}-${ym.slice(4,6)}`;
-  const dateLike = d?.date || d?.asOf || d?.createdAt;
+
+  // 2) よくあるキー文字列（ym / yearMonth 等）
+  const candidates = [
+    d?.ym, d?.yearMonth, d?.year_month, d?.monthKey, d?.month_id, d?.monthId,
+    d?.monthStr, d?.targetYm, d?.targetYM, d?.yyyymm, d?.yyyymmKey,
+    d?.key, d?.id, d?.__docId
+  ].map(v=> (v==null? "" : String(v)).trim()).filter(Boolean);
+
+  for(const s of candidates){
+    if(/^\d{4}-\d{2}$/.test(s)) return s;
+    if(/^\d{6}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}`;
+    if(/^\d{4}\/\d{2}$/.test(s)) return s.replace("/","-");
+  }
+
+  // 3) 日付系から推測
+  const dateLike = d?.date || d?.asOf || d?.as_of || d?.createdAt || d?.updatedAt || d?.ts || d?.timestamp;
   const dt = toDate(dateLike);
   if(dt) return monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
+
   return "";
 }
 
 async function loadAssetsMonthlyForChart(){
-  // assets コレクションを月次で拾う（フィールド名が違っても拾えるようにしておく）
-  const qy = query(collection(db, "assets"), limit(5000));
-  const snap = await getDocs(qy);
+  // assets 系コレクション名が環境でブレても拾えるようにする
+  const colNames = [
+    "assets", "monthly_assets", "monthlyAssets", "assets_monthly", "asset_history", "assetsHistory", "assetMonthly"
+  ];
+
   const latestByMonth = new Map();
-  snap.forEach(docSnap=>{
-    const d = docSnap.data() || {};
-    const mk = guessAssetMonthKey({ ...d, id: docSnap.id });
-    if(!mk) return;
-    const total = pickNumber(d, ["total","totalAssets","assets","amount","value","sum"]);
-    if(total === null) return;
 
-    const updatedMs = (
-      (typeof d.updatedAt?.toDate === "function" ? d.updatedAt.toDate().getTime() : 0)
-      || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0)
-      || 0
-    );
+  for(const colName of colNames){
+    try{
+      const qy = query(collection(db, colName), limit(8000));
+      const snap = await getDocs(qy);
 
-    const prev = latestByMonth.get(mk);
-    if(!prev || updatedMs >= prev.updatedMs){
-      latestByMonth.set(mk, { total, updatedMs });
+      snap.forEach(docSnap=>{
+        const d = docSnap.data() || {};
+        const mk = guessAssetMonthKey({ ...d, __docId: docSnap.id });
+        if(!mk) return;
+
+        const total = pickNumberDeep(d, [
+          "total","totalAssets","netWorth","assets","amount","value","sum",
+          "summary.total","summary.totalAssets","summary.netWorth",
+          "totals.total","totals.totalAssets","totals.netWorth",
+          "aggregate.total","aggregate.totalAssets","aggregate.netWorth"
+        ]);
+        if(total === null) return;
+
+        const updatedMs = (
+          (typeof d.updatedAt?.toDate === "function" ? d.updatedAt.toDate().getTime() : 0)
+          || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0)
+          || Number(d.updatedAtMs || d.updatedMs || d.ts || 0)
+          || 0
+        );
+
+        const prev = latestByMonth.get(mk);
+        if(!prev || updatedMs >= prev.updatedMs){
+          latestByMonth.set(mk, { total, updatedMs, _col: colName });
+        }
+      });
+    }catch(_e){
+      // ignore and try next
     }
-  });
+  }
+
   return latestByMonth;
 }
 
