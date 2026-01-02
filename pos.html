@@ -1276,39 +1276,8 @@ function getSelected(){
   return { items, total };
 }
 
-
-function calcUrgentFee(){
-  // kind=order のときだけ、お急ぎOPの金額を合算する
-  const kindId = ($kindSelect?.value || "");
-  if(kindId !== "order") return { fee: 0, displayName: "" };
-
-  const optId = ($urgentSelect?.value || "").trim();
-  if(!optId) return { fee: 0, displayName: "" };
-
-  const opt = (masters.urgentOptions || []).find(o => String(o.id) === String(optId));
-  let fee = 0;
-
-  // price 優先（JSONに price がある想定）
-  if(opt && Number.isFinite(Number(opt.price))){
-    fee = Number(opt.price) || 0;
-  }else{
-    // フォールバック：label から「300円」みたいな数字を抜く（古いJSON互換）
-    const label = (opt?.label || getSelectedLabel($urgentSelect) || "");
-    const mm = String(label).match(/(\d+)\s*円/);
-    if(mm) fee = Number(mm[1]) || 0;
-  }
-
-  // 表示名： "指定なし（300円）" → "指定なし"
-  const rawLabel = (opt?.label || getSelectedLabel($urgentSelect) || "").trim();
-  const displayName = rawLabel ? rawLabel.split("（")[0].trim() : "";
-
-  return { fee, displayName };
-}
-
 function updateTotal(){
-  const { total: baseTotal } = getSelected();
-  const { fee } = calcUrgentFee();
-  const total = Number(baseTotal||0) + Number(fee||0);
+  const { total } = getSelected();
   $totalText.textContent = `合計：￥${total}`;
 }
 
@@ -1318,6 +1287,48 @@ function todayYMD(){
   const m = String(d.getMonth()+1).padStart(2,"0");
   const day = String(d.getDate()).padStart(2,"0");
   return `${y}-${m}-${day}`;
+
+
+/* =====================================================
+   Order fee (お急ぎOP) calc / receipt render
+   - kind=order のときだけ「オーダー料」を加算
+   - baseTotal / urgentOptionPrice / total を一貫して算出
+===================================================== */
+function getUrgentOptionById(id){
+  if(!id) return null;
+  return (masters.urgentOptions || []).find(x => x.id === id) || null;
+}
+
+function calcTotalsForReceipt(){
+  const { items, total: baseTotal } = getSelected();
+  const kindId = ($kindSelect?.value || "stock");
+  const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
+
+  const opt = (kindId === "order") ? getUrgentOptionById(urgentOptionId) : null;
+  const urgentOptionPrice = (kindId === "order" && opt && Number.isFinite(Number(opt.price))) ? Number(opt.price) : 0;
+
+  return { items, baseTotal, urgentOptionId, urgentOptionLabel: (opt?.label ?? opt?.name ?? ""), urgentOptionPrice, total: baseTotal + urgentOptionPrice };
+}
+
+function renderReceiptItemsAndTotal(){
+  if(!$receiptList || !$receiptTotal) return;
+
+  const { items, baseTotal, urgentOptionLabel, urgentOptionPrice, total } = calcTotalsForReceipt();
+
+  const lines = items.map(i => `${i.name} ×${i.qty}：￥${i.subtotal}`);
+
+  if(urgentOptionPrice > 0){
+    const label = urgentOptionLabel || getSelectedLabel($urgentSelect) || "-";
+    lines.push(`オーダー料(${label})：￥${urgentOptionPrice}`);
+  }
+
+  $receiptList.innerHTML = lines.join("<br>");
+  $receiptTotal.textContent = `合計：￥${total}`;
+
+  // POS側の合計は「商品合計」のまま（kind未選択のため）
+  // ただし、レシート内での検算用に baseTotal も表示したい場合はここで追加できる
+}
+
 }
 
 /* =====================================================
@@ -1770,8 +1781,6 @@ async function refreshPatchSummary(){
 
 async function writeSale(){
   const { items, total: baseTotal } = getSelected();
-  const { fee: urgentOptionPrice } = calcUrgentFee();
-  const total = Number(baseTotal||0) + Number(urgentOptionPrice||0);
   if(!items.length) throw new Error("empty");
 
   const orderDate = ($orderDateInput?.value || "").trim();
@@ -1792,6 +1801,12 @@ async function writeSale(){
 
   const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
   const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
+
+  const urgentOpt = (kindId === "order") ? getUrgentOptionById(urgentOptionId) : null;
+  const urgentOptionPrice = (kindId === "order" && urgentOpt && Number.isFinite(Number(urgentOpt.price))) ? Number(urgentOpt.price) : 0;
+
+  // 保存する total は「加算後」
+  const total = baseTotal + urgentOptionPrice;
   const statusId = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
   const statusLabel = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
 
@@ -1814,8 +1829,12 @@ async function writeSale(){
     statusLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
     paymentMethod: paymentId,
-    baseTotal: Number(baseTotal||0),
-    urgentOptionPrice: Number(urgentOptionPrice||0),
+
+    // 検算用
+    baseTotal,
+    urgentOptionPrice,
+
+    // 加算後（最終）
     total,
     items
   });
@@ -1826,9 +1845,7 @@ async function writeSale(){
 ===================================================== */
 $checkoutBtn.onclick = ()=>{
   if(!firebaseOk) return;
-  const { items, total: baseTotal } = getSelected();
-  const { fee: urgentOptionPrice } = calcUrgentFee();
-  const total = Number(baseTotal||0) + Number(urgentOptionPrice||0);
+  const { items, total } = getSelected();
   if(!items.length) return alert("商品を選択してね");
 
   if($orderDateInput){
@@ -1854,16 +1871,7 @@ $checkoutBtn.onclick = ()=>{
   toggleUrgentUI();
   setReceiptMetaText();
 
-  // レシート明細（お急ぎOPがあれば加算行を追加）
-  const { fee, displayName } = calcUrgentFee();
-  const lines = items.map(i=>`${i.name} ×${i.qty}：￥${i.subtotal}`);
-  if(fee > 0){
-    const name = displayName || (getSelectedLabel($urgentSelect) || "").split("（")[0].trim() || "指定";
-    lines.push(`オーダー料(${name})：￥${fee}`);
-  }
-  const grandTotal = Number(total||0) + Number(fee||0);
-  $receiptList.innerHTML = lines.join("<br>");
-  $receiptTotal.textContent = `合計：￥${grandTotal}`;
+  renderReceiptItemsAndTotal();
 
   setReceiptModalOpen(true);
 };
@@ -1889,7 +1897,7 @@ if($orderDateInput){
   if($kindSelect) $kindSelect.addEventListener("change", ()=>{
     settings.kind = $kindSelect.value;
     toggleUrgentUI();
-    updateTotal();
+    renderReceiptItemsAndTotal();
     setReceiptMetaText();
     saveSettings();
   });
@@ -2092,6 +2100,15 @@ if($receiptCustomerName){
 
 if($statusSelect){
   $statusSelect.addEventListener("change", ()=>{
+    setReceiptMetaText();
+    saveSettings();
+  });
+}
+
+if($urgentSelect){
+  $urgentSelect.addEventListener("change", ()=>{
+    // お急ぎOP変更 → レシート明細＆合計を即更新
+    renderReceiptItemsAndTotal();
     setReceiptMetaText();
     saveSettings();
   });
