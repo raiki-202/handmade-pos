@@ -1,152 +1,186 @@
 <!doctype html>
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>e.nue 領収申請</title>
-  <style>
-    :root{
-      --bg0:#e3ddd4;
-      --bg1:#e3ddd4;
-      --bg2:#d4ccc1;
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>e.nue 領収申請</title>
+<style>
+:root{
+  --bg0:#f3ede4; --bg1:#f7f2ea; --bg2:#ffffff;
+  --glass: rgba(255,255,255,.78);
+  --glass2: rgba(255,255,255,.92);
+  --line: rgba(120,90,40,.18);
+  --line2: rgba(120,90,40,.28);
+  --shadow: 0 18px 40px rgba(120,90,40,.18);
+  --text:#2f2a22;
+  --sub: rgba(47,42,34,.65);
+  --muted: rgba(47,42,34,.45);
+  --good:#4fa38a;
+  --warn:#d89a2a;
+  --r:18px;
+  --maxw:980px;
+}
+*{ box-sizing:border-box; }
+html,body{ margin:0; font-family:system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif; color:var(--text); }
+body{
+  background:
+    radial-gradient(1200px 800px at 20% 10%, rgba(255,255,255,.08), transparent 55%),
+    radial-gradient(1200px 800px at 90% 0%, rgba(255,255,255,.06), transparent 52%),
+    linear-gradient(135deg,var(--bg0),var(--bg2));
+}
+.safe{
+  padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+  max-width:var(--maxw);
+  margin:0 auto;
+}
+.topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:6px 0 14px; }
+.brand{ font-weight:1000; letter-spacing:.06em; }
+.actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
 
-      --glass: rgba(255,255,255,.86);
-      --glass2: rgba(255,255,255,.78);
-      --line: rgba(0,0,0,.06);
-      --line2: rgba(0,0,0,.10);
-      --shadow: 0 18px 45px rgba(0,0,0,.14);
+.pill{
+  appearance:none;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.85);
+  color:var(--text);
+  border-radius:999px;
+  padding:10px 12px;
+  font-weight:900;
+  font-size:12px;
+  cursor:pointer;
+  box-shadow: 0 10px 22px rgba(0,0,0,.25);
+  -webkit-tap-highlight-color: transparent;
+}
+.pill:active{ transform: translateY(1px); }
+.pillPrimary{ background:rgba(255,255,255,.92); color:#0b0d12; border-color: rgba(255,255,255,.92); }
+.pillActive{ background:rgba(47,42,34,.08); border-color: rgba(47,42,34,.22); }
 
-      --text:#222222;
-      --sub:#555555;
-      --muted: rgba(34,34,34,.58);
+.card{
+  background:linear-gradient(180deg,var(--glass),var(--glass2));
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.head{ padding:14px 14px 10px; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:10px; }
+.h1{ font-weight:1000; font-size:14px; letter-spacing:.06em; }
+.sub{ font-size:12px; color:var(--muted); margin-top:2px; }
 
-      --accent:#e18a6a;
-      --good:#2e9f7a;
-      --warn:#d89a2a;
+.filters{ padding:12px 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+.field{
+  display:flex; gap:8px; align-items:center;
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px 10px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.22);
+}
+.field label{ font-weight:1000; font-size:12px; color:var(--sub); white-space:nowrap; }
+.field select{
+  appearance:none;
+  border:1px solid var(--line2);
+  background:rgba(255,255,255,.85);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 10px;
+  font-weight:900;
+  font-size:12px;
+  outline:none;
+  min-width: 150px;
+}
 
-      --r:18px;
-      --maxw:980px;
-    }
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
-    body{
-      margin:0;
-      font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
-      color:var(--text);
-      background: linear-gradient(135deg, var(--bg1), var(--bg2));
-      }
-    .safe{
-      padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
-      max-width:var(--maxw); margin:0 auto;
-    }
-    .topbar{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:6px 0 14px; }
-    .brand{ font-weight:1000; letter-spacing:.06em; }
-    .actions{ display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
-    .pill{
-      appearance:none; border:1px solid var(--line);
-      background:rgba(255,255,255,.85); color:var(--text);
-      border-radius:999px; padding:10px 12px;
-      font-weight:900; font-size:12px; cursor:pointer;
-      box-shadow: 0 10px 22px rgba(0,0,0,.25);
-      -webkit-tap-highlight-color: transparent;
-    }
-    .pillPrimary{ background:rgba(255,255,255,.92); color:#222222; border-color: rgba(255,255,255,.92); }
-    .pill:active{ transform: translateY(1px); }
+.sumRow{ padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; }
+.sumBox{
+  background:rgba(255,255,255,.85);
+  border:1px solid var(--line);
+  border-radius:16px;
+  padding:10px 12px;
+  min-width: 210px;
+  box-shadow: 0 10px 22px rgba(0,0,0,.22);
+}
+.sumBox .k{ font-size:11px; font-weight:1000; color:var(--muted); }
+.sumBox .v{ font-size:18px; font-weight:1100; margin-top:2px; }
 
-    .card{
-      background:linear-gradient(180deg,var(--glass),var(--glass2));
-      border:1px solid var(--line);
-      border-radius:var(--r);
-      box-shadow:var(--shadow);
-      overflow:hidden;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-    }
-    .head{ padding:14px 14px 10px; border-bottom:1px solid var(--line); }
-    .h1{ font-weight:1000; font-size:14px; letter-spacing:.06em; }
-    .subt{ font-size:12px; color:var(--muted); margin-top:2px; }
+.list{ padding:0 14px 14px; display:flex; flex-direction:column; gap:10px; }
+.item{
+  border:1px solid var(--line);
+  border-radius:18px;
+  background:rgba(255,255,255,.82);
+  box-shadow: 0 10px 22px rgba(0,0,0,.18);
+  padding:12px 12px;
+}
+.itemTop{ display:flex; justify-content:space-between; gap:10px; align-items:flex-start; }
+.itemTitle{ font-weight:1000; }
+.muted{ color:var(--muted); font-weight:900; font-size:12px; margin-top:2px; }
+.badges{ display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+.badge{
+  display:inline-flex; align-items:center; gap:6px;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.85);
+  font-size:12px;
+  font-weight:900;
+  color:var(--sub);
+}
+.badge.warn{ border-color: rgba(255,176,32,.35); color: rgba(255,176,32,.95); background: rgba(255,176,32,.10); }
+.badge.good{ border-color: rgba(56,217,169,.35); color: rgba(56,217,169,.95); background: rgba(56,217,169,.10); }
 
-    .filters{ padding:12px 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .field{
-      display:flex; gap:8px; align-items:center;
-      background:rgba(255,255,255,.85);
-      border:1px solid var(--line);
-      border-radius:14px;
-      padding:10px 10px;
-      box-shadow: 0 10px 22px rgba(0,0,0,.22);
-    }
-    .field label{ font-weight:1000; font-size:12px; color:var(--sub); white-space:nowrap; }
-    .field select,.field input{
-      appearance:none; border:1px solid var(--line2);
-      background:rgba(255,255,255,.72); color:var(--text);
-      border-radius:12px; padding:10px 10px; font-weight:900; font-size:12px; outline:none;
-    }
-    .field select{ min-width: 150px; }
-    .chips{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
-    .chip{
-      border:1px solid var(--line);
-      background:rgba(255,255,255,.85);
-      color:var(--sub);
-      border-radius:999px;
-      padding:10px 12px;
-      font-weight:1000; font-size:12px;
-      cursor:pointer;
-      user-select:none;
-    }
-    .chip.on{ background: rgba(255,176,32,.14); color: rgba(255,176,32,.96); border-color: rgba(255,176,32,.35); }
+.row2{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+.row2 select{
+  appearance:none;
+  border:1px solid var(--line2);
+  background:rgba(255,255,255,.90);
+  color:var(--text);
+  border-radius:12px;
+  padding:10px 10px;
+  font-weight:1000;
+  font-size:12px;
+  outline:none;
+  min-width: 220px;
+}
+.miniBtn{
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.92);
+  border-radius:12px;
+  padding:10px 12px;
+  font-weight:1000;
+  cursor:pointer;
+  box-shadow: 0 10px 22px rgba(0,0,0,.18);
+}
+.miniBtn:active{ transform: translateY(1px); }
+.empty{ padding:18px 14px; color:var(--muted); font-weight:900; }
 
-    .sumRow{ padding:0 14px 14px; display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; }
-    .sumBox{
-      background:rgba(255,255,255,.85);
-      border:1px solid var(--line);
-      border-radius:16px;
-      padding:10px 12px;
-      min-width: 210px;
-      box-shadow: 0 10px 22px rgba(0,0,0,.22);
-    }
-    .sumBox .k{ font-size:11px; font-weight:1000; color:var(--muted); }
-    .sumBox .v{ font-size:18px; font-weight:1100; margin-top:2px; }
-    .badge{
-      display:inline-flex; align-items:center; gap:6px;
-      padding:6px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,176,32,.35);
-      background: rgba(255,176,32,.10);
-      font-size:12px;
-      font-weight:900;
-      color: rgba(255,176,32,.95);
-    }
-
-    .tableWrap{ padding:0 22px 16px; overflow-x:auto; -webkit-overflow-scrolling:touch; }
-    table{ width:100%; border-collapse:collapse; table-layout:fixed; min-width:860px; }
-    th,td{ padding:10px; font-size:13px; vertical-align:middle; white-space:nowrap; }
-    th{ text-align:left; background:rgba(255,255,255,.85); position:sticky; top:0; z-index:1; }
-    tr+tr td{ border-top:1px solid var(--line); }
-    .mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:900; }
-    .mutedText{ color:var(--muted); font-weight:900; }
-    .empty{ padding:18px 14px; color:var(--muted); font-weight:900; }
-
-    @media (max-width: 420px){
-      .field select{ min-width: 140px; }
-      .sumBox{ min-width: 180px; }
-    }
-  </style>
+.toast{
+  position:fixed; right:14px; bottom:14px;
+  background:rgba(47,42,34,.92); color:#fff;
+  padding:10px 12px; border-radius:14px;
+  font-weight:900; font-size:12px;
+  box-shadow:0 18px 40px rgba(0,0,0,.35);
+  opacity:0; transform: translateY(6px);
+  transition: opacity .18s ease, transform .18s ease;
+  pointer-events:none;
+}
+.toast.show{ opacity:1; transform: translateY(0); }
+</style>
 </head>
 <body>
   <div class="safe">
     <div class="topbar">
       <div class="brand">e.nue</div>
       <div class="actions">
-        <button class="pill" id="backBtn" type="button">← 戻る</button>
-        <button class="pill" id="toExpensesBtn" type="button">↩ 支出へ</button>
+        <button class="pill" id="backBtn" type="button">← 支出へ</button>
         <button class="pill pillPrimary" id="refreshBtn" type="button">更新</button>
       </div>
     </div>
 
     <main class="card">
       <div class="head">
-        <div class="h1">領収申請</div>
-        <div class="subt">expenses.html の「領収申請(川原)/(藤原)」にチェックが付いたレシートを集計</div>
+        <div>
+          <div class="h1">領収申請（レシート）</div>
+          <div class="sub">領収申請にチェックされたレシートだけ表示。ステータス変更もここで行えます。</div>
+        </div>
       </div>
 
       <div class="filters">
@@ -158,62 +192,38 @@
           <label for="monthSel">月</label>
           <select id="monthSel"></select>
         </div>
-        <div class="chips" aria-label="person filter">
-          <div class="chip on" data-person="all">すべて</div>
-          <div class="chip" data-person="kawahara">川原</div>
-          <div class="chip" data-person="fujiwara">藤原</div>
+
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <button class="pill pillActive" id="fltAll" type="button">すべて</button>
+          <button class="pill" id="fltK" type="button">川原</button>
+          <button class="pill" id="fltF" type="button">藤原</button>
         </div>
       </div>
 
       <div class="sumRow">
         <div class="sumBox">
-          <div class="k">表示中 合計</div>
-          <div class="v" id="sumAmount">—</div>
-        </div>
-        <div class="sumBox">
           <div class="k">表示件数（レシート）</div>
           <div class="v" id="sumCount">—</div>
         </div>
+        <div class="sumBox">
+          <div class="k">表示中 合計</div>
+          <div class="v" id="sumAmount">—</div>
+        </div>
       </div>
 
-      <div class="tableWrap">
-        <table aria-label="claims table">
-          <colgroup>
-            <col style="width: 14%;" />
-            <col style="width: 20%;" />
-            <col style="width: 14%;" />
-            <col style="width: 18%;" />
-            <col style="width: 34%;" />
-          </colgroup>
-          <thead>
-            <tr>
-              <th>日付</th>
-              <th>購入店</th>
-              <th>合計</th>
-              <th>対象</th>
-              <th>メモ</th>
-            </tr>
-          </thead>
-          <tbody id="tbody"></tbody>
-        </table>
-        <div class="empty" id="empty" style="display:none;">対象がありません</div>
-      </div>
+      <div class="list" id="list"></div>
+      <div class="empty" id="empty" style="display:none;">該当する領収申請がありません</div>
     </main>
   </div>
+
+  <div class="toast" id="toast">更新しました</div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
     import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
-    import {
-      getFirestore,
-      collection,
-      getDocs,
-      query,
-      where,
-      orderBy,
-      limit
-    } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
+    import { getFirestore, collection, doc, getDocs, updateDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+    /* ===== Firebase ===== */
     const firebaseConfig = {
       apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
       authDomain: "handmade-pos.firebaseapp.com",
@@ -222,25 +232,33 @@
       messagingSenderId: "174873514252",
       appId: "1:174873514252:web:c26659bffca850d475f929"
     };
+
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    const COL = "expense_receipts";
-
+    /* ===== DOM ===== */
     const backBtn = document.getElementById("backBtn");
-    const toExpensesBtn = document.getElementById("toExpensesBtn");
     const refreshBtn = document.getElementById("refreshBtn");
     const yearSel = document.getElementById("yearSel");
     const monthSel = document.getElementById("monthSel");
-    const tbody = document.getElementById("tbody");
-    const empty = document.getElementById("empty");
-    const sumAmount = document.getElementById("sumAmount");
-    const sumCount = document.getElementById("sumCount");
-    const chips = [...document.querySelectorAll(".chip")];
 
+    const fltAll = document.getElementById("fltAll");
+    const fltK = document.getElementById("fltK");
+    const fltF = document.getElementById("fltF");
+
+    const listEl = document.getElementById("list");
+    const emptyEl = document.getElementById("empty");
+    const sumCount = document.getElementById("sumCount");
+    const sumAmount = document.getElementById("sumAmount");
+    const toast = document.getElementById("toast");
+
+    const COL = "expense_receipts";
+
+    /* ===== helpers ===== */
     const pad2 = n => String(n).padStart(2,"0");
     const formatJPY = n => "¥" + Math.round(n||0).toLocaleString("ja-JP");
+    const safeText = v => (v===null||v===undefined) ? "" : String(v);
     const esc = (s)=> String(s)
       .replaceAll("&","&amp;")
       .replaceAll("<","&lt;")
@@ -248,14 +266,184 @@
       .replaceAll('"',"&quot;")
       .replaceAll("'","&#39;");
 
-    let person = "all";
-    let receipts = [];
+    function showToast(msg="更新しました"){
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(()=>toast.classList.remove("show"), 1400);
+    }
 
+    /* ===== receipt statuses from JSON ===== */
+    let receiptStatuses = [];
+    async function loadReceiptStatuses(){
+      const urls = ["data/receipt_statuses.json", "receipt_statuses.json"];
+      for(const u of urls){
+        try{
+          const res = await fetch(u, { cache:"no-store" });
+          if(!res.ok) continue;
+          const js = await res.json();
+          const list = Array.isArray(js?.statuses) ? js.statuses : [];
+          receiptStatuses = list.map(x=>({
+            id: safeText(x.id).trim(),
+            label: safeText(x.label).trim(),
+            active: (x.active===false)?false:true,
+            order: Number.isFinite(Number(x.order)) ? Number(x.order) : 9999
+          })).filter(x=>x.id && x.label);
+          receiptStatuses.sort((a,b)=> (a.order-b.order) || a.label.localeCompare(b.label,"ja"));
+          return;
+        }catch(_e){}
+      }
+      receiptStatuses = [
+        { id:"applying", label:"申請中", active:true, order:1 },
+        { id:"payer_confirm", label:"精算者確認", active:true, order:2 },
+        { id:"received_confirm", label:"受取確認", active:true, order:3 }
+      ];
+    }
+    function statusLabel(id){
+      return receiptStatuses.find(s=>s.id===id)?.label || id || "";
+    }
+    function statusOptionsHtml(){
+      const opts = receiptStatuses.filter(s=>s.active).map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
+      return `<option value="">(未設定)</option>` + opts;
+    }
+
+    /* ===== state ===== */
+    let receipts = [];
+    let personFilter = "all"; // all | kawahara | fujiwara
+
+    function normalizeDoc(d){
+      const x = d.data();
+      return {
+        id: d.id,
+        date: safeText(x.date).trim() || "",
+        year: Number(x.year || 0),
+        month: Number(x.month || 0),
+        store: safeText(x.store).trim() || "(未設定)",
+        memo: safeText(x.memo),
+        claimKawahara: !!x.claimKawahara,
+        claimFujiwara: !!x.claimFujiwara,
+        receiptStatus: safeText(x.receiptStatus).trim() || "",
+        sum: Number(x.sum || 0)
+      };
+    }
+
+    function applyFilters(){
+      let list = receipts.filter(r => r.claimKawahara || r.claimFujiwara);
+
+      if(personFilter === "kawahara"){
+        list = list.filter(r => r.claimKawahara);
+      }else if(personFilter === "fujiwara"){
+        list = list.filter(r => r.claimFujiwara);
+      }
+      return list;
+    }
+
+    function render(){
+      const list = applyFilters();
+      listEl.innerHTML = "";
+      emptyEl.style.display = list.length ? "none" : "";
+
+      let sum = 0;
+      for(const r of list) sum += (Number(r.sum)||0);
+      sumCount.textContent = String(list.length);
+      sumAmount.textContent = formatJPY(sum);
+
+      const statusOpts = statusOptionsHtml();
+
+      for(const r of list){
+        const wrap = document.createElement("div");
+        wrap.className = "item";
+
+        const badges = [];
+        if(r.claimKawahara) badges.push(`<span class="badge warn">領収(川原)</span>`);
+        if(r.claimFujiwara) badges.push(`<span class="badge warn">領収(藤原)</span>`);
+        if(r.receiptStatus) badges.push(`<span class="badge good">${esc(statusLabel(r.receiptStatus))}</span>`);
+
+        wrap.innerHTML = `
+          <div class="itemTop">
+            <div>
+              <div class="itemTitle">${esc(r.store)} <span class="muted">(${esc(r.date || "-")})</span></div>
+              <div class="muted">合計：${esc(formatJPY(r.sum))}</div>
+            </div>
+            <div class="badges">${badges.join("")}</div>
+          </div>
+
+          <div class="row2">
+            <select data-id="status">
+              ${statusOpts}
+            </select>
+            <button class="miniBtn" data-id="save">ステータス更新</button>
+            <button class="miniBtn" data-id="open">支出を開く</button>
+          </div>
+        `;
+
+        const sel = wrap.querySelector('select[data-id="status"]');
+        sel.value = r.receiptStatus || "";
+
+        wrap.querySelector('button[data-id="save"]').onclick = async ()=>{
+          const newStatus = (sel.value || "").trim();
+
+          // 領収申請があるのに未設定で保存されたら申請中に寄せる
+          let finalStatus = newStatus;
+          if((r.claimKawahara || r.claimFujiwara) && !finalStatus){
+            finalStatus = "applying";
+            sel.value = finalStatus;
+          }
+
+          try{
+            await updateDoc(doc(db, COL, r.id), { receiptStatus: finalStatus });
+            r.receiptStatus = finalStatus;
+            showToast("ステータス更新しました");
+            render();
+          }catch(e){
+            console.error(e);
+            alert("更新に失敗しました（権限/ネットワーク確認）");
+          }
+        };
+
+        wrap.querySelector('button[data-id="open"]').onclick = ()=>{
+          // 一覧に戻りやすいよう hash でID渡す（expenses側で拾いたいなら後で対応）
+          location.href = `expenses.html#${encodeURIComponent(r.id)}`;
+        };
+
+        listEl.appendChild(wrap);
+      }
+    }
+
+    /* ===== Firestore load ===== */
+    async function loadReceipts(){
+      const y = Number(yearSel.value);
+      const m = monthSel.value;
+
+      let qy;
+      if(m === "all"){
+        qy = query(
+          collection(db, COL),
+          where("year","==", y),
+          orderBy("date","desc"),
+          limit(600)
+        );
+      }else{
+        const mm = Number(m);
+        qy = query(
+          collection(db, COL),
+          where("year","==", y),
+          where("month","==", mm),
+          orderBy("date","desc"),
+          limit(600)
+        );
+      }
+
+      const snap = await getDocs(qy);
+      receipts = snap.docs.map(normalizeDoc);
+    }
+
+    /* ===== init selects ===== */
     function initYearMonth(){
       const now = new Date();
       const curY = now.getFullYear();
       const years = [];
       for(let y=curY-2; y<=curY+1; y++) years.push(y);
+
       yearSel.innerHTML = years.map(y=>`<option value="${y}">${y}</option>`).join("");
       yearSel.value = String(curY);
 
@@ -267,104 +455,45 @@
       monthSel.value = String(now.getMonth()+1);
     }
 
-    async function loadClaims(){
-      const y = Number(yearSel.value);
-      const m = monthSel.value;
-
-      // person条件は where で絞り込む（allはどちらかtrue）
-      const wh = [];
-      wh.push(where("year","==", y));
-      if(m !== "all") wh.push(where("month","==", Number(m)));
-
-      if(person === "kawahara") wh.push(where("claimKawahara","==", true));
-      if(person === "fujiwara") wh.push(where("claimFujiwara","==", true));
-
-      // all は where で OR できないので、年/月で取ってから JS で絞る
-      let qy;
-      if(person === "all"){
-        qy = query(collection(db, COL), ...wh, orderBy("date","desc"), limit(800));
-      }else{
-        qy = query(collection(db, COL), ...wh, orderBy("date","desc"), limit(800));
-      }
-
-      const snap = await getDocs(qy);
-      receipts = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-      if(person === "all"){
-        receipts = receipts.filter(r=> !!r.claimKawahara || !!r.claimFujiwara );
-      }
-    }
-
-    function render(){
-      tbody.innerHTML = "";
-      empty.style.display = receipts.length ? "none" : "";
-
-      let sum = 0;
-      for(const r of receipts) sum += Number(r.sum||0);
-      sumAmount.textContent = formatJPY(sum);
-      sumCount.textContent = String(receipts.length);
-
-      for(const r of receipts){
-        const tr = document.createElement("tr");
-
-        const tdDate = document.createElement("td");
-        tdDate.textContent = r.date || "-";
-
-        const tdStore = document.createElement("td");
-        tdStore.innerHTML = `<span class="mono">${esc(r.store || "(未設定)")}</span>`;
-
-        const tdSum = document.createElement("td");
-        tdSum.innerHTML = `<span class="mono">${esc(formatJPY(r.sum||0))}</span>`;
-
-        const tdWho = document.createElement("td");
-        const who = [];
-        if(r.claimKawahara) who.push("川原");
-        if(r.claimFujiwara) who.push("藤原");
-        tdWho.innerHTML = `<span class="badge">${esc(who.join(" / ") || "-")}</span>`;
-
-        const tdMemo = document.createElement("td");
-        tdMemo.innerHTML = `<span class="mutedText">${esc((r.memo||"").slice(0,60))}</span>`;
-
-        tr.appendChild(tdDate);
-        tr.appendChild(tdStore);
-        tr.appendChild(tdSum);
-        tr.appendChild(tdWho);
-        tr.appendChild(tdMemo);
-        tbody.appendChild(tr);
-      }
+    function setActivePills(){
+      [fltAll, fltK, fltF].forEach(b=>b.classList.remove("pillActive"));
+      if(personFilter==="all") fltAll.classList.add("pillActive");
+      if(personFilter==="kawahara") fltK.classList.add("pillActive");
+      if(personFilter==="fujiwara") fltF.classList.add("pillActive");
     }
 
     async function refreshAll(){
-      await loadClaims();
+      await loadReceipts();
+      setActivePills();
       render();
     }
 
-    chips.forEach(ch=>{
-      ch.onclick = ()=>{
-        chips.forEach(x=>x.classList.remove("on"));
-        ch.classList.add("on");
-        person = ch.dataset.person;
-        refreshAll();
-      };
-    });
-
-    backBtn.onclick = ()=> location.href = "index.html";
-    toExpensesBtn.onclick = ()=> location.href = "expenses.html";
+    /* ===== events ===== */
+    backBtn.onclick = ()=> location.href = "expenses.html";
     refreshBtn.onclick = ()=> refreshAll();
     yearSel.addEventListener("change", ()=> refreshAll());
     monthSel.addEventListener("change", ()=> refreshAll());
 
+    fltAll.onclick = ()=>{ personFilter="all"; setActivePills(); render(); };
+    fltK.onclick = ()=>{ personFilter="kawahara"; setActivePills(); render(); };
+    fltF.onclick = ()=>{ personFilter="fujiwara"; setActivePills(); render(); };
+
+    /* ===== auth gate ===== */
     onAuthStateChanged(auth, async (user)=>{
       if(!user){
         const redirect = encodeURIComponent("receipt_claims.html");
         location.href = `login.html?redirect=${redirect}`;
         return;
       }
+
       initYearMonth();
+      await loadReceiptStatuses();
+
       try{
         await refreshAll();
       }catch(e){
         console.error(e);
-        alert("読み込みに失敗しました（権限/ネットワーク確認）");
+        alert("読み込みに失敗しました（権限/クエリ/ネットワーク確認）");
       }
     });
   </script>
