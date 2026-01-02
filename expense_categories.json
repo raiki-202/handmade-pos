@@ -1,5 +1,9 @@
 {
   "categories": [
+     {
+      "id": "materials",
+      "label": "材料費"
+    },
     {
       "id": "misc",
       "label": "雑費"
@@ -15,10 +19,6 @@
     {
       "id": "booth",
       "label": "出店料"
-    },
-    {
-      "id": "materials",
-      "label": "材料費"
     },
     {
       "id": "salary",
