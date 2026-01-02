@@ -1987,23 +1987,12 @@ applyChannelRules({ forcePayment:true });
 if($kindSelect && masters.kinds?.length){
   fillSelect($kindSelect, masters.kinds);
   applyKindDefault();
-
-  // kind変更時：お急ぎUIの表示切替＆レシート再計算
-  $kindSelect.addEventListener("change", ()=>{
-    toggleUrgentUI();
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-  });
 }
 
 // urgentOptions -> urgentSelect（UI配線）
 if($urgentSelect){
   applyUrgentOptions();
   toggleUrgentUI();
-
-  // 変更時：レシート明細＆合計を即時更新
-  $urgentSelect.addEventListener("change", ()=>{
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-  });
 }
 
 // settings change handlers
@@ -2570,19 +2559,9 @@ function getUrgentOptionObj(){
 
 function calcUrgentFee(){
   const opt = getUrgentOptionObj();
-
-  // price 優先（JSONに price がある想定）
-  let fee = (opt && Number.isFinite(Number(opt.price))) ? Number(opt.price) : 0;
-
-  // フォールバック：label から "(300円)" みたいな数字を抜く（古いJSON互換）
-  if((!fee || fee === 0) && opt && typeof opt.label === "string"){
-    const m = opt.label.match(/(\d+)[,\s]*円/);
-    if(m) fee = Number(m[1]) || 0;
-  }
-
+  const fee = opt && Number.isFinite(Number(opt.price)) ? Number(opt.price) : 0;
   return { opt, fee };
 }
-
 
 function renderReceiptLines(items, baseTotal){
   const lines = (items || []).map(i => `${i.name} ×${i.qty}：￥${i.subtotal}`);
