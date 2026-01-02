@@ -1768,27 +1768,39 @@ async function loadSalesByKind(kind, tbodyId, emptyId){
 
   try{
     // kind は kind / kindId どちらでも来る可能性があるので保険で両対応
-    let snap = null;
+    // ※「kind だけ」「kindId だけ」どちらのデータでも拾えるよう、両方クエリしてマージする
+    let docsMap = new Map();
 
+    // 1) kind フィールド
     try{
-      const qy = query(
+      const q1 = query(
         collection(db, "sales"),
         where("kind", "==", kind),
         orderBy("createdAt", "desc"),
         limit(300)
       );
-      snap = await getDocs(qy);
+      const s1 = await getDocs(q1);
+      s1.forEach(d => docsMap.set(d.id, d));
     }catch(_e){
-      const qy2 = query(
+      // インデックス不足等は無視（kindId 側で拾えることがある）
+      console.warn("[orders] kind query skipped:", _e?.message || _e);
+    }
+
+    // 2) kindId フィールド
+    try{
+      const q2 = query(
         collection(db, "sales"),
         where("kindId", "==", kind),
         orderBy("createdAt", "desc"),
         limit(300)
       );
-      snap = await getDocs(qy2);
+      const s2 = await getDocs(q2);
+      s2.forEach(d => docsMap.set(d.id, d));
+    }catch(_e){
+      console.warn("[orders] kindId query skipped:", _e?.message || _e);
     }
 
-    let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    let rows = Array.from(docsMap.values()).map(d => ({ id: d.id, ...d.data() }));
 
     // status 正規化 + 受注残フィルタ
     rows = rows.map(r=>{
