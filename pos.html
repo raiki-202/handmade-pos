@@ -840,11 +840,6 @@ const $confirmBtn = $("confirmBtn");
 
 const $toast = $("toast");
 
-// ===== Receipt preview state =====
-let __receiptItems = [];
-let __receiptBaseTotal = 0;
-
-
 /* =====================================================
    Receipt Modal open / close
 ===================================================== */
@@ -1743,7 +1738,7 @@ async function refreshPatchSummary(){
 }
 
 async function writeSale(){
-  const { items, total: baseTotal } = getSelected();
+  const { items, total } = getSelected();
   if(!items.length) throw new Error("empty");
 
   const orderDate = ($orderDateInput?.value || "").trim();
@@ -1767,15 +1762,6 @@ async function writeSale(){
   const statusId = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
   const statusLabel = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
 
-  // お急ぎOPの料金（kind=order のときだけ合計へ加算）
-  let urgentOptionPrice = 0;
-  if(kindId === "order" && urgentOptionId){
-    const opt = (masters.urgentOptions || []).find(o => o.id === urgentOptionId) || null;
-    const p = opt ? Number(opt.price) : 0;
-    urgentOptionPrice = Number.isFinite(p) ? p : 0;
-  }
-
-  const total = Number(baseTotal || 0) + Number(urgentOptionPrice || 0);
 
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
@@ -1795,8 +1781,6 @@ async function writeSale(){
     statusLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
     paymentMethod: paymentId,
-    baseTotal,
-    urgentOptionPrice,
     total,
     items
   });
@@ -1833,10 +1817,10 @@ $checkoutBtn.onclick = ()=>{
   toggleUrgentUI();
   setReceiptMetaText();
 
-  // Receipt preview (items + urgent fee)
-  __receiptItems = items;
-  __receiptBaseTotal = total;
-  renderReceiptLines(__receiptItems, __receiptBaseTotal);
+  $receiptList.innerHTML = items.map(
+    i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
+  ).join("<br>");
+  $receiptTotal.textContent = `合計：￥${total}`;
 
   setReceiptModalOpen(true);
 };
@@ -1862,8 +1846,6 @@ if($orderDateInput){
   if($kindSelect) $kindSelect.addEventListener("change", ()=>{
     settings.kind = $kindSelect.value;
     toggleUrgentUI();
-    // kind変更でお急ぎOPの表示/選択肢が変わるので、合計も更新
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
     setReceiptMetaText();
     saveSettings();
   });
@@ -1987,23 +1969,12 @@ applyChannelRules({ forcePayment:true });
 if($kindSelect && masters.kinds?.length){
   fillSelect($kindSelect, masters.kinds);
   applyKindDefault();
-
-  // kind変更時：お急ぎUIの表示切替＆レシート再計算
-  $kindSelect.addEventListener("change", ()=>{
-    toggleUrgentUI();
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-  });
 }
 
 // urgentOptions -> urgentSelect（UI配線）
 if($urgentSelect){
   applyUrgentOptions();
   toggleUrgentUI();
-
-  // 変更時：レシート明細＆合計を即時更新
-  $urgentSelect.addEventListener("change", ()=>{
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-  });
 }
 
 // settings change handlers
@@ -2080,15 +2051,6 @@ if($statusSelect){
     setReceiptMetaText();
     saveSettings();
   });
-
-if($urgentSelect){
-  $urgentSelect.addEventListener("change", ()=>{
-    // 受注確認画面：お急ぎOPの料金を合計へ反映
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-    setReceiptMetaText();
-    saveSettings();
-  });
-}
 }
 
 /* =====================================================
@@ -2559,43 +2521,4 @@ document.addEventListener("click", (e)=>{
 });
 </script>
 </body>
-</html
-function getUrgentOptionObj(){
-  const kindId = ($kindSelect?.value || "stock");
-  if(kindId !== "order") return null;
-  const id = ($urgentSelect?.value || "").trim();
-  if(!id) return null;
-  return (masters.urgentOptions || []).find(o => o.id === id) || null;
-}
-
-function calcUrgentFee(){
-  const opt = getUrgentOptionObj();
-
-  // price 優先（JSONに price がある想定）
-  let fee = (opt && Number.isFinite(Number(opt.price))) ? Number(opt.price) : 0;
-
-  // フォールバック：label から "(300円)" みたいな数字を抜く（古いJSON互換）
-  if((!fee || fee === 0) && opt && typeof opt.label === "string"){
-    const m = opt.label.match(/(\d+)[,\s]*円/);
-    if(m) fee = Number(m[1]) || 0;
-  }
-
-  return { opt, fee };
-}
-
-
-function renderReceiptLines(items, baseTotal){
-  const lines = (items || []).map(i => `${i.name} ×${i.qty}：￥${i.subtotal}`);
-
-  const { opt, fee } = calcUrgentFee();
-  if(fee > 0){
-    // 表示名： "指定なし（300円）" -> "指定なし"
-    const displayName = (opt?.label || getSelectedLabel($urgentSelect) || "").split("（")[0].trim() || "指定";
-    lines.push(`オーダー料(${displayName})：￥${fee}`);
-  }
-
-  const total = Number(baseTotal || 0) + fee;
-  if($receiptList) $receiptList.innerHTML = lines.join("<br>");
-  if($receiptTotal) $receiptTotal.textContent = `合計：￥${total}`;
-}
->
+</html>
