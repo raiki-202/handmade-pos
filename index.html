@@ -1059,6 +1059,7 @@ import {
   where,
   orderBy,
   limit,
+  Timestamp,
   doc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
@@ -1076,6 +1077,211 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 await setPersistence(auth, browserLocalPersistence);
 const db = getFirestore(app);
+
+/* =========================================================
+   Dashboard Top Chart Data
+   - 受注件数：sales の件数（monthly_history が参照する sales と同じ）
+   - 総資産　：assets コレクションの月次総資産
+   ※ 既存の flip/モーションはそのまま。データだけ差し替え。
+========================================================= */
+
+function monthKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  return `${y}-${m}`;
+}
+
+function buildLast12Months(){
+  const now = new Date();
+  const keys = [];
+  const labels = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    keys.push(monthKey(d));
+    labels.push(`${d.getMonth()+1}月`);
+  }
+  return { keys, labels };
+}
+
+function saleToDateMs(d){
+  try{
+    if(!d) return 0;
+    // Firestore Timestamp
+    if(typeof d.createdAt?.toDate === "function"){
+      const t = d.createdAt.toDate();
+      return t?.getTime?.() || 0;
+    }
+    // object {seconds, nanoseconds}
+    if(d.createdAt && typeof d.createdAt.seconds === "number"){
+      return d.createdAt.seconds*1000;
+    }
+    // explicit ms
+    const msCand = [
+      d.createdAtMs,
+      d.clientCreatedAt,
+      d.orderDateMs,
+      d.createdAt
+    ];
+    for(const v of msCand){
+      if(typeof v === "number" && Number.isFinite(v)) return v;
+      if(typeof v === "string"){
+        const t = Date.parse(v);
+        if(Number.isFinite(t)) return t;
+      }
+    }
+    return 0;
+  }catch{ return 0; }
+}
+
+async function loadBundleSalesForChart(){
+  const candidates = [
+    "./sales_bundle.json",
+    "sales_bundle.json",
+    "./bundle/sales_bundle.json",
+    "bundle/sales_bundle.json"
+  ];
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) continue;
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
+      if(!arr.length) return { list: [], throughMs: 0 };
+
+      let throughMs = 0;
+      const list = arr.map((row, idx)=>{
+        const id = String(row.id || row.saleId || `bundle_${idx}`);
+        const ms = saleToDateMs(row);
+        if(ms > throughMs) throughMs = ms;
+        return { id, ms, raw: row };
+      });
+      return { list, throughMs };
+    }catch(_e){
+      // try next
+    }
+  }
+  return { list: [], throughMs: 0 };
+}
+
+async function loadSalesForChart(){
+  // bundle + delta (monthly_history と同じ「read節約」思想)
+  const bundle = await loadBundleSalesForChart();
+  const bundleList = bundle.list || [];
+  const throughMs = Number(bundle.throughMs || 0);
+
+  let fbList = [];
+  try{
+    const since = Timestamp.fromMillis(throughMs || 0);
+    const qy = query(
+      collection(db, "sales"),
+      where("createdAt", ">", since),
+      orderBy("createdAt", "asc"),
+      limit(5000)
+    );
+    const snap = await getDocs(qy);
+    snap.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const ms = saleToDateMs(d) || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0);
+      fbList.push({ id: docSnap.id, ms, raw: d });
+    });
+  }catch(e){
+    // フォールバック（ページが死なないように）
+    try{
+      const q2 = query(collection(db, "sales"), orderBy("createdAt", "desc"), limit(200));
+      const snap2 = await getDocs(q2);
+      snap2.forEach(docSnap=>{
+        const d = docSnap.data() || {};
+        const ms = saleToDateMs(d) || 0;
+        if(ms > throughMs) fbList.push({ id: docSnap.id, ms, raw: d });
+      });
+    }catch(_e){
+      fbList = [];
+    }
+  }
+
+  const map = new Map();
+  for(const s of bundleList) map.set(s.id, s);
+  for(const s of fbList) map.set(s.id, s);
+  return [...map.values()];
+}
+
+function pickNumber(obj, keys){
+  for(const k of keys){
+    const v = obj?.[k];
+    const n = Number(v);
+    if(Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function guessAssetMonthKey(d){
+  // year/month or ym style
+  const y = Number(d?.year);
+  const m = Number(d?.month);
+  if(Number.isFinite(y) && Number.isFinite(m) && y>1900 && m>=1 && m<=12){
+    return `${y}-${String(m).padStart(2,"0")}`;
+  }
+  const ym = String(d?.ym || d?.monthKey || d?.key || d?.id || "").trim();
+  if(/^\d{4}-\d{2}$/.test(ym)) return ym;
+  if(/^\d{6}$/.test(ym)) return `${ym.slice(0,4)}-${ym.slice(4,6)}`;
+  const dateLike = d?.date || d?.asOf || d?.createdAt;
+  const dt = toDate(dateLike);
+  if(dt) return monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
+  return "";
+}
+
+async function loadAssetsMonthlyForChart(){
+  // assets コレクションを月次で拾う（フィールド名が違っても拾えるようにしておく）
+  const qy = query(collection(db, "assets"), limit(5000));
+  const snap = await getDocs(qy);
+  const latestByMonth = new Map();
+  snap.forEach(docSnap=>{
+    const d = docSnap.data() || {};
+    const mk = guessAssetMonthKey({ ...d, id: docSnap.id });
+    if(!mk) return;
+    const total = pickNumber(d, ["total","totalAssets","assets","amount","value","sum"]);
+    if(total === null) return;
+
+    const updatedMs = (
+      (typeof d.updatedAt?.toDate === "function" ? d.updatedAt.toDate().getTime() : 0)
+      || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0)
+      || 0
+    );
+
+    const prev = latestByMonth.get(mk);
+    if(!prev || updatedMs >= prev.updatedMs){
+      latestByMonth.set(mk, { total, updatedMs });
+    }
+  });
+  return latestByMonth;
+}
+
+async function buildDashboardChartSeries(){
+  const { keys, labels } = buildLast12Months();
+
+  // 受注件数（sales件数）
+  const sales = await loadSalesForChart();
+  const countByMonth = new Map(keys.map(k=>[k,0]));
+  for(const s of sales){
+    const ms = Number(s.ms || 0);
+    if(!ms) continue;
+    const mk = monthKey(new Date(ms));
+    if(countByMonth.has(mk)) countByMonth.set(mk, (countByMonth.get(mk)||0) + 1);
+  }
+  const ordersSeries = keys.map(k=> countByMonth.get(k) || 0);
+
+  // 総資産（assets月次）
+  let assetsSeries = keys.map(()=>0);
+  try{
+    const byMonth = await loadAssetsMonthlyForChart();
+    assetsSeries = keys.map(k=> (byMonth.get(k)?.total ?? 0));
+  }catch(_e){
+    // assets未整備でもページは動かす
+    assetsSeries = keys.map(()=>0);
+  }
+
+  return { months: labels, ordersSeries, assetsSeries };
+}
 
 /* =========
    helpers
@@ -1376,10 +1582,17 @@ onAuthStateChanged(auth, async (user) => {
 
   // ログイン済み：受注残を読み込む
   setLoading("読み込み中…");
-  await Promise.all([
+
+  // 受注一覧 ＋ 上部グラフデータ（本データ）を同時に読む
+  const [chart] = await Promise.all([
+    buildDashboardChartSeries().catch(()=>({ months: [], ordersSeries: [], assetsSeries: [] })),
     loadSalesByKind("stock", "tbodyStock", "emptyStock"),
     loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
   ]);
+
+  // 非module側（既存のflip/モーション）に渡す
+  window.__dashboardChartData = chart;
+  window.dispatchEvent(new CustomEvent("dashboard:chartDataReady", { detail: chart }));
 });
 </script>
 <script>
@@ -1412,10 +1625,10 @@ onAuthStateChanged(auth, async (user) => {
       });
     }
 
-    /* ===== グラフ用データ（※名前衝突しないように改名） ===== */
-    const months = ["9月","10月","11月","12月","1月","2月","3月","4月","5月","6月","7月","8月"];
-    const ordersSeries = [3,6,9,7,8,12,10,14,9,6,11,15];
-    const assetsSeries = [80000,120000,150000,180000,210000,190000,240000,260000,300000,280000,320000,360000];
+    /* ===== グラフ用データ（本データは module 側から注入） ===== */
+    let months = [];
+    let ordersSeries = [];
+    let assetsSeries = [];
 
     const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
@@ -1764,12 +1977,37 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     /* ===== 起動（グラフ） ===== */
-    initChart(A, "orders");
-    initChart(B, "assets");
-    attachSmoothScaleOnScroll(A, "orders");
-    attachSmoothScaleOnScroll(B, "assets");
-    attachTapToShowTooltip(A);
-    attachTapToShowTooltip(B);
+    let chartsStarted = false;
+    function startCharts(){
+      if(chartsStarted) return;
+      if(!Array.isArray(months) || months.length !== 12) return;
+      if(!Array.isArray(ordersSeries) || ordersSeries.length !== 12) return;
+      if(!Array.isArray(assetsSeries) || assetsSeries.length !== 12) return;
+
+      chartsStarted = true;
+      initChart(A, "orders");
+      initChart(B, "assets");
+      attachSmoothScaleOnScroll(A, "orders");
+      attachSmoothScaleOnScroll(B, "assets");
+      attachTapToShowTooltip(A);
+      attachTapToShowTooltip(B);
+    }
+
+    // module側でデータが用意できたら差し込む
+    function applyChartData(d){
+      if(!d) return;
+      months = Array.isArray(d.months) ? d.months : months;
+      ordersSeries = Array.isArray(d.ordersSeries) ? d.ordersSeries : ordersSeries;
+      assetsSeries = Array.isArray(d.assetsSeries) ? d.assetsSeries : assetsSeries;
+      startCharts();
+    }
+
+    // すでに入っている場合（リロード/キャッシュ）
+    applyChartData(window.__dashboardChartData);
+    // 後から来る場合
+    window.addEventListener("dashboard:chartDataReady", (e)=>{
+      applyChartData(e?.detail);
+    });
 
     /* ===== flip ===== */
     const ANIM_MS = 650;
