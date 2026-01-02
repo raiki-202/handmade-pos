@@ -1,0 +1,22 @@
+{
+  "statuses": [
+    {
+      "id": "applying",
+      "label": "申請中",
+      "active": true,
+      "order": 1
+    },
+    {
+      "id": "payer_confirm",
+      "label": "精算者確認",
+      "active": true,
+      "order": 2
+    },
+    {
+      "id": "received_confirm",
+      "label": "受取確認",
+      "active": true,
+      "order": 3
+    }
+  ]
+}
