@@ -1103,6 +1103,19 @@ function buildLast12Months(){
   return { keys, labels };
 }
 
+
+// HTMLエスケープ（シート等でinnerHTML生成するため）
+function escapeHtml(v){
+  if(v === null || v === undefined) return "";
+  return String(v)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+
 function saleToDateMs(d){
   try{
     if(!d) return 0;
