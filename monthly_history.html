@@ -1372,18 +1372,35 @@ const close = ()=>{
   function normalizeSale(docSnap){
     const data = docSnap.data ? docSnap.data() : docSnap;
 
-    let createdAt = data.createdAt;
-    let date = null;
-    try{
-      if(createdAt?.toDate) date = createdAt.toDate();
-      else if(typeof createdAt === "number") date = new Date(createdAt);
-      else if(typeof createdAt === "string") date = new Date(createdAt);
-    }catch(e){}
-    if(!date || isNaN(date.getTime())){
-      date = new Date(0);
-    }
+    const createdAt = data.createdAt;
 
-    const items = Array.isArray(data.items) ? data.items.map(it=>({
+    // --- 日付決定（受注日ベース）
+// 優先：orderDateMs → orderDate → createdAt
+let date = null;
+
+// ① orderDateMs（最優先）
+if (data.orderDateMs) {
+  date = new Date(Number(data.orderDateMs));
+}
+// ② orderDate（YYYY-MM-DD）
+else if (data.orderDate) {
+  date = new Date(data.orderDate);
+}
+// ③ createdAt（フォールバック）
+else {
+
+  try{
+    if(createdAt?.toDate) date = createdAt.toDate();
+    else if(typeof createdAt === "number") date = new Date(createdAt);
+    else if(typeof createdAt === "string") date = new Date(createdAt);
+  }catch(e){}
+}
+
+if(!date || isNaN(date.getTime())){
+  date = new Date(0);
+}
+
+const items = Array.isArray(data.items) ? data.items.map(it=>({
       id: it.id ?? it.productId ?? it.sku ?? "",
       name: it.name ?? it.productName ?? "",
       qty: Number(it.qty ?? it.quantity ?? 0),
