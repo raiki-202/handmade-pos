@@ -1500,7 +1500,7 @@ function ensureOrdersOverlayBase(){
 // ===== Orders sheet state/helpers =====
 const ordersState = { editing: null };
 
-function setLoading(msg){
+function setSheetLoading(msg){
   // シート内ローディング表示（必要なら拡張）
   const el = document.getElementById("ordersLoading");
   if(!el) return;
@@ -1745,7 +1745,7 @@ async function openStatusSheet(row, kind){
       if(!row?.id) return;
 
       try{
-        setLoading("更新中…");
+        setSheetLoading("更新中…");
         await updateDoc(doc(db, "sales", row.id), { statusId: id, statusLabel: label });
         closeOrdersSheet();
         await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
@@ -1753,7 +1753,7 @@ async function openStatusSheet(row, kind){
         console.error(e);
         alert("進捗の保存に失敗しました（権限/ルール確認）");
       }finally{
-        setLoading("");
+        setSheetLoading("");
       }
     });
   });
@@ -1799,7 +1799,7 @@ async function openAssigneeSheet(row, kind){
 
   saveBtn.onclick = async ()=>{
     try{
-      setLoading("更新中…");
+      setSheetLoading("更新中…");
       await updateDoc(doc(db,"sales", row.id), { assignees: ordersState.editing.draft.assignees });
       closeOrdersSheet();
       await loadSalesByKind(kind, kind==="stock" ? "tbodyStock":"tbodyOrder", kind==="stock" ? "emptyStock":"emptyOrder");
@@ -1807,7 +1807,7 @@ async function openAssigneeSheet(row, kind){
       console.error(e);
       alert("担当の保存に失敗しました（権限/ルール確認）");
     }finally{
-      setLoading("");
+      setSheetLoading("");
     }
   };
 
