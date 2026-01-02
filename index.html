@@ -1425,7 +1425,24 @@ function toDate(v){
   }
 }
 
-function fmtDate(d){
+function toDateAny(v){
+  if(!v) return null;
+  // Firestore Timestamp
+  if(typeof v === "object" && typeof v.toDate === "function") return v.toDate();
+  // ms number
+  if(typeof v === "number") return new Date(v);
+  // ISO string (YYYY-MM-DD etc)
+  if(typeof v === "string"){
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  // Date
+  if(v instanceof Date) return v;
+  return null;
+}
+
+function fmtDate(v){
+  const d = toDateAny(v);
   if(!d) return "-";
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,"0");
@@ -1776,7 +1793,6 @@ async function loadSalesByKind(kind, tbodyId, emptyId){
       const q1 = query(
         collection(db, "sales"),
         where("kind", "==", kind),
-        orderBy("createdAt", "desc"),
         limit(300)
       );
       const s1 = await getDocs(q1);
@@ -1791,7 +1807,6 @@ async function loadSalesByKind(kind, tbodyId, emptyId){
       const q2 = query(
         collection(db, "sales"),
         where("kindId", "==", kind),
-        orderBy("createdAt", "desc"),
         limit(300)
       );
       const s2 = await getDocs(q2);
