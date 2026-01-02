@@ -164,9 +164,9 @@ body{
     /* Bottom sheet */
     .overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; z-index:999; padding:10px; }
     .overlay.show{ display:flex; }
-    .sheet{ width:min(820px,100%); margin:0 auto; background: rgba(255,255,255,.95); border:1px solid var(--line); border-radius:22px; box-shadow:0 30px 90px rgba(0,0,0,.55); overflow:hidden; }
+    .sheet{ width:min(820px,100%); margin:0 auto; background: rgba(255,255,255,.95); border:1px solid var(--line); border-radius:22px; box-shadow:0 30px 90px rgba(0,0,0,.55); overflow:hidden; display:flex; flex-direction:column; max-height: calc(100vh - 20px); }
     .sheetHead{ padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.10); display:flex; align-items:center; justify-content:space-between; gap:10px; font-weight:1000; }
-    .sheetBody{ padding:12px 14px; }
+    .sheetBody{ padding:12px 14px; overflow-y:auto; -webkit-overflow-scrolling:touch; flex:1 1 auto; }
     .sheetFoot{ padding:12px 14px; border-top:1px solid var(--line); display:flex; gap:10px; }
     .btn{ flex:1; border:none; border-radius:14px; padding:12px 12px; font-weight:1000; cursor:pointer; }
     .btnGhost{ background:rgba(255,255,255,.08); color:var(--text); }
@@ -441,7 +441,7 @@ body{
             id: safeText(x.id).trim(),
             label: safeText(x.label).trim(),
             active: (x.active===false)?false:true,
-            order: Number.isFinite(Number(x.order)) ? Number(x.order) : 9999
+            order: (safeText(x.id).trim()==="materials" || safeText(x.label).trim()==="材料費") ? -100 : (Number.isFinite(Number(x.order)) ? Number(x.order) : 9999)
           })).filter(x=>x.id && x.label);
           categories.sort((a,b)=> (a.order-b.order) || a.label.localeCompare(b.label,"ja"));
           return;
@@ -449,10 +449,10 @@ body{
       }
       // fallback
       categories = [
-        { id:"misc", label:"雑費", active:true, order:1 },
-        { id:"parking", label:"駐車場代", active:true, order:2 },
-        { id:"booth", label:"出店料", active:true, order:3 },
-        { id:"materials", label:"材料費", active:true, order:4 },
+        { id:"materials", label:"材料費", active:true, order:1 },
+        { id:"misc", label:"雑費", active:true, order:2 },
+        { id:"parking", label:"駐車場代", active:true, order:3 },
+        { id:"booth", label:"出店料", active:true, order:4 },
         { id:"salary", label:"給料", active:true, order:5 }
       ];
     }
@@ -483,7 +483,7 @@ body{
             id: safeText(x.id).trim(),
             label: safeText(x.label).trim(),
             active: (x.active===false)?false:true,
-            order: Number.isFinite(Number(x.order)) ? Number(x.order) : 9999
+            order: (safeText(x.id).trim()==="materials" || safeText(x.label).trim()==="材料費") ? -100 : (Number.isFinite(Number(x.order)) ? Number(x.order) : 9999)
           })).filter(x=>x.id && x.label);
           receiptStatuses.sort((a,b)=> (a.order-b.order) || a.label.localeCompare(b.label,"ja"));
           return;
@@ -645,7 +645,7 @@ body{
         claimKawahara: false,
         claimFujiwara: false,
         lines: [
-          { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:0, total:0, memo:"" }
+          { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:"", total:0, memo:"" }
         ],
         sum: 0
       };
@@ -665,7 +665,7 @@ body{
               </select>
             </td>
             <td><input class="lineInp" data-k="qty" type="number" inputmode="numeric" value="${esc(String(li.qty??0))}" style="width:90px"></td>
-            <td><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc(String(li.unitPrice??0))}" style="width:120px"></td>
+            <td><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc((li.unitPrice===0||li.unitPrice===null||li.unitPrice===undefined||li.unitPrice==="") ? "" : String(li.unitPrice))}" style="width:120px"></td>
             <td class="mono" data-k="total">${esc(formatJPY(li.total||0))}</td>
             <td><input class="lineInp" data-k="memo" type="text" value="${esc(li.memo||"")}" placeholder="メモ"></td>
             <td style="text-align:right;">
@@ -808,7 +808,7 @@ body{
 
       sheetBody.querySelector("#addLineBtn").onclick = ()=>{
         const idx = lineTbody.querySelectorAll("tr").length;
-        const li = { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:0, total:0, memo:"" };
+        const li = { name:"", categoryId: categories[0]?.id || "misc", categoryLabel: categories[0]?.label || "雑費", qty:1, unitPrice:"", total:0, memo:"" };
         const temp = document.createElement("tbody");
         temp.innerHTML = lineRowHTML(li, idx);
         const tr = temp.firstElementChild;
