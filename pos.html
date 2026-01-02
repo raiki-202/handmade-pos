@@ -1276,8 +1276,39 @@ function getSelected(){
   return { items, total };
 }
 
+
+function calcUrgentFee(){
+  // kind=order のときだけ、お急ぎOPの金額を合算する
+  const kindId = ($kindSelect?.value || "");
+  if(kindId !== "order") return { fee: 0, displayName: "" };
+
+  const optId = ($urgentSelect?.value || "").trim();
+  if(!optId) return { fee: 0, displayName: "" };
+
+  const opt = (masters.urgentOptions || []).find(o => String(o.id) === String(optId));
+  let fee = 0;
+
+  // price 優先（JSONに price がある想定）
+  if(opt && Number.isFinite(Number(opt.price))){
+    fee = Number(opt.price) || 0;
+  }else{
+    // フォールバック：label から「300円」みたいな数字を抜く（古いJSON互換）
+    const label = (opt?.label || getSelectedLabel($urgentSelect) || "");
+    const mm = String(label).match(/(\d+)\s*円/);
+    if(mm) fee = Number(mm[1]) || 0;
+  }
+
+  // 表示名： "指定なし（300円）" → "指定なし"
+  const rawLabel = (opt?.label || getSelectedLabel($urgentSelect) || "").trim();
+  const displayName = rawLabel ? rawLabel.split("（")[0].trim() : "";
+
+  return { fee, displayName };
+}
+
 function updateTotal(){
-  const { total } = getSelected();
+  const { total: baseTotal } = getSelected();
+  const { fee } = calcUrgentFee();
+  const total = Number(baseTotal||0) + Number(fee||0);
   $totalText.textContent = `合計：￥${total}`;
 }
 
@@ -1738,7 +1769,9 @@ async function refreshPatchSummary(){
 }
 
 async function writeSale(){
-  const { items, total } = getSelected();
+  const { items, total: baseTotal } = getSelected();
+  const { fee: urgentOptionPrice } = calcUrgentFee();
+  const total = Number(baseTotal||0) + Number(urgentOptionPrice||0);
   if(!items.length) throw new Error("empty");
 
   const orderDate = ($orderDateInput?.value || "").trim();
@@ -1781,6 +1814,8 @@ async function writeSale(){
     statusLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
     paymentMethod: paymentId,
+    baseTotal: Number(baseTotal||0),
+    urgentOptionPrice: Number(urgentOptionPrice||0),
     total,
     items
   });
@@ -1791,7 +1826,9 @@ async function writeSale(){
 ===================================================== */
 $checkoutBtn.onclick = ()=>{
   if(!firebaseOk) return;
-  const { items, total } = getSelected();
+  const { items, total: baseTotal } = getSelected();
+  const { fee: urgentOptionPrice } = calcUrgentFee();
+  const total = Number(baseTotal||0) + Number(urgentOptionPrice||0);
   if(!items.length) return alert("商品を選択してね");
 
   if($orderDateInput){
@@ -1817,10 +1854,16 @@ $checkoutBtn.onclick = ()=>{
   toggleUrgentUI();
   setReceiptMetaText();
 
-  $receiptList.innerHTML = items.map(
-    i=>`${i.name} ×${i.qty}：￥${i.subtotal}`
-  ).join("<br>");
-  $receiptTotal.textContent = `合計：￥${total}`;
+  // レシート明細（お急ぎOPがあれば加算行を追加）
+  const { fee, displayName } = calcUrgentFee();
+  const lines = items.map(i=>`${i.name} ×${i.qty}：￥${i.subtotal}`);
+  if(fee > 0){
+    const name = displayName || (getSelectedLabel($urgentSelect) || "").split("（")[0].trim() || "指定";
+    lines.push(`オーダー料(${name})：￥${fee}`);
+  }
+  const grandTotal = Number(total||0) + Number(fee||0);
+  $receiptList.innerHTML = lines.join("<br>");
+  $receiptTotal.textContent = `合計：￥${grandTotal}`;
 
   setReceiptModalOpen(true);
 };
@@ -1846,6 +1889,7 @@ if($orderDateInput){
   if($kindSelect) $kindSelect.addEventListener("change", ()=>{
     settings.kind = $kindSelect.value;
     toggleUrgentUI();
+    updateTotal();
     setReceiptMetaText();
     saveSettings();
   });
