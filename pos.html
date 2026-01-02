@@ -548,7 +548,15 @@ select {
             <select id="urgentSelect"></select>
           </span>
           <div class="muted" style="margin-top:6px;">※ kind=order のときだけ表示されます</div>
+        
+        <div id="statusWrap" style="margin-top:10px; display:none;">
+          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
+            ステータス
+            <select id="statusSelect"></select>
+          </span>
+          <div class="muted" style="margin-top:6px;">※ マルシェ以外のときだけ表示されます</div>
         </div>
+</div>
 <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
@@ -774,6 +782,8 @@ const $orderDateInput = $("orderDateInput");
 const $kindSelect = $("receiptKindSelect");
 const $urgentWrap = $("urgentWrap");
 const $urgentSelect = $("urgentSelect");
+const $statusWrap = $("statusWrap");
+const $statusSelect = $("statusSelect");
 const $receiptChannelSelect = $("receiptChannelSelect");
 const $receiptVenueWrap = $("receiptVenueWrap");
 const $receiptVenueSelect = $("receiptVenueSelect");
@@ -1314,17 +1324,34 @@ async function loadSimpleBundle(key){
 }
 
 async function loadSimplePatch(key){
+  // patch read は権限やログインタイミングで失敗することがある。
+  // その場合でも bundle は使って UI を壊さないため、ここは必ず「空パッチ」で継続する。
   const def = MASTER_DEFS[key];
-  const updatesSnap = await getDocs(collection(db, def.updates));
-  const addsSnap    = await getDocs(collection(db, def.adds));
+  let updatesSnap = null;
+  let addsSnap = null;
+
+  try{ updatesSnap = await getDocs(collection(db, def.updates)); }
+  catch(e){ console.warn(`[masters] patch updates read failed: ${key}`, e); }
+
+  try{ addsSnap = await getDocs(collection(db, def.adds)); }
+  catch(e){ console.warn(`[masters] patch adds read failed: ${key}`, e); }
 
   const updates = {};
-  updatesSnap.forEach(d=> updates[d.id] = d.data());
-
   const adds = [];
-  addsSnap.forEach(d=> adds.push({ id: d.id, ...d.data() }));
 
-  return { updates, adds, updatesCount: updatesSnap.size, addsCount: addsSnap.size };
+  if(updatesSnap){
+    updatesSnap.forEach(d=> updates[d.id] = d.data());
+  }
+  if(addsSnap){
+    addsSnap.forEach(d=> adds.push({ id: d.id, ...d.data() }));
+  }
+
+  return { 
+    updates, 
+    adds, 
+    updatesCount: updatesSnap ? updatesSnap.size : 0, 
+    addsCount: addsSnap ? addsSnap.size : 0
+  };
 }
 
 async function initSimpleMaster(key){
@@ -1382,16 +1409,84 @@ function applyUrgentOptions(){
   fillSelectWithPlaceholder($urgentSelect, masters.urgentOptions || [], $urgentSelect.value || "", "---");
 }
 
-function toggleUrgentUI(){
-  if(!$urgentWrap) return;
+
+/* =====================================================
+   Status (マルシェ以外のとき)
+   - channels !== marche のときだけ表示
+   - kind=stock / kind=order でリスト切替
+===================================================== */
+const STATUS_STOCK_URL = "./status_stock_bundle.json";
+const STATUS_ORDER_URL = "./status_order_bundle.json";
+let statusMasters = { stock: [], order: [] };
+let statusLoaded = false;
+
+async function loadStatusBundles(){
+  if(statusLoaded) return;
+  const loadOne = async (url, key)=>{
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok){
+        console.warn(`[status] missing: ${url} (${res.status})`);
+        return [];
+      }
+      const j = await res.json();
+      // どちらでも受けられるように key は "statuses" 固定で読む
+      const arr = j.statuses || j.status || j[key] || [];
+      return Array.isArray(arr) ? arr.filter(x=>x.active !== false) : [];
+    }catch(e){
+      console.warn(`[status] load failed: ${url}`, e);
+      return [];
+    }
+  };
+  statusMasters.stock = await loadOne(STATUS_STOCK_URL, "stock");
+  statusMasters.order = await loadOne(STATUS_ORDER_URL, "order");
+  statusLoaded = true;
+}
+
+function applyStatusOptions(kindId){
+  if(!$statusSelect) return;
+  const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
+  fillSelectWithPlaceholder($statusSelect, list, $statusSelect.value || "", "---");
+}
+
+function toggleStatusUI(){
+  if(!$statusWrap || !$statusSelect) return;
+
+  const ch = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect?.value || "");
   const kindId = ($kindSelect?.value || "stock");
-  const show = (kindId === "order");
-  $urgentWrap.style.display = show ? "" : "none";
+  const isNonMarche = (ch && ch !== "marche");
+
+  const show = isNonMarche && (kindId === "stock" || kindId === "order");
+  $statusWrap.style.display = show ? "" : "none";
+
   if(show){
-    applyUrgentOptions();
-    // 未選択なら先頭（---）
-    if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+    // 初回だけjsonを読み込む（失敗しても空のまま継続）
+    loadStatusBundles().then(()=>{
+      applyStatusOptions(kindId);
+      if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // --- を先頭に
+      setReceiptMetaText();
+    });
+  }else{
+    $statusSelect.value = "";
   }
+}
+
+function toggleUrgentUI(){
+  const kindId = ($kindSelect?.value || "stock");
+
+  // urgent UI（kind=order のときだけ）
+  if($urgentWrap){
+    const show = (kindId === "order");
+    $urgentWrap.style.display = show ? "" : "none";
+    if(show){
+      applyUrgentOptions();
+      // 未選択なら先頭（---）
+      if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+    }
+  }
+
+  // status UI（マルシェ以外のとき）
+  toggleStatusUI();
 }
 
 /* =====================================================
@@ -1658,6 +1753,9 @@ async function writeSale(){
 
   const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
   const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
+  const statusId = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
+  const statusLabel = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
+
 
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
@@ -1673,6 +1771,8 @@ async function writeSale(){
     paymentLabel,
     urgentOptionId,
     urgentOptionLabel,
+    statusId,
+    statusLabel,
     // 互換用（過去集計が paymentMethod を見ている場合の保険）
     paymentMethod: paymentId,
     total,
@@ -1765,7 +1865,9 @@ function setReceiptMetaText(){
   const nameText = name ? ` / 購入者：${name}` : "";
   const urgentLabel = ($kindSelect?.value === "order") ? (getSelectedLabel($urgentSelect) || "-") : "";
   const urgentText = ($kindSelect?.value === "order") ? ` / お急ぎOP：${urgentLabel}` : "";
-  $receiptMeta.textContent = `受注日：${d}${nameText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}`;
+  const statusLabel = ($statusWrap && $statusWrap.style.display !== "none") ? (getSelectedLabel($statusSelect) || "-") : "";
+  const statusText = ($statusWrap && $statusWrap.style.display !== "none") ? ` / ステータス：${statusLabel}` : "";
+  $receiptMeta.textContent = `受注日：${d}${nameText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}${statusText}`;
 }
 
 /* =====================================================
@@ -1887,6 +1989,7 @@ if($channelSelect){
     if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
 
     saveSettings();
+    toggleStatusUI();
     setReceiptMetaText();
   });
 }
@@ -1934,6 +2037,13 @@ if($receiptPaymentSelect){
 if($receiptCustomerName){
   $receiptCustomerName.addEventListener("input", ()=>{
     setReceiptMetaText();
+  });
+}
+
+if($statusSelect){
+  $statusSelect.addEventListener("change", ()=>{
+    setReceiptMetaText();
+    saveSettings();
   });
 }
 
