@@ -1,755 +1,1069 @@
-<!doctype html>
+<!DOCTYPE html>
+
 <html lang="ja">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>e.nue POS (COMPLETE build 2025-12-27)</title>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<title>e.nue Dashboard</title>
+<style>:root{
+  --bg1:#e3ddd4;
+  --bg2:#d4ccc1;
 
-  <style>
-    :root{
-      --bg1:#e3ddd4;
-      --bg2:#d4ccc1;
+  --glass-bg: rgba(255,255,255,.86);
+  --glass-bg2: rgba(255,255,255,.78);
+  --glass-border: rgba(0,0,0,.06);
+  --line-soft: rgba(0,0,0,.10);
+  --shadow: 0 18px 45px rgba(0,0,0,.14);
 
-      /* 透明感UP（背景が透ける方向） */
-      --glass-bg: rgba(255,255,255,.62);
-      --glass-bg2: rgba(255,255,255,.48);
-      --glass-border: rgba(0,0,0,.06);
-      --line-soft: rgba(0,0,0,.10);
-      --shadow: 0 18px 45px rgba(0,0,0,.14);
+  --text-main:#222222;
+  --text-sub:#555555;
+  --muted: rgba(34,34,34,.55);
 
-      --text-main:#222;
-      --text-sub:#555;
-      --muted: rgba(34,34,34,.55);
+  --accent:#e18a6a;
+  --accent2:#d06463;
 
-      --accent:#e18a6a;
-      --accent2:#d06463;
+  --ok:#2fbf7a;
+  --wait:#f0a33a;
+  --done:#6d78d8;
+  --todo:#9097a6;
 
-      --r:20px;
-    }
+  --r:18px;
+  --maxw:980px;
 
-    *{ box-sizing:border-box; }
-    body{
-      margin:0;
-      padding: 12px;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: var(--text-main);
-      background: linear-gradient(135deg, var(--bg1), var(--bg2));
-      min-height:100vh;
-    }
+  /* otherpage tiles */
+  --safe-pad:14px;
+  --gap:10px;
+  --tile-r:18px;
+  --blur:16px;
+  --shadow2: 0 10px 26px rgba(0,0,0,.10);
+  --icon: rgba(0,0,0,.72);
+  --tile-size: calc((100vw - (var(--safe-pad) * 2) - (var(--gap) * 2)) / 3);
 
-    .safe{
-      max-width: 980px;
-      margin: 0 auto;
-    }
+}
 
-    /* ====== glass card ====== */
-    .shell{
-      background: var(--glass-bg);
-      border: 1px solid var(--glass-border);
-      border-radius: 26px;
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      overflow:hidden;
-    }
+*{ box-sizing:border-box; }
+html, body{ height:100%; }
 
-    /* ===== header ===== */
-    .topbar{
-      display:flex;
-      align-items:flex-start;
-      justify-content:space-between;
-      gap:12px;
-      padding: 14px 14px 10px;
-      border-bottom: 1px dashed var(--line-soft);
-    }
-    h1{
-      margin:0;
-      display:flex;
-      flex-direction:column;
-      gap:2px;
-    }
-    .brand-main{
-      font-family: "Georgia", "Times New Roman", serif;
-      font-weight: 700;
-      letter-spacing:.08em;
-      font-size: 20px;
-      line-height:1.1;
-    }
-    .brand-sub{
-      font-size: 11px;
-      color: var(--text-sub);
-      letter-spacing:.02em;
-    }
+body{
+  margin:0;
+  font-family: system-ui,-apple-system,"Segoe UI","Noto Sans JP",sans-serif;
+  color:var(--text-main);
+  background:
+    radial-gradient(1200px 800px at 18% 8%, rgba(225,138,106,.18), transparent 55%),
+    radial-gradient(1200px 800px at 88% 0%, rgba(208,100,99,.14), transparent 52%),
+    linear-gradient(135deg,var(--bg1),var(--bg2));
+}
 
-    .nav{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      align-items:center;
-    }
-    .nav-btn{
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.08);
-      background: rgba(255,255,255,.70);
-      color: var(--text-main);
-      padding: 6px 12px;
-      font-size: 11px;
-      cursor:pointer;
-      white-space:nowrap;
-      transition: transform .12s ease, background .2s ease, border-color .2s ease;
-      text-decoration:none;
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-    }
-    .nav-btn:hover{ transform: translateY(-1px); background: rgba(255,255,255,.82); }
+.safe{
+  padding:max(14px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom));
+  max-width:var(--maxw);
+  margin:0 auto;
+}
 
-    .content{ padding: 12px; }
+/* ===== top bar ===== */
+.topbar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin:6px 0 14px;
+}
+.brand{ font-weight:900; letter-spacing:.02em; }
 
-    .section{
-      background: rgba(255,255,255,.58);
-      border: 1px solid rgba(0,0,0,.06);
-      border-radius: var(--r);
-      box-shadow: 0 10px 22px rgba(0,0,0,.10);
-      overflow:hidden;
-    }
+.tabs{
+  display:flex; gap:4px; padding:4px;
+  border-radius:999px;
+  background:rgba(255,255,255,.55);
+  border:1px solid var(--glass-border);
+  box-shadow:var(--shadow);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.tab{
+  border:0; background:transparent;
+  padding:10px 14px; border-radius:999px;
+  font-weight:800; cursor:pointer;
+  color:rgba(34,34,34,.65);
+}
+.tab.active{
+  background:rgba(255,255,255,.85);
+  color:var(--text-main);
+  box-shadow:0 8px 18px rgba(0,0,0,.08);
+}
 
-    .sectionHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding: 12px 12px 10px;
-      border-bottom: 1px dashed var(--line-soft);
-    }
-    .sectionHead h3{
-      margin:0;
-      font-size: 13px;
-      font-weight: 700;
-    }
-    .sectionHead .sub{
-      font-size: 11px;
-      color: var(--text-sub);
-    }
+/* ===== layout ===== */
+.grid{ display:flex; flex-direction:column; gap:14px; }
 
-    /* ===== POS ===== */
-    .posBody{ padding: 12px; }
-    .row2{
-      display:flex;
-      gap:8px;
-      flex-wrap:wrap;
-      align-items:center;
-    }
-    .label{
-      font-size: 10px;
-      color: var(--text-sub);
-      display:flex;
-      gap:6px;
-      align-items:center;
-      background: rgba(255,255,255,.65);
-      border: 1px solid rgba(0,0,0,.06);
-      border-radius: 999px;
-      padding: 4px 8px;
-    }
-    select, input{
-      border-radius: 10px;
-      border: 1px solid rgba(0,0,0,.12);
-      background: rgba(255,255,255,.85);
-      padding: 6px 8px;
-      font-size: 12px;
-      outline:none;
-    }
+.card{
+  background:linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
+  border:1px solid var(--glass-border);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
 
-    .products{
-      margin-top: 10px;
-      display:flex;
-      flex-direction:column;
-      gap:8px;
-    }
-    .product-row{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding: 10px 10px;
-      border: 1px solid rgba(0,0,0,.06);
-      background: rgba(255,255,255,.78);
-      border-radius: 14px;
-    }
-    .product-left{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-width: 0;
-      flex: 1;
-    }
-    .product-name{
-      font-size: 13px;
-      font-weight: 600;
-      white-space:nowrap;
-      overflow:hidden;
-      text-overflow:ellipsis;
-    }
-    .product-price{
-      font-size: 12px;
-      color: var(--text-sub);
-      margin-left: 6px;
-      font-weight: 500;
-    }
-    .qty{
-      display:flex;
-      align-items:center;
-      gap:6px;
-      flex: 0 0 auto;
-    }
-    .qty select{ padding: 6px 8px; border-radius: 10px; }
+/* =====================================================
+   “非3D” flip（Safariでもスクロール壊れない）
+===================================================== */
+.hint{ display:none; }
+.cardFlip{ position:relative; cursor:pointer; }
+.cardFlipInner{
+  position:relative;
+  min-height:360px;
+}
 
-    .primary{
-      margin-top: 10px;
-      width:100%;
-      border:0;
-      border-radius: 16px;
-      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
-      color:#fff;
-      font-weight: 800;
-      padding: 12px 14px;
-      cursor:pointer;
-      box-shadow: 0 10px 24px rgba(0,0,0,.14);
-    }
-    .primary:active{ transform: translateY(1px); }
-    .primary[disabled]{ opacity:.55; cursor:not-allowed; transform:none; }
+/* 2面を重ねてフェード切替（transform無し） */
+.cardFace{
+  position:absolute;
+  inset:0;
+  background: linear-gradient(180deg,var(--glass-bg),var(--glass-bg2));
+  opacity:0;
+  pointer-events:none;
+  transition: opacity .75s ease;
+  will-change: opacity, filter;
+}
+.cardFace.front{ opacity:1; pointer-events:auto; }
+.cardFlip.is-flipped .cardFace.front{ opacity:0; pointer-events:none; }
+.cardFlip.is-flipped .cardFace.back { opacity:1; pointer-events:auto; }
 
-    .total{
-      margin-top: 8px;
-      font-size: 13px;
-      color: var(--text-main);
-      font-weight: 800;
-      text-align:right;
-    }
+/* 上品な切替演出 */
+.cardFace::after{
+  content:"";
+  position:absolute;
+  inset:-20%;
+  pointer-events:none;
+  opacity:0;
+  background:
+    radial-gradient(800px 520px at 18% 20%, rgba(255,255,255,.55), transparent 60%),
+    radial-gradient(900px 560px at 85% 10%, rgba(225,138,106,.20), transparent 62%),
+    radial-gradient(900px 640px at 80% 90%, rgba(208,100,99,.14), transparent 60%),
+    linear-gradient(180deg, rgba(255,255,255,.18), rgba(255,255,255,0));
+  filter: blur(10px);
+  transform: translateY(-6px);
+  transition: opacity .75s ease, transform .75s ease, filter .75s ease;
+}
+.cardFlip.is-animating .cardFace{ filter: blur(2.2px) saturate(1.03); }
+.cardFlip.is-animating .cardFace::after{
+  opacity:1;
+  transform: translateY(0);
+  filter: blur(14px);
+}
 
-    .pill{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.08);
-      background: rgba(255,255,255,.85);
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--text-sub);
-      white-space:nowrap;
-    }
+/* ===== card head ===== */
+.cardHead{
+  display:flex; justify-content:space-between;
+  gap:10px;
+  padding:14px 14px 10px;
+  border-bottom:1px solid rgba(0,0,0,.06);
+}
+.title .h{ font-weight:900; font-size:14px; letter-spacing:.06em; }
+.title .s{ font-size:12px; color:rgba(34,34,34,.6); }
 
-    /* ===== modal ===== */
-    .modal{
-      position: fixed;
-      inset: 0;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 14px;
-      background: rgba(0,0,0,.32);
-      z-index: 999;
-    }
-    .modal.show{ display:flex; }
-    .modalInner{
-      width: min(560px, 100%);
-      background: rgba(255,255,255,.88);
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 22px;
-      box-shadow: 0 18px 45px rgba(0,0,0,.22);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      overflow:hidden;
-    }
-    .modalHead{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:10px;
-      padding: 12px 12px 10px;
-      border-bottom: 1px dashed var(--line-soft);
-    }
-    .modalHead h3{ margin:0; font-size: 13px; font-weight: 800; }
-    .iconBtn{
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(255,255,255,.85);
-      border-radius: 999px;
-      padding: 4px 8px;
-      cursor:pointer;
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .modalBody{ padding: 12px; }
-    .muted{ color: var(--text-sub); font-size: 11px; }
+.badgeBig{
+  text-align:right;
+  min-width: 88px;
+  flex: 0 0 auto;
+}
+.badgeBig .k{
+  font-size:11px; font-weight:800; color:rgba(34,34,34,.55);
+  white-space:nowrap;
+  display:inline-block;
+}
+.badgeBig .v{ font-size:18px; font-weight:900; }
 
-    .btnRow{
-      display:flex;
-      gap:8px;
-      margin-top: 12px;
-    }
-    .btn{
-      flex:1;
-      border-radius: 14px;
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(255,255,255,.85);
-      padding: 10px 12px;
-      font-weight: 800;
-      cursor:pointer;
-    }
-    .btn.primaryBtn{
-      border:0;
-      background: linear-gradient(135deg, rgba(225,138,106,.95), rgba(208,100,99,.95));
-      color:#fff;
-    }
-    .btn[disabled]{ opacity:.55; cursor:not-allowed; }
+/* ===== chart ===== */
+.chartWrap{
+  padding:12px 0;
+  overflow:hidden;
+  cursor:default;
+}
+.chartFrame{ position:relative; padding:0 12px 10px; }
 
-    /* toast */
-    .toast{
-      position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
-      bottom: 18px;
-      background: rgba(255,255,255,.92);
-      border: 1px solid rgba(0,0,0,.10);
-      border-radius: 999px;
-      padding: 10px 14px;
-      box-shadow: 0 12px 26px rgba(0,0,0,.16);
-      font-size: 12px;
-      font-weight: 800;
-      color: var(--text-main);
-      display:none;
-      z-index: 2000;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-    }
-    .toast.show{ display:block; }
+.yAxisFixed{
+  position:absolute; left:12px; top:0;
+  width:42px; height:220px;
+  pointer-events:none;
+  z-index:2;
+}
 
-    @media (max-width: 600px){
-      body{ padding: 10px; }
-      .brand-main{ font-size: 18px; }
-    }
-      /* ===== POS title edit toggle ===== */
-    .titleRow{
-      display:flex;
-      align-items:center;
-      gap:8px;
-    }
-    .titleIcon{
-      width: 28px;
-      height: 28px;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(255,255,255,.80);
-      cursor:pointer;
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1;
-      user-select:none;
-      -webkit-tap-highlight-color: transparent;
-    }
-    .titleIcon:active{ transform: translateY(1px); }
+/* スクロール領域 */
+.chartScroller{
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  touch-action: pan-x;
+}
 
-    /* ===== settings edit modal ===== */
-    .editGrid{
-      display:grid;
-      grid-template-columns: 1fr;
-      gap:10px;
-      margin-top: 6px;
-    }
-    .field{
-      background: rgba(255,255,255,.70);
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 16px;
-      padding: 10px;
-    }
-    .fieldTitle{
-      font-size: 12px;
-      font-weight: 900;
-      margin-bottom: 8px;
-    }
-    .chips{
-      display:flex;
-      flex-wrap:wrap;
-      gap:6px;
-    }
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap:6px;
-      padding: 6px 10px;
-      border-radius: 999px;
-      border: 1px solid rgba(0,0,0,.10);
-      background: rgba(255,255,255,.85);
-      font-size: 12px;
-      font-weight: 800;
-    }
-    .chip button{
-      border:0;
-      background: transparent;
-      cursor:pointer;
-      font-weight: 900;
-      font-size: 14px;
-      line-height: 1;
-      padding: 0 2px;
-      color: var(--text-sub);
-    }
-    .adder{
-      display:flex;
-      gap:8px;
-      margin-top: 8px;
-    }
-    .adder input{
-      flex:1;
-    }
+/* 左余白（Y軸固定分） */
+.chartInner{
+  padding-left:42px;
+  display:inline-block;
+}
+.chartMount{
+  display:inline-block;
+}
+.chartMount svg{
+  display:block;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none;
+}
+
+/* ===== tooltip（SVG内） ===== */
+.chartTooltip{ pointer-events:none; }
+.chartTooltip rect{ fill: rgba(34,34,34,.92); rx:8; }
+.chartTooltip text{ fill:#fff; font-size:12px; font-weight:900; }
+
+/* ===== section2 (calendar) ===== */
+:root{ --cell:52px; } /* fallback */
+.secCal .calendar{ padding:12px; }
+.secCal .calBox{
+  border-radius:14px;
+  border:1px solid rgba(0,0,0,.08);
+  background:rgba(255,255,255,.60);
+  overflow:hidden;
+}
+.secCal .calTop{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:10px 10px 8px;
+  font-weight:900; gap:10px;
+}
+.secCal .calTopLeft,.secCal .calTopRight{ display:flex; align-items:center; gap:8px; }
+.secCal .navBtn,.secCal .todayBtn,.secCal .modeBtn{
+  appearance:none; border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.75);
+  border-radius:999px;
+  padding:8px 10px;
+  font-weight:900;
+  font-size:12px;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  cursor:pointer;
+}
+.secCal .navBtn:active,.secCal .todayBtn:active,.secCal .modeBtn:active{ transform:translateY(1px); }
+.secCal .navBtn[disabled]{ opacity:.35; cursor:not-allowed; }
+.secCal .monthLabel{ font-weight:1000; letter-spacing:.2px; }
+.secCal .calViewport{ position:relative; overflow:hidden; border-top:1px solid rgba(0,0,0,.06); }
+.secCal .calGrid{
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:1px;
+  background:rgba(0,0,0,.08);
+  will-change: transform, opacity;
+}
+.secCal .dow,.secCal .day{
+  background:rgba(255,255,255,.62);
+  padding:6px;
+  font-size:12px;
+  min-height: var(--cell);
+  height: var(--cell);
+}
+.secCal .dow{
+  text-align:center;
+  font-weight:1000;
+  display:flex; align-items:center; justify-content:center;
+  user-select:none;
+}
+.secCal .day{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  border:none;
+  width:100%;
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  touch-action:manipulation;
+}
+.secCal .day.dim{ opacity:.45; }
+.secCal .num{
+  font-weight:1000;
+  line-height:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:26px; height:26px;
+  border-radius:999px;
+}
+.secCal .centerMark{
+  margin-top:auto;
+  margin-bottom:4px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  min-height: 22px;
+}
+.secCal .stamp{
+  display:inline-grid;
+  grid-template-rows:auto auto;
+  place-items:center;
+  padding:6px 10px 7px;
+  border-radius:999px;
+  border:2px solid rgba(0,0,0,.12);
+  background: rgba(255,255,255,.78);
+  box-shadow:
+    0 10px 18px rgba(0,0,0,.10),
+    inset 0 0 0 2px rgba(225,138,106,.35);
+  transform: rotate(-10deg);
+}
+.secCal .stamp span{
+  font-weight:1000;
+  font-size:11px;
+  line-height:1.05;
+  letter-spacing:.6px;
+  color: var(--accent2);
+}
+.secCal .eventDot{
+  width:10px; height:10px;
+  border-radius:999px;
+  box-shadow:
+    0 10px 16px rgba(0,0,0,.10),
+    inset 0 0 0 2px rgba(255,255,255,.85);
+}
+.secCal .eventDot.orange{ background: rgba(225,138,106,.95); }
+.secCal .eventDot.blue{ background: rgba(109,120,216,.95); }
+.secCal .eventDot.red{ background: rgba(208,100,99,.95); }
+.secCal .eventDot.gray{ background: rgba(34,34,34,.28); }
+.secCal .day.dim .eventDot,
+.secCal .day.dim .stamp{ opacity:.45; transform: rotate(-10deg) scale(.92); }
+
+/* 土日・祝 */
+.secCal .day.sun{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(208,100,99,.16); }
+.secCal .day.sat{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(109,120,216,.16); }
+.secCal .day.holiday{ background: linear-gradient(180deg, rgba(255,255,255,.62), rgba(255,255,255,.62)), rgba(208,100,99,.20); }
+.secCal .day.sun .num, .secCal .day.holiday .num{ color: var(--accent2); }
+.secCal .day.sat .num{ color: rgba(109,120,216,.95); }
+
+/* 今日 */
+.secCal .day.today .num{
+  box-shadow:
+    0 0 0 2px rgba(225,138,106,.30),
+    0 0 14px rgba(225,138,106,.45);
+  background: rgba(255,255,255,.75);
+}
+
+/* スライド */
+.secCal .slideEnterRight{ transform: translateX(14%); opacity:0; }
+.secCal .slideEnterLeft { transform: translateX(-14%); opacity:0; }
+.secCal .slideActive{ transform: translateX(0%); opacity:1; transition: transform .28s ease, opacity .28s ease; }
+.secCal .slideExitLeft{ transform: translateX(-14%); opacity:0; transition: transform .28s ease, opacity .28s ease; position:absolute; inset:0; }
+.secCal .slideExitRight{ transform: translateX(14%); opacity:0; transition: transform .28s ease, opacity .28s ease; position:absolute; inset:0; }
+
+/* 吹き出し（class名は .popover に統一） */
+.popover{
+  position:fixed;
+  z-index:9999;
+  max-width:min(320px, calc(100vw - 28px));
+  background: rgba(255,255,255,.92);
+  border:1px solid rgba(0,0,0,.10);
+  border-radius:14px;
+  box-shadow: 0 22px 55px rgba(0,0,0,.18);
+  padding:10px 12px;
+  transform-origin: top left;
+  animation: secCalPop .12s ease;
+}
+@keyframes secCalPop{
+  from{ transform: scale(.98); opacity:0; }
+  to{ transform: scale(1); opacity:1; }
+}
+.secCal .popHead{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+.secCal .popTitle{ font-weight:1000; }
+.secCal .popSub{ font-size:12px; color:rgba(0,0,0,.55); margin-top:2px; }
+.secCal .iconBtn{
+  appearance:none;
+  border:1px solid rgba(0,0,0,.10);
+  background:rgba(255,255,255,.75);
+  border-radius:12px;
+  padding:6px 8px;
+  cursor:pointer;
+  box-shadow: 0 8px 18px rgba(0,0,0,.08);
+  font-weight:1000;
+  font-size:14px;
+  line-height:1;
+}
+.secCal .iconBtn:active{ transform:translateY(1px); }
+.secCal .popRow{ margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+.secCal .badge{
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; font-weight:900;
+  padding:6px 10px;
+  border-radius:999px;
+  background: rgba(225,138,106,.16);
+  border: 1px solid rgba(225,138,106,.28);
+}
+.secCal .badge.blue{ background: rgba(109,120,216,.14); border-color: rgba(109,120,216,.24); }
+.secCal .badge.red{ background: rgba(208,100,99,.14); border-color: rgba(208,100,99,.24); }
+.secCal .editBox{
+  margin-top:10px;
+  padding:10px;
+  border-radius:12px;
+  border:1px dashed rgba(0,0,0,.18);
+  background: rgba(255,255,255,.72);
+  display:none;
+}
+.secCal .editBox.show{ display:block; }
+.secCal .editBox label{ display:block; font-size:12px; color:rgba(0,0,0,.55); font-weight:900; margin-bottom:6px; }
+.secCal .editRow{ display:flex; gap:8px; align-items:center; }
+.secCal .dateInput{
+  flex:1; appearance:none;
+  border:1px solid rgba(0,0,0,.14);
+  border-radius:12px;
+  padding:10px 10px;
+  background: rgba(255,255,255,.85);
+  font-weight:900;
+}
+.secCal .saveBtn{
+  appearance:none; border:none;
+  border-radius:12px;
+  padding:10px 12px;
+  font-weight:1000;
+  background: rgba(225,138,106,.95);
+  color:#fff;
+  box-shadow: 0 10px 18px rgba(0,0,0,.12);
+  cursor:pointer;
+}
+.secCal .saveBtn:active{ transform:translateY(1px); }
+.secCal .note{ margin-top:8px; font-size:11px; color:rgba(0,0,0,.55); opacity:.85; }
+.secCal .closeHint{ margin-top:10px; font-size:11px; color: rgba(0,0,0,.55); opacity:.75; }
+
+@supports (aspect-ratio: 1 / 1){
+  .secCal .day{ aspect-ratio: 1 / 1; height:auto; min-height:auto; }
+  .secCal .dow{ height:auto; min-height:34px; }
+}
+@media (max-width: 380px){
+  .secCal .calendar{ padding:10px; }
+  .secCal .dow,.secCal .day{ padding:5px; }
+  .secCal .num{ width:24px; height:24px; }
+}
+
+/* ===== section3/4 (orders tables) ===== */
+
+
+
+
+
+
+/* ===== iPhoneでも「表の横並び」を維持（見切れは横スクロール） ===== */
+
+
+/* 念のため：狭い幅でもカード化せず、表のまま表示 */
+@media (max-width: 620px){
   
-/* ===== iOS blue text override ===== */
-button, 
-button:visited,
-button:active,
-button:focus,
-.titleIcon,
-.iconBtn,
-.btn,
-a,
-a:visited,
-a:active {
-  color: #222 !important;
-  -webkit-text-fill-color: #222 !important;
-}
-
-button {
-  -webkit-appearance: none;
-  appearance: none;
-}
-
-select {
-  color: #222;
+  
+  
+  
+  
+  
 }
 
 
-  /* UI: hide top selector row (kept for JS refs) */
-  .row2{display:none !important;}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* 完了（保険。表示はしないフィルタだけど） */
+
+
+
+
+
+
+
+
+/* mobile card rows */
+@media (max-width: 620px){
+  
+  
+  
+  
+  
+  
+  
+  
+}
+
+/* bottom sheet (shared) */
+.enueOverlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.35);
+  display:none;
+  align-items:flex-end;
+  z-index:999;
+  padding:10px;
+}
+.enueOverlay.show{ display:flex; }
+.enueSheet{
+  width:min(640px,100%);
+  margin:0 auto;
+  background:#fff;
+  border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.enueSheetHead{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-weight:900;
+}
+.enueSheetBody{ padding:12px 14px; }
+.enueSheetFoot{
+  padding:12px 14px;
+  border-top:1px solid rgba(0,0,0,.08);
+  display:flex; gap:10px;
+}
+.enueBtn{
+  flex:1;
+  border:none;
+  border-radius:14px;
+  padding:12px 12px;
+  font-weight:900;
+  cursor:pointer;
+}
+.enueBtnGhost{ background:rgba(0,0,0,.06); }
+.enueBtnPrimary{ background:#111; color:#fff; }
+
+.enueOptList{ display:grid; gap:10px; }
+.enueOpt{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:12px 12px;
+  border-radius:16px;
+  border:1px solid rgba(0,0,0,.12);
+  cursor:pointer;
+  user-select:none;
+}
+.enueOpt:active{ transform: translateY(1px); }
+.enueOpt .left{ display:flex; align-items:center; gap:10px; font-weight:900; }
+.enueOpt .right{ color:rgba(0,0,0,.55); font-weight:800; }
+.enueCheck{
+  width:18px; height:18px;
+  border-radius:6px;
+  border:2px solid rgba(0,0,0,.25);
+  background:transparent;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:900;
+}
+.enueCheck.on{ background:#111; border-color:#111; color:#fff; }
+
+.enueHiddenDate{
+  position:fixed; left:-9999px; top:-9999px;
+  opacity:0; pointer-events:none;
+}
+
+@media (prefers-reduced-motion: reduce){
+  .cardFace{ transition:none; }
+  .cardFlip.is-animating .cardFace{ filter:none; }
+  .cardFace::after{ transition:none; }
+}
+
+
+/* ===== OTHER page tiles (merged) ===== */
+/* OTHER */
+.otherCard{ padding:14px; }
+.tileGrid{
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--gap);
+}
+
+.tile{
+  position:relative;
+  appearance:none;
+  -webkit-appearance:none;
+  width:100%;
+  height: var(--tile-size);  /* ← iPhoneで確実に収める */
+  border-radius: var(--tile-r);
+
+  border: 1px solid rgba(255,255,255,.62);
+  background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.10));
+  box-shadow: var(--shadow2);
+
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+
+  padding: 11px;
+  text-align:left;
+  cursor:pointer;
+  user-select:none;
+  -webkit-tap-highlight-color: transparent;
+
+  display:flex;
+  flex-direction:column;
+  justify-content:flex-end;
+  gap:6px;
+
+  transition: transform .08s ease, background .12s ease, border-color .12s ease;
+}
+.tile::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: var(--tile-r);
+  pointer-events:none;
+  border: 1px solid rgba(0,0,0,.06);
+}
+.tile:active{ transform: scale(.985); }
+.tile:hover{
+  background: linear-gradient(180deg, rgba(255,255,255,.30), rgba(255,255,255,.14));
+  border-color: rgba(255,255,255,.75);
+}
+
+/* アイコン */
+.tileIcon{
+  position:absolute;
+  top:10px;
+  left:10px;
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  opacity:.95;
+}
+.tileIcon svg{
+  width:26px;
+  height:26px;
+  stroke: var(--icon);
+  stroke-width: 1.9;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.tileTitle{ font-weight:900; font-size:13px; line-height:1.2; }
+.tileSub{ font-weight:700; font-size:10.5px; color: rgba(34,34,34,.60); line-height:1.2; }
+
+/* さらに小さい端末（SE級）でも余裕を作る */
+@media (max-width: 360px){
+  :root{
+    --safe-pad: 12px;
+    --gap: 8px;
+    --tile-size: calc((100vw - (var(--safe-pad) * 2) - (var(--gap) * 2)) / 3);
+  }
+  .tile{ padding:10px; }
+  .tileIcon{ top:9px; left:9px; width:24px; height:24px; }
+  .tileIcon svg{ width:24px; height:24px; }
+}
+
+/* iPad以上は少し大きく（見やすさ） */
+@media (min-width: 600px){
+  :root{ --tile-size: 160px; --gap: 12px; }
+  .tileTitle{ font-size:14px; }
+  .tileSub{ font-size:11px; }
+}
+@media (min-width: 900px){
+  :root{ --tile-size: 180px; }
+}
+
+
+/* ===============================
+   FORCE TABLE LAYOUT (iPhone含む)
+   画面縦横に関係なく横並び固定
+================================ */
+
+
+
+
+
+
+/* スマホカード化用の疑似ラベルを完全無効 */
+
+
+/* 横スクロール許可 */
+
+/* =========================
+   Orders (stock/order) — purchases look & behavior
+   CSS is intentionally single-source (no duplicates)
+   ========================= */
+.secOrders{ width:100% !important; }
+.secOrders .tableWrap{
+  display:block !important;
+  width:100% !important;
+  box-sizing:border-box;
+  padding:0 22px 16px !important;          /* ← “白い枠の中で気持ちいい余白” */
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+}
+.secOrders .table{
+  width:100% !important;
+  border-collapse:collapse;
+  table-layout:fixed;
+  min-width:620px !important;              /* iPhoneで横スクロール */
+}
+.secOrders .table th,
+.secOrders .table td{
+  padding:10px;
+  font-size:13px;
+  vertical-align:middle;
+  white-space:nowrap;
+}
+.secOrders .table th{
+  text-align:left;
+  background:#f3f3f3;
+  position:sticky;
+  top:0;
+  z-index:1;
+}
+.secOrders .table tr+tr td{ border-top:1px solid rgba(0,0,0,.06); }
+
+/* chips (担当/進捗) — purchasesのピル感 */
+.secOrders .chip,
+.secOrders .assChip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background:rgba(255,255,255,.88);
+  font-weight:900;
+  cursor:pointer;
+  user-select:none;
+}
+.secOrders .chip:active,
+.secOrders .assChip:active{ transform: translateY(1px); }
+
+.secOrders .chipsAssignees{
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+  justify-content:flex-start;
+  align-items:center;
+}
+
+/* empty */
+.secOrders .emptyOrders,
+.secOrders .empty{
+  padding:18px 10px;
+  color:rgba(0,0,0,.55);
+  font-weight:800;
+}
+
+.secOrders .tap{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:8px 10px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background:rgba(255,255,255,.88);
+  font-weight:900;
+  cursor:pointer;
+  user-select:none;
+}
+.secOrders .tap:active{ transform: translateY(1px); }
+
+/* ===== purchases sheet styles (copied) ===== */
+.overlay{
+  position:fixed; inset:0;
+  background:rgba(0,0,0,.35);
+  display:none;
+  align-items:flex-end;
+  z-index:999;
+  padding:10px;
+}
+.overlay.show{ display:flex; }
+
+.sheet{
+  width:min(680px,100%);
+  margin:0 auto;
+  background:#fff;
+  border-radius:22px;
+  box-shadow:0 30px 80px rgba(0,0,0,.35);
+  overflow:hidden;
+}
+.sheetHead{
+  padding:12px 14px;
+  border-bottom:1px solid rgba(0,0,0,.08);
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  font-weight:900;
+}
+.sheetBody{ padding:12px 14px; }
+.closeBtn{
+  appearance:none;
+  border:none;
+  border-radius:14px;
+  padding:10px 12px;
+  font-weight:900;
+  cursor:pointer;
+  background:rgba(0,0,0,.06);
+}
+.kv{
+  display:grid;
+  grid-template-columns: 120px 1fr;
+  gap:8px 12px;
+  font-size:13px;
+}
+.kv .k{ color:rgba(0,0,0,.55); font-weight:900; }
+.kv .v{ font-weight:900; }
+.kv .v.mono{ font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight:800; }
+.items{
+  margin-top:12px;
+  border-top:1px solid rgba(0,0,0,.08);
+  padding-top:12px;
+}
+.itemLine{
+  display:flex; justify-content:space-between; gap:10px;
+  padding:8px 0;
+  border-bottom:1px solid rgba(0,0,0,.06);
+  font-size:13px;
+}
+.itemLine:last-child{ border-bottom:none; }
+.itemLine .n{ font-weight:900; }
+.itemLine .q{ color:rgba(0,0,0,.55); font-weight:800; }
+.itemLine .p{ font-weight:900; }
 </style>
 </head>
-
 <body>
-  <div class="safe">
-    <div class="shell">
-      <div class="topbar">
-        <h1>
-          <span class="brand-main">e.nue</span>
-          <span class="brand-sub">POS / Firestoreへ売上を保存</span>
-        </h1>
-
-        <div class="nav">
-          <a class="nav-btn" href="index.html" aria-label="戻る">← 戻る</a>
-          <span class="pill" id="statusPill">未接続</span>
-          <span class="pill" id="diffPill" style="display:none; cursor:pointer;">updates 0 / adds 0</span>
-        </div>
-      </div>
-
-      <div class="content">
-        <div class="section">
-          <div class="sectionHead">
-            <div>
-              <div class="titleRow"><h3 style="margin:0;">POS</h3></div>
-              <div class="sub">販売方法 / 決済方法 / 購入商品 → Firestoreへ送信</div>
-            </div>
-            <span class="pill" id="masterPill" style="display:none"></span>
-            <button class="titleIcon" id="mastersToggleBtn" aria-label="マスタ編集" title="マスタ編集">⚙︎</button>
-          </div>
-
-          <div class="posBody">
-            <div class="row2">
-              <span class="label">
-                販売方法
-                <select id="channelSelect"></select>
-              </span>
-
-              <span class="label" id="venueWrap" style="display:none;">
-                開催場所
-                <select id="venueSelect"></select>
-              </span>
-
-              <span class="label">
-                決済方法
-                <select id="paymentSelect"></select>
-              </span>
-            </div>
-
-            <div class="products" id="products"></div>
-
-            <button class="primary" id="checkoutBtn" type="button" disabled>決済へ進む</button>
-            <div class="total" id="totalText">合計：￥0</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Receipt Modal -->
-  <div class="modal" id="receiptModal" aria-hidden="true">
-    <div class="modalInner">
-      <div class="modalHead">
-        <h3>レシート確認</h3>
-        <button class="iconBtn" id="closeReceiptBtn" type="button">×</button>
-      </div>
-      <div class="modalBody">
-        <div class="muted" id="receiptMeta"></div>
-        <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            受注日
-            <input id="orderDateInput" type="date" />
-          </span>
-        </div>
-
-        <div style="margin-top:10px;">
-          <div class="label">購入者氏名</div>
-          <input id="receiptCustomerName" placeholder="例：山田 太郎" />
-        </div>
-
-        <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            販売方法
-            <select id="receiptChannelSelect"></select>
-          </span>
-        </div>
-
-        <div id="receiptVenueWrap" style="margin-top:10px; display:none;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            開催場所
-            <select id="receiptVenueSelect"></select>
-          </span>
-        </div>
-
-        <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            決済方法
-            <select id="receiptPaymentSelect"></select>
-          </span>
-        </div>
-
-        <div style="margin-top:10px;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            kind
-            <select id="receiptKindSelect"></select>
-          </span>
-        </div>
-
-        <div id="urgentWrap" style="margin-top:10px; display:none;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            お急ぎOP
-            <select id="urgentSelect"></select>
-          </span>
-          <div class="muted" style="margin-top:6px;">※ kind=order のときだけ表示されます</div>
-        </div>
-
-        <div id="statusWrap" style="margin-top:10px; display:none;">
-          <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-            ステータス
-            <select id="statusSelect"></select>
-          </span>
-          <div class="muted" style="margin-top:6px;">※ マルシェ以外のときだけ表示されます</div>
-        </div>
-<div id="receiptList" style="margin-top:10px;"></div>
-        <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
-
-        <div class="btnRow">
-          <button class="btn" id="cancelBtn" type="button">キャンセル</button>
-          <button class="btn primaryBtn" id="confirmBtn" type="button">確定（Firestoreへ保存）</button>
-        </div>
-
-        <div class="muted" style="margin-top:10px;">
-          ※ createdAt は serverTimestamp（サーバー時刻）で保存します。<br>
-          ※ clientCreatedAt も一緒に保存します（端末時刻 / 保険）。
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Product Master Edit Modal -->
-  <div class="modal" id="pmModal" aria-hidden="true">
-    <div class="modalInner">
-      <div class="modalHead">
-        <h3>商品マスタ（追加・修正）</h3>
-        <button class="iconBtn" id="pmCloseBtn" type="button">ⓧ</button>
-      </div>
-      <div class="modalBody">
-        <div class="muted">編集内容は <b>Firestore products_patch_updates / products_patch_adds</b> に差分として保存されます（bundleは管理者が後で更新）。</div>
-
-        <div class="editGrid">
-          <div class="field">
-            <div class="fieldTitle">対象商品</div>
-            <select id="pmSelect"></select>
-            <div class="muted" style="margin-top:6px;">※商品を選ぶと下のフォームに反映されます</div>
-          </div>
-
-          <div class="field">
-            <div class="fieldTitle">編集</div>
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-              <div>
-                <div class="label">ID</div>
-                <input id="pmId" disabled />
-              </div>
-              <div>
-                <div class="label">非表示</div>
-                <label style="display:flex; align-items:center; gap:8px; margin-top:4px;">
-                  <input id="pmHidden" type="checkbox" />
-                  <span style="font-size:12px; font-weight:800; color: var(--text-sub);">この商品を非表示にする</span>
-                </label>
-              </div>
-            </div>
-            <div style="margin-top:10px;">
-              <div class="label">商品名</div>
-              <input id="pmName" placeholder="例：バブーシュカ" />
-            </div>
-            <div style="margin-top:10px;">
-              <div class="label">価格</div>
-              <input id="pmPrice" inputmode="numeric" placeholder="例：1400" />
-            </div>
-          </div>
-        </div>
-
-        <div class="btnRow">
-          <button class="btn" id="pmDiscardBtn" type="button">破棄して閉じる</button>
-          <button class="btn primaryBtn" id="pmSaveBtn" type="button">保存して閉じる</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="toast" id="toast">保存しました</div>
-
-
-<!-- Master Menu Modal -->
-<div class="modal" id="masterMenuModal" aria-hidden="true">
-  <div class="modalInner">
-    <div class="modalHead">
-      <h3 id="mastersTitle">マスタ編集</h3>
-      <button class="iconBtn" id="masterMenuCloseBtn" type="button">ⓧ</button>
-    </div>
-    <div class="modalBody">
-      <div class="btnRow" style="flex-direction:column;">
-        <button class="btn" id="menuProductMasterBtn" type="button">商品マスタ編集</button>
-        <button class="btn" id="menuChannelsMasterBtn" type="button">販売方法マスタ編集</button>
-        <button class="btn" id="menuVenuesMasterBtn" type="button">開催場所マスタ編集</button>
-        <button class="btn" id="menuPaymentsMasterBtn" type="button">決済方法マスタ編集</button>
-        <button class="btn" id="menuKindsMasterBtn" type="button">kindマスタ編集</button>
-        <button class="btn" id="menuUrgentOptionsMasterBtn" type="button">お急ぎOPマスタ編集</button>
-      </div>
-      <div class="muted" style="margin-top:10px;">※ 変更は差分（patch）としてFirestoreに保存されます。</div>
-    </div>
-  </div>
+<div class="safe">
+<div class="topbar">
+<div class="brand">e.nue</div>
+<div aria-label="page switch" class="tabs" role="tablist">
+<button class="tab active" data-view="home" type="button">HOME</button>
+<button class="tab" data-view="other" type="button">OTHER</button>
 </div>
-
-<!-- Mode Select Modal (add / edit) -->
-<div class="modal" id="masterModeModal" aria-hidden="true">
-  <div class="modalInner">
-    <div class="modalHead">
-      <h3 id="masterModeTitle">編集モード</h3>
-      <button class="iconBtn" id="masterModeCloseBtn" type="button">ⓧ</button>
-    </div>
-    <div class="modalBody">
-      <div class="muted" id="masterModeHelp">追加か修正かを選んでください。</div>
-      <div class="btnRow" style="margin-top:12px;">
-        <button class="btn" id="masterModeAddBtn" type="button">追加</button>
-        <button class="btn primaryBtn" id="masterModeEditBtn" type="button">修正</button>
-      </div>
-    </div>
-  </div>
 </div>
+<!-- HOME -->
+<main class="grid" id="view-home">
+<!-- 1) グラフ（切替） -->
+<section class="card cardFlip" id="card-chart">
+<div class="cardFlipInner">
+<!-- FRONT：受注件数 -->
+<div class="cardFace front">
+<div class="cardHead">
+<div class="title">
+<div class="h" id="chartTitleA">受注件数の推移</div>
+<div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+</div>
+<div class="badgeBig">
+<div class="k" id="metricLabelA">受注件数</div>
+<div class="v" id="metricValueA">—</div>
+</div>
+</div>
+<div class="chartWrap">
+<div class="chartFrame">
+<div class="yAxisFixed" id="yAxisFixedA"></div>
+<div class="chartScroller" id="chartScrollerA">
+<div class="chartInner">
+<div class="chartMount" id="chartMountA"></div>
+</div>
+</div>
+</div>
+<div class="hint">
+<span class="tapHint" id="flipHintA">👆 タップで「総資産の推移」に切替</span>
+</div>
+</div>
+</div>
+<!-- BACK：総資産 -->
+<div class="cardFace back">
+<div class="cardHead">
+<div class="title">
+<div class="h" id="chartTitleB">総資産の推移</div>
+<div class="s">横スクロール：過去1年分（表示中範囲で縦軸が自動調整）</div>
+</div>
+<div class="badgeBig">
+<div class="k" id="metricLabelB">総資産</div>
+<div class="v" id="metricValueB">—</div>
+</div>
+</div>
+<div class="chartWrap">
+<div class="chartFrame">
+<div class="yAxisFixed" id="yAxisFixedB"></div>
+<div class="chartScroller" id="chartScrollerB">
+<div class="chartInner">
+<div class="chartMount" id="chartMountB"></div>
+</div>
+</div>
+</div>
+<div class="hint">
+<span class="tapHint" id="flipHintB">👆 タップで「受注件数の推移」に切替</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- 2) カレンダー -->
+<section class="card">
+<div class="cardHead">
+<div class="title">
+<div class="h">カレンダー</div>
+<div class="s">予定日の吹き出しに✏️を付けて日付変更（ローカル保存）</div>
+</div>
+<div class="badgeBig">
+<div class="k">表示月</div>
+<div class="v" id="monthLabelMini">—</div>
+</div>
+</div>
+<div class="secCal">
+<div class="calendar">
+<div class="calBox" id="calBox">
+<div class="calTop">
+<div class="calTopLeft">
+<button class="todayBtn" id="todayBtn" type="button">today</button>
+<button class="navBtn" id="prevBtn" type="button">≪</button>
+<button class="navBtn" id="nextBtn" type="button">≫</button>
+</div>
+<div class="monthLabel" id="monthLabel">----</div>
+<div class="calTopRight">
+<button class="modeBtn" id="modeBtn" type="button">Sun–Sat</button>
+</div>
+</div>
+<div class="calViewport" id="calViewport"></div>
+</div>
+</div>
+</div>
+</section>
+<!-- 3) 受注残：stock -->
+<section class="card">
+<div class="listTitle">受注残：stock</div>
+<div class="list secOrders" id="secStock">
+<div class="tableWrap">
+<table aria-label="stock orders" class="table ordersTable"><colgroup><col style="width:34%;"/><col style="width:18%;"/><col style="width:18%;"/><col style="width:30%;"/></colgroup>
+<thead class="thead">
+<tr>
+<th style="width:46%;">名前</th>
+<th style="width:22%;">期日</th>
+<th style="width:20%;">進捗</th>
+<th style="width:12%; text-align:right;">担当</th>
+</tr>
+</thead>
+<tbody id="tbodyStock"></tbody>
+</table>
+<div class="emptyOrders" id="emptyStock" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+</div>
+</div>
+</section>
+<!-- 4) 受注残：order -->
+<section class="card">
+<div class="listTitle">受注残：order</div>
+<div class="list secOrders" id="secOrder">
+<div class="tableWrap">
+<table aria-label="made-to-order" class="table ordersTable"><colgroup><col style="width:34%;"/><col style="width:18%;"/><col style="width:18%;"/><col style="width:30%;"/></colgroup>
+<thead class="thead">
+<tr>
+<th style="width:46%;">名前</th>
+<th style="width:22%;">期日</th>
+<th style="width:20%;">進捗</th>
+<th style="width:12%; text-align:right;">担当</th>
+</tr>
+</thead>
+<tbody id="tbodyOrder"></tbody>
+</table>
+<div class="emptyOrders" id="emptyOrder" style="display:none;">表示できるデータがありません（マルシェ以外の購入履歴が未作成）</div>
+</div>
+</div>
+</section>
+<!-- Stock/Order 共通：Bottom sheet -->
+<div aria-modal="true" class="enueOverlay" id="overlayOrders" role="dialog">
+<div class="enueSheet" onclick="event.stopPropagation()">
+<div class="enueSheetHead">
+<div id="sheetTitle">編集</div>
+<button class="enueBtn enueBtnGhost" id="closeBtn" style="flex:0 0 auto; padding:10px 12px;">閉じる</button>
+</div>
+<div class="enueSheetBody" id="sheetBody"></div>
+<div class="enueSheetFoot" id="sheetFoot" style="display:none;">
+<button class="enueBtn enueBtnGhost" id="cancelBtn">キャンセル</button>
+<button class="enueBtn enueBtnPrimary" id="saveBtn">保存</button>
+</div>
+</div>
+</div>
+<input class="enueHiddenDate" id="datePicker" type="date"/>
+</main>
+<!-- OTHER -->
+<main class="grid" id="view-other" style="display:none;">
+<section class="card otherCard">
+<div class="tileGrid" id="tileGrid">
+<!-- POS（レジアイコン付き） -->
+<button aria-label="POSへ" class="tile" data-href="pos.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- レジ（黒線）SVG -->
+<svg viewbox="0 0 24 24">
+<path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-8z"></path>
+<path d="M8 10V7a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v3"></path>
+<path d="M8 14h2M12 14h2M16 14h2"></path>
+<path d="M8 17h2M12 17h2M16 17h2"></path>
+<path d="M5 12h14"></path>
+<path d="M16 5h2v3"></path>
+</svg>
+</div>
+<div class="tileTitle">POS</div>
+<div class="tileSub">pos.html</div>
+</button>
+<button class="tile" data-href="assets.html" type="button">
+<div class="tileTitle">資産管理</div>
+<div class="tileSub">assets.html</div>
+</button>
+<button class="tile" data-href="monthly_history.html" type="button">
+<div class="tileTitle">売上管理</div>
+<div class="tileSub">monthly_history.html</div>
+</button>
+<button class="tile" data-href="expenses.html" type="button">
+<div class="tileTitle">支出管理</div>
+<div class="tileSub">expenses.html</div>
+</button>
+<button class="tile" data-href="receipt_claims.html" type="button">
+<div class="tileTitle">領収申請</div>
+<div class="tileSub">receipt_claims.html</div>
+</button>
 
-
-
-  <!-- Masters Modal (simple masters: channels/venues/payments/kinds) -->
-  <div class="modal" id="mastersModal" aria-hidden="true">
-    <div class="modalInner">
-      <div class="modalHead">
-        <h3>マスタ編集</h3>
-        <button class="iconBtn" id="mastersCloseBtn" type="button">ⓧ</button>
-      </div>
-      <div class="modalBody">
-        <div class="muted" style="margin-bottom:10px;">
-          ※ ここでの変更は「差分（patch）」としてFirestoreに保存されます。bundle(JSON)はGitHub側。
-        </div>
-
-        <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-          <span class="label" style="display:none; align-items:center; gap:8px;">
-            対象
-            <select id="masterTypeSelect">
-              <option value="channels">販売方法マスタ</option>
-              <option value="venues">開催場所マスタ</option>
-              <option value="payments">決済方法マスタ</option>
-              <option value="kinds">kindマスタ</option>
-            </select>
-          </span>
-
-          <button class="btn btnDanger" id="masterDeleteRowBtn" type="button">行を削除</button>
-          <button class="btn" id="masterAddRowBtn" type="button">＋追加</button>
-        </div>
-
-        <div id="masterRows" style="margin-top:12px; display:grid; gap:10px;"></div>
-
-        <div class="muted" style="margin-top:10px;">
-          ルール：bundleに存在するID → updates、bundleに無いID → adds
-        </div>
-
-        <!-- Save button at bottom -->
-        <div style="margin-top:14px; display:flex;">
-          <button class="btn primaryBtn" id="masterSaveBtn" type="button" style="width:100%; justify-content:center;">
-            保存して閉じる
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  
-  <!-- Admin diff breakdown (header next to status) -->
-  <div id="diffPop" style="display:none; position:fixed; right:18px; top:64px; z-index:60;
-    background: rgba(255,255,255,.95); border:1px solid rgba(0,0,0,.08); border-radius:14px;
-    padding:10px 12px; box-shadow:0 18px 45px rgba(0,0,0,.14); max-width:280px; font-size:13px; line-height:1.35;">
-    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:6px;">
-      <div style="font-weight:700;">差分内訳</div>
-      <button id="exportDiffCsvBtn" class="btn" style="padding:6px 10px; font-size:12px; border-radius:10px;">CSV出力</button>
-    </div>
-    <div id="diffPopLines"></div>
-  </div>
-
-<!-- Admin patch summary -->
-  <div id="patchPill" class="pill" style="display:none; position:fixed; right:18px; bottom:18px; z-index:50; cursor:pointer;">
-    差分：0
-  </div>
-  <div id="patchPop" style="display:none; position:fixed; right:18px; bottom:62px; z-index:51; background:rgba(255,255,255,.95); border:1px solid rgba(0,0,0,.08); border-radius:14px; padding:12px 14px; box-shadow:0 18px 45px rgba(0,0,0,.14); min-width:220px;">
-    <div style="font-weight:800; margin-bottom:6px;">差分内訳</div>
-    <div id="patchBreakdown" class="muted"></div>
-  </div>
+<button class="tile" data-href="order.html" type="button">
+<div class="tileTitle">オーダー</div>
+<div class="tileSub">order.html</div>
+</button>
+<button class="tile" data-href="shipping.html" type="button">
+<div class="tileTitle">発送</div>
+<div class="tileSub">shipping.html</div>
+</button>
+<button class="tile" data-href="sales.html" type="button">
+<div class="tileTitle">売上</div>
+<div class="tileSub">sales.html</div>
+</button>
+<button class="tile" data-href="income.html" type="button">
+<div class="tileTitle">入金</div>
+<div class="tileSub">income.html</div>
+</button>
+<button class="tile" data-href="analytics.html" type="button">
+<div class="tileTitle">分析</div>
+<div class="tileSub">analytics.html</div>
+</button>
+</div>
+</section>
+</main>
+</div>
 <script type="module">
-  console.log("POS COMPLETE build 2025-12-27");
-/* =====================================================
-   Firebase imports
-===================================================== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import {
+  initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
+import { getAuth,
+  onAuthStateChanged,
+  setPersistence,
+  browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 import {
   getFirestore,
   collection,
-  addDoc,
   getDocs,
-  serverTimestamp,
+  query,
+  where,
+  orderBy,
+  limit,
+  Timestamp,
   doc,
-  setDoc
+  updateDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
-import { getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
 
-/* =====================================================
-   Firebase config（あなたの dev）
-===================================================== */
 const firebaseConfig = {
       apiKey: "AIzaSyAhPCgPoJK6S6BWVcBZOruYqMPXVQXQFRk",
       authDomain: "handmade-pos.firebaseapp.com",
@@ -759,1822 +1073,1855 @@ const firebaseConfig = {
       appId: "1:174873514252:web:c26659bffca850d475f929"
     };
 
-/* =====================================================
-   DOM helpers
-===================================================== */
-const $ = (id) => document.getElementById(id);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+await setPersistence(auth, browserLocalPersistence);
+const db = getFirestore(app);
 
-const $statusPill   = $("statusPill");
-const $channelSelect = $("channelSelect");
-const $venueSelect   = $("venueSelect");
-const $venueWrap     = $("venueWrap");
-const $paymentSelect = $("paymentSelect");
+/* =========================================================
+   Dashboard Top Chart Data
+   - 受注件数：sales の件数（monthly_history が参照する sales と同じ）
+   - 総資産　：assets コレクションの月次総資産
+   ※ 既存の flip/モーションはそのまま。データだけ差し替え。
+========================================================= */
 
-const $products   = $("products");
-const $totalText  = $("totalText");
-const $checkoutBtn = $("checkoutBtn");
-
-const $receiptModal = $("receiptModal");
-const $receiptMeta  = $("receiptMeta");
-const $receiptList  = $("receiptList");
-const $receiptTotal = $("receiptTotal");
-const $orderDateInput = $("orderDateInput");
-const $kindSelect = $("receiptKindSelect");
-const $urgentWrap = $("urgentWrap");
-const $urgentSelect = $("urgentSelect");
-const $statusWrap = $("statusWrap");
-const $statusSelect = $("statusSelect");
-const $receiptChannelSelect = $("receiptChannelSelect");
-const $receiptVenueWrap = $("receiptVenueWrap");
-const $receiptVenueSelect = $("receiptVenueSelect");
-const $receiptPaymentSelect = $("receiptPaymentSelect");
-const $receiptCustomerName  = $("receiptCustomerName");
-
-const $mastersToggleBtn = $("mastersToggleBtn");
-const $masterMenuModal = $("masterMenuModal");
-const $masterMenuCloseBtn = $("masterMenuCloseBtn");
-const $menuProductMasterBtn = $("menuProductMasterBtn");
-const $menuChannelsMasterBtn = $("menuChannelsMasterBtn");
-const $menuVenuesMasterBtn = $("menuVenuesMasterBtn");
-const $menuPaymentsMasterBtn = $("menuPaymentsMasterBtn");
-const $menuKindsMasterBtn = $("menuKindsMasterBtn");
-const $menuUrgentOptionsMasterBtn = $("menuUrgentOptionsMasterBtn");
-
-const $masterModeModal = $("masterModeModal");
-const $masterModeTitle = $("masterModeTitle");
-const $masterModeHelp  = $("masterModeHelp");
-const $masterModeCloseBtn = $("masterModeCloseBtn");
-const $masterModeAddBtn  = $("masterModeAddBtn");
-const $masterModeEditBtn = $("masterModeEditBtn");
-
-let pendingMasterKey = null; // "products" | "channels" | "venues" | "payments" | "kinds"
-let pendingMasterLabel = "";
-let pendingMasterEditMode = null; // "add" | "edit"
-const $mastersModal = $("mastersModal");
-const $mastersCloseBtn = $("mastersCloseBtn");
-const $mastersTitle = $("mastersTitle");
-const $masterTypeSelect = $("masterTypeSelect");
-const $masterRows = $("masterRows");
-const $masterAddRowBtn = $("masterAddRowBtn");
-const $masterDeleteRowBtn = $("masterDeleteRowBtn");
-const $masterSaveBtn = $("masterSaveBtn");
-const $patchPill = $("patchPill");
-const $patchPop = $("patchPop");
-const $patchBreakdown = $("patchBreakdown");
-const $diffPill = $("diffPill");
-const $diffPop = $("diffPop");
-const $diffPopLines = $("diffPopLines");
-const $exportDiffCsvBtn = $("exportDiffCsvBtn");
-
-if($exportDiffCsvBtn){
-  $exportDiffCsvBtn.addEventListener("click", async (e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    try{ await exportAllDiffsOneCsv(); }
-    catch(err){ console.error(err); alert("CSV出力に失敗しました"); }
-  });
+function monthKey(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  return `${y}-${m}`;
 }
-const $closeReceiptBtn = $("closeReceiptBtn");
-const $cancelBtn = $("cancelBtn");
-const $confirmBtn = $("confirmBtn");
 
-const $toast = $("toast");
+function buildLast12Months(){
+  const now = new Date();
+  const keys = [];
+  const labels = [];
+  for(let i=11;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    keys.push(monthKey(d));
+    labels.push(`${d.getMonth()+1}月`);
+  }
+  return { keys, labels };
+}
 
-// ===== Receipt preview state =====
-let __receiptItems = [];
-let __receiptBaseTotal = 0;
+function saleToDateMs(d){
+  try{
+    if(!d) return 0;
 
+    // ① 受注日（最優先）
+    if(typeof d.orderDateMs === "number" && Number.isFinite(d.orderDateMs)) return d.orderDateMs;
 
-/* =====================================================
-   Receipt Modal open / close
-===================================================== */
-function setReceiptModalOpen(open){
-  if(!$receiptModal) return;
-  if(open){
-    $receiptModal.classList.add("show");
-    $receiptModal.setAttribute("aria-hidden","false");
-  }else{
-    $receiptModal.classList.remove("show");
-    $receiptModal.setAttribute("aria-hidden","true");
+    if(typeof d.orderDate === "string" && d.orderDate.trim()){
+      const t = Date.parse(d.orderDate.trim());
+      if(Number.isFinite(t)) return t;
+    }
+
+    // ② createdAt（フォールバック）
+    if(typeof d.createdAt?.toDate === "function"){
+      const t = d.createdAt.toDate();
+      return t?.getTime?.() || 0;
+    }
+    if(d.createdAt && typeof d.createdAt.seconds === "number"){
+      return d.createdAt.seconds*1000;
+    }
+
+    // ③ その他の候補（保険）
+    const msCand = [
+      d.createdAtMs,
+      d.clientCreatedAt,
+      d.createdAt
+    ];
+    for(const v of msCand){
+      if(typeof v === "number" && Number.isFinite(v)) return v;
+      if(typeof v === "string"){
+        const t = Date.parse(v);
+        if(Number.isFinite(t)) return t;
+      }
+    }
+    return 0;
+  }catch{ return 0; }
+}
+
+async function loadBundleSalesForChart(){
+  const candidates = [
+    "./sales_bundle.json",
+    "sales_bundle.json",
+    "./bundle/sales_bundle.json",
+    "bundle/sales_bundle.json"
+  ];
+  for(const url of candidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok) continue;
+      const json = await res.json();
+      const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
+      if(!arr.length) return { list: [], throughMs: 0 };
+
+      let throughMs = 0;
+      const list = arr.map((row, idx)=>{
+        const id = String(row.id || row.saleId || `bundle_${idx}`);
+        const ms = saleToDateMs(row);
+        if(ms > throughMs) throughMs = ms;
+        return { id, ms, raw: row };
+      });
+      return { list, throughMs };
+    }catch(_e){
+      // try next
+    }
+  }
+  return { list: [], throughMs: 0 };
+}
+
+async function loadSalesForChart(){
+  // bundle + firebase（monthly_history と同じ「read節約」思想）
+  const bundle = await loadBundleSalesForChart();
+  const bundleList = bundle.list || [];
+
+  // 直近12ヶ月の開始（月初）を基準に取得（受注日基準でブレないように）
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth()-11, 1);
+  start.setHours(0,0,0,0);
+  const startMs = start.getTime();
+
+  let fbList = [];
+
+  // ① orderDateMs があるデータは、受注日で範囲取得（推奨）
+  try{
+    const q1 = query(
+      collection(db, "sales"),
+      where("orderDateMs", ">=", startMs),
+      orderBy("orderDateMs", "asc"),
+      limit(5000)
+    );
+    const snap1 = await getDocs(q1);
+    snap1.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const ms = saleToDateMs(d);
+      fbList.push({ id: docSnap.id, ms, raw: d });
+    });
+  }catch(e){
+    // orderDateMs が未整備 / インデックス等で失敗してもページは死なない
+    // console.warn("orderDateMs query failed", e);
+  }
+
+  // ② orderDateMs が無い古いデータ保険：createdAt で直近を補完
+  try{
+    const since = Timestamp.fromMillis(startMs);
+    const q2 = query(
+      collection(db, "sales"),
+      where("createdAt", ">=", since),
+      orderBy("createdAt", "asc"),
+      limit(5000)
+    );
+    const snap2 = await getDocs(q2);
+    snap2.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const ms = saleToDateMs(d) || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0);
+      fbList.push({ id: docSnap.id, ms, raw: d });
+    });
+  }catch(e){
+    // さらにフォールバック（最低限）
+    try{
+      const q3 = query(collection(db, "sales"), orderBy("createdAt", "desc"), limit(300));
+      const snap3 = await getDocs(q3);
+      snap3.forEach(docSnap=>{
+        const d = docSnap.data() || {};
+        const ms = saleToDateMs(d) || 0;
+        if(ms >= startMs) fbList.push({ id: docSnap.id, ms, raw: d });
+      });
+    }catch(_e){
+      fbList = [];
+    }
+  }
+
+  // bundle + firebase を id で統合（firebase側を優先）
+  const map = new Map();
+  for(const s of bundleList) map.set(s.id, s);
+  for(const s of fbList) map.set(s.id, s);
+  return [...map.values()];
+}
+
+function pickNumberDeep(obj, paths){
+  // paths: ["a","b.c","d.e.f"]
+  for(const path of paths){
+    if(!path) continue;
+    const parts = String(path).split(".");
+    let cur = obj;
+    for(const k of parts){
+      if(cur == null) { cur = undefined; break; }
+      cur = cur[k];
+    }
+    const n = Number(cur);
+    if(Number.isFinite(n)) return n;
+  }
+  return null;
+}
+
+function guessAssetMonthKey(d){
+  // 1) year/month 形式
+  const y = Number(d?.year ?? d?.Y ?? d?.yyyy);
+  const m = Number(d?.month ?? d?.M ?? d?.mm);
+  if(Number.isFinite(y) && Number.isFinite(m) && y>1900 && m>=1 && m<=12){
+    return `${y}-${String(m).padStart(2,"0")}`;
+  }
+
+  // 2) よくあるキー文字列（ym / yearMonth 等）
+  const candidates = [
+    d?.ym, d?.yearMonth, d?.year_month, d?.monthKey, d?.month_id, d?.monthId,
+    d?.monthStr, d?.targetYm, d?.targetYM, d?.yyyymm, d?.yyyymmKey,
+    d?.key, d?.id, d?.__docId
+  ].map(v=> (v==null? "" : String(v)).trim()).filter(Boolean);
+
+  for(const s of candidates){
+    if(/^\d{4}-\d{2}$/.test(s)) return s;
+    if(/^\d{6}$/.test(s)) return `${s.slice(0,4)}-${s.slice(4,6)}`;
+    if(/^\d{4}\/\d{2}$/.test(s)) return s.replace("/","-");
+  }
+
+  // 3) 日付系から推測
+  const dateLike = d?.date || d?.asOf || d?.as_of || d?.createdAt || d?.updatedAt || d?.ts || d?.timestamp;
+  const dt = toDate(dateLike);
+  if(dt) return monthKey(new Date(dt.getFullYear(), dt.getMonth(), 1));
+
+  return "";
+}
+
+async function loadAssetsMonthlyForChart(){
+  // assets 系コレクション名が環境でブレても拾えるようにする
+  const colNames = [
+    "assets", "monthly_assets", "monthlyAssets", "assets_monthly", "asset_history", "assetsHistory", "assetMonthly"
+  ];
+
+  const latestByMonth = new Map();
+
+  for(const colName of colNames){
+    try{
+      const qy = query(collection(db, colName), limit(8000));
+      const snap = await getDocs(qy);
+
+      snap.forEach(docSnap=>{
+        const d = docSnap.data() || {};
+        const mk = guessAssetMonthKey({ ...d, __docId: docSnap.id });
+        if(!mk) return;
+
+        const total = pickNumberDeep(d, [
+          "total","totalAssets","netWorth","assets","amount","value","sum",
+          "summary.total","summary.totalAssets","summary.netWorth",
+          "totals.total","totals.totalAssets","totals.netWorth",
+          "aggregate.total","aggregate.totalAssets","aggregate.netWorth"
+        ]);
+        if(total === null) return;
+
+        const updatedMs = (
+          (typeof d.updatedAt?.toDate === "function" ? d.updatedAt.toDate().getTime() : 0)
+          || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0)
+          || Number(d.updatedAtMs || d.updatedMs || d.ts || 0)
+          || 0
+        );
+
+        const prev = latestByMonth.get(mk);
+        if(!prev || updatedMs >= prev.updatedMs){
+          latestByMonth.set(mk, { total, updatedMs, _col: colName });
+        }
+      });
+    }catch(_e){
+      // ignore and try next
+    }
+  }
+
+  return latestByMonth;
+}
+
+async function buildDashboardChartSeries(){
+  const { keys, labels } = buildLast12Months();
+
+  // 受注件数（sales件数）
+  const sales = await loadSalesForChart();
+  const countByMonth = new Map(keys.map(k=>[k,0]));
+  for(const s of sales){
+    const ms = Number(s.ms || 0);
+    if(!ms) continue;
+    const mk = monthKey(new Date(ms));
+    if(countByMonth.has(mk)) countByMonth.set(mk, (countByMonth.get(mk)||0) + 1);
+  }
+  const ordersSeries = keys.map(k=> countByMonth.get(k) || 0);
+
+  // 総資産（assetsコレクションが無い前提）
+  // = (売上合計 - 支出合計) を月次で積み上げた「累計」を表示
+  // ※ assets.html の「総資産＝（売上−支出）」の思想に合わせる
+  let assetsSeries = keys.map(()=>0);
+
+  try{
+    // 支出（expense_receipts.sum）を全件（上限8000）読み、月次で合算
+    const expSnap = await getDocs(query(collection(db, "expense_receipts"), limit(8000)));
+    const expByMonth = new Map();
+    expSnap.forEach(docSnap=>{
+      const d = docSnap.data() || {};
+      const y = Number(d.year);
+      const m = Number(d.month);
+      if(!(Number.isFinite(y) && Number.isFinite(m) && y>1900 && m>=1 && m<=12)) return;
+      const mk = `${y}-${String(m).padStart(2,"0")}`;
+      const v = Number(d.sum || 0) || 0;
+      expByMonth.set(mk, (expByMonth.get(mk)||0) + v);
+    });
+
+    // 売上（sales.total）を月次で合算
+    const salesByMonth = new Map();
+    for(const s of sales){
+      const ms = Number(s.ms || 0);
+      if(!ms) continue;
+      const mk = monthKey(new Date(ms));
+      const v = Number(s.total || 0) || 0;
+      salesByMonth.set(mk, (salesByMonth.get(mk)||0) + v);
+    }
+
+    // 対象期間の「開始月」より前も含めて累計を作るため、
+    // 取得できた全月キーで時系列ソート → ランニング合計
+    const allKeysSet = new Set([...salesByMonth.keys(), ...expByMonth.keys()]);
+    const allKeys = [...allKeysSet].filter(k=>/^\d{4}-\d{2}$/.test(k)).sort();
+
+    const running = new Map();
+    let acc = 0;
+    for(const mk of allKeys){
+      const s = salesByMonth.get(mk) || 0;
+      const e = expByMonth.get(mk) || 0;
+      acc += (s - e);
+      running.set(mk, acc);
+    }
+
+    // 直近12ヶ月の表示キーに合わせて値を並べる（データ無しは直前値を保持）
+    let last = 0;
+    assetsSeries = keys.map(k=>{
+      if(running.has(k)){
+        last = running.get(k) || 0;
+        return last;
+      }
+      // その月のデータが無い場合も「累計」は前月のまま
+      return last;
+    });
+  }catch(_e){
+    // 取れない場合は0のまま
+    assetsSeries = keys.map(()=>0);
+  }
+
+  return { months: labels, ordersSeries, assetsSeries };
+}
+
+/* =========
+   helpers
+========= */
+function toDate(v){
+  try{
+    if(!v) return null;
+    if (typeof v.toDate === "function") return v.toDate(); // Firestore Timestamp
+    if (v instanceof Date) return v;
+    if (typeof v === "number") return new Date(v);
+    if (typeof v === "string") {
+      const d = new Date(v);
+      return isNaN(d.getTime()) ? null : d;
+    }
+    return null;
+  }catch(_){
+    return null;
   }
 }
 
-// 背景（オーバーレイ）タップで閉じる
-if($receiptModal){
-  $receiptModal.addEventListener("click", (e)=>{
-    if(e.target === $receiptModal) setReceiptModalOpen(false);
+function fmtDate(d){
+  if(!d) return "-";
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const dd = String(d.getDate()).padStart(2,"0");
+  return `${y}/${m}/${dd}`;
+}
+
+function safeText(v){
+  if(v === null || v === undefined) return "-";
+  const s = String(v).trim();
+  return s ? s : "-";
+}
+
+function setLoading(text){
+  const emptyStock = document.getElementById("emptyStock");
+  const emptyOrder = document.getElementById("emptyOrder");
+  if (emptyStock) { emptyStock.style.display = ""; emptyStock.textContent = text; }
+  if (emptyOrder) { emptyOrder.style.display = ""; emptyOrder.textContent = text; }
+}
+
+function clearTable(tbodyId){
+  const tb = document.getElementById(tbodyId);
+  if(tb) tb.innerHTML = "";
+}
+
+function showEmpty(emptyId, msg){
+  const el = document.getElementById(emptyId);
+  if(el){ el.style.display = ""; el.textContent = msg; }
+}
+
+function hideEmpty(emptyId){
+  const el = document.getElementById(emptyId);
+  if(el) el.style.display = "none";
+}
+
+const ASSIGNEE_OPTIONS = ["藤原","川原"];
+
+function progressOptions(kind){
+  return (kind === "stock")
+    ? ["未着手","進行中","完了"]
+    : ["未着手","作成中","完了"];
+}
+
+function ensureOrdersOverlayBase(){
+  const overlay = document.getElementById("overlayOrders");
+  const sheetTitle = document.getElementById("sheetTitle");
+  const sheetBody  = document.getElementById("sheetBody");
+  const sheetFoot  = document.getElementById("sheetFoot");
+  const closeBtn   = document.getElementById("closeBtn");
+  const cancelBtn  = document.getElementById("cancelBtn");
+  const saveBtn    = document.getElementById("saveBtn");
+  return { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn };
+}
+
+async function refreshOrdersTables(){
+  await Promise.all([
+    loadSalesByKind("stock", "tbodyStock", "emptyStock"),
+    loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
+  ]);
+}
+
+function openProgressSheet(kind, row){
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody) return;
+
+  sheetTitle.textContent = "進捗を選択";
+  sheetBody.innerHTML = "";
+  if(sheetFoot) sheetFoot.style.display = "none";
+
+  const opts = progressOptions(kind);
+  const list = document.createElement("div");
+  list.className = "enueOptList";
+
+  const current = (row.progress || "未着手").toString().trim() || "未着手";
+
+  opts.forEach(s=>{
+    const opt = document.createElement("div");
+    opt.className = "enueOpt";
+    opt.innerHTML = `
+      <div class="left"><span style="font-weight:900;">${s}</span></div>
+      <div class="right">${current === s ? "選択中" : ""}</div>
+    `;
+    opt.onclick = async ()=>{
+      try{
+        await updateDoc(doc(db, "sales", row.id), { progress: s });
+        overlay.classList.remove("show");
+        await refreshOrdersTables();
+      }catch(e){
+        console.error(e);
+        alert("進捗の保存に失敗しました（Firestoreのupdate権限を確認）");
+      }
+    };
+    list.appendChild(opt);
   });
+
+  sheetBody.appendChild(list);
+
+  // open/close
+  overlay.classList.add("show");
+  if(closeBtn) closeBtn.onclick = ()=> overlay.classList.remove("show");
+  overlay.onclick = (e)=>{ if(e.target === overlay) overlay.classList.remove("show"); };
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") overlay.classList.remove("show"); }, { once:true });
+}
+
+function openAssigneeSheet(row){
+  const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn, saveBtn } = ensureOrdersOverlayBase();
+  if(!overlay || !sheetTitle || !sheetBody || !sheetFoot || !cancelBtn || !saveBtn) return;
+
+  const current = Array.isArray(row.assignees) ? row.assignees : [];
+  const draft = new Set(current);
+
+  sheetTitle.textContent = "担当を選択（複数可）";
+  sheetBody.innerHTML = "";
+  sheetFoot.style.display = "flex";
+
+  const list = document.createElement("div");
+  list.className = "enueOptList";
+
+  function renderList(){
+    list.innerHTML = "";
+    ASSIGNEE_OPTIONS.forEach(a=>{
+      const on = draft.has(a);
+
+      const opt = document.createElement("div");
+      opt.className = "enueOpt";
+
+      const left = document.createElement("div");
+      left.className = "left";
+
+      const chk = document.createElement("span");
+      chk.className = "enueCheck" + (on ? " on" : "");
+      chk.textContent = on ? "✓" : "";
+
+      const name = document.createElement("span");
+      name.style.fontWeight = "900";
+      name.textContent = a;
+
+      left.appendChild(chk);
+      left.appendChild(name);
+
+      const right = document.createElement("div");
+      right.className = "right";
+      right.textContent = on ? "選択中" : "";
+
+      opt.appendChild(left);
+      opt.appendChild(right);
+
+      opt.onclick = ()=>{
+        if(draft.has(a)) draft.delete(a);
+        else draft.add(a);
+        renderList();
+      };
+
+      list.appendChild(opt);
+    });
+  }
+
+  renderList();
+  sheetBody.appendChild(list);
+
+  cancelBtn.onclick = ()=> overlay.classList.remove("show");
+  saveBtn.onclick = async ()=>{
+    try{
+      await updateDoc(doc(db, "sales", row.id), { assignees: Array.from(draft) });
+      overlay.classList.remove("show");
+      await refreshOrdersTables();
+    }catch(e){
+      console.error(e);
+      alert("担当の保存に失敗しました（Firestoreのupdate権限を確認）");
+    }
+  };
+
+  overlay.classList.add("show");
+  if(closeBtn) closeBtn.onclick = ()=> overlay.classList.remove("show");
+  overlay.onclick = (e)=>{ if(e.target === overlay) overlay.classList.remove("show"); };
+  window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") overlay.classList.remove("show"); }, { once:true });
+}
+
+function renderRows(tbodyId, rows, kind){
+  const tb = document.getElementById(tbodyId);
+  if(!tb) return;
+  tb.innerHTML = "";
+
+  for(const r of rows){
+    const tr = document.createElement("tr");
+
+    const tdName = document.createElement("td");
+    tdName.textContent = safeText(r.customerName || r.name || r.buyerName);
+
+    const tdDue = document.createElement("td");
+    const due = toDate(r.dueDate || r.deadline || r.deliveryDate || r.date);
+    tdDue.textContent = fmtDate(due);
+
+    const tdProg = document.createElement("td");
+    const progTap = document.createElement("div");
+    progTap.className = "tap";
+    progTap.role = "button";
+    progTap.tabIndex = 0;
+    progTap.textContent = safeText((r.progress || "未着手"));
+    progTap.onclick = ()=> openProgressSheet(kind, r);
+    progTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openProgressSheet(kind, r); } };
+    tdProg.appendChild(progTap);
+
+    const tdAss = document.createElement("td");
+    tdAss.style.textAlign = "right";
+    const assTap = document.createElement("div");
+    assTap.className = "tap";
+    assTap.role = "button";
+    assTap.tabIndex = 0;
+
+    const showAss = Array.isArray(r.assignees) && r.assignees.length
+      ? r.assignees.join(" / ")
+      : "-";
+
+    assTap.textContent = showAss;
+    assTap.onclick = ()=> openAssigneeSheet(r);
+    assTap.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openAssigneeSheet(r); } };
+
+    tdAss.appendChild(assTap);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdDue);
+    tr.appendChild(tdProg);
+    tr.appendChild(tdAss);
+    tb.appendChild(tr);
+  }
 }
 
 
-/* =====================================================
-   Firebase init
-===================================================== */
-let db = null;
-let firebaseOk = false;
-let currentUser = null; // auth user
+async function loadSalesByKind(kind, tbodyId, emptyId){
+  clearTable(tbodyId);
+  hideEmpty(emptyId);
 
-// ===== Auth state shared vars (declare early to avoid timing issues) =====
-const ADMIN_EMAIL = "enue_staff03@management.com";
-let currentUserEmail = null;
-
-
-function openMasterMenu(){
-  if(!$masterMenuModal) return;
-  $masterMenuModal.classList.add("show");
-}
-function closeMasterMenu(){
-  if(!$masterMenuModal) return;
-  $masterMenuModal.classList.remove("show");
-}
-
-// ⚙ マスタメニューを開く
-if($mastersToggleBtn) $mastersToggleBtn.addEventListener("click", openMasterMenu);
-function openModeModal(key, label){
-  pendingMasterKey = key;
-  pendingMasterLabel = label;
-  pendingMasterEditMode = null;
-  if($masterModeTitle) $masterModeTitle.textContent = `${label}：追加 or 修正`;
-  if($masterModeHelp) $masterModeHelp.textContent = "追加か修正かを選んでください。";
-  $masterModeModal.classList.add("show");
-}
-function closeModeModal(){
-  $masterModeModal.classList.remove("show");
-}
-
-function setStatus(ok, text){
-  firebaseOk = ok;
-  $statusPill.textContent = text;
-  $checkoutBtn.disabled = !ok;
-}
-
-async function bootFirebase(){
   try{
-    const app = initializeApp(firebaseConfig);
+    // createdAt は POS 側で serverTimestamp() の想定
+    const qy = query(
+      collection(db, "sales"),
+      where("kind", "==", kind),
+      orderBy("createdAt", "desc"),
+      limit(200)
+    );
 
-    // Firestore
-    db = getFirestore(app);
+    const snap = await getDocs(qy);
+    let rows = snap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // Auth
-    const auth = getAuth(app);
-    await setPersistence(auth, browserLocalPersistence);
+    // progress が「完了」のものは除外（フィールドが無い場合は表示）
+    rows = rows.filter(r => {
+      const p = (r.progress ?? "").toString().trim();
+      return p !== "完了";
+    });
 
-    // ログインしてなければログイン画面へ（ログイン後はこのPOSへ戻す）
-    onAuthStateChanged(auth, async (user) => {
-      currentUser = user;
-      currentUserEmail = user?.email || null;
+    // 期日っぽいフィールドがあればそれ優先で昇順に並べ替え
+    rows.sort((a,b)=>{
+      const da = toDate(a.dueDate || a.deadline || a.deliveryDate || a.date) || new Date(8640000000000000);
+      const dbb = toDate(b.dueDate || b.deadline || b.deliveryDate || b.date) || new Date(8640000000000000);
+      return da - dbb;
+    });
 
-      if (!user) {
-        location.href = 'login.html?redirect=' + encodeURIComponent('pos.html');
+    if(rows.length === 0){
+      showEmpty(emptyId, "表示できるデータがありません");
+      return;
+    }
+
+    renderRows(tbodyId, rows, kind);
+  }catch(e){
+    console.error(e);
+    showEmpty(emptyId, "読み込みに失敗しました（権限 or クエリ条件を確認）");
+  }
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    const redirect = encodeURIComponent("index.html");
+    location.href = `login.html?redirect=${redirect}`;
+    return;
+  }
+
+  // ログイン済み：受注残を読み込む
+  setLoading("読み込み中…");
+
+  // 受注一覧 ＋ 上部グラフデータ（本データ）を同時に読む
+  const [chart] = await Promise.all([
+    buildDashboardChartSeries().catch(()=>({ months: [], ordersSeries: [], assetsSeries: [] })),
+    loadSalesByKind("stock", "tbodyStock", "emptyStock"),
+    loadSalesByKind("order", "tbodyOrder", "emptyOrder"),
+  ]);
+
+  // 非module側（既存のflip/モーション）に渡す
+  window.__dashboardChartData = chart;
+  window.dispatchEvent(new CustomEvent("dashboard:chartDataReady", { detail: chart }));
+});
+</script>
+<script>
+(()=> {
+  try{
+    /* ===== 画面切替 ===== */
+    const tabs = document.querySelectorAll(".tab");
+    const viewHome = document.getElementById("view-home");
+    const viewOther = document.getElementById("view-other");
+
+    tabs.forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        tabs.forEach(b=>b.classList.remove("active"));
+        btn.classList.add("active");
+        const v = btn.dataset.view;
+        viewHome.style.display = (v==="home") ? "" : "none";
+        viewOther.style.display = (v==="other") ? "" : "none";
+      });
+    });
+
+
+    /* ===== OTHER: tile navigation ===== */
+    const tileGrid = document.getElementById("tileGrid");
+    if(tileGrid){
+      tileGrid.addEventListener("click", (e)=>{
+        const tile = e.target.closest(".tile");
+        if(!tile) return;
+        const href = tile.dataset.href;
+        if(href) location.href = href;
+      });
+    }
+
+    /* ===== グラフ用データ（本データは module 側から注入） ===== */
+    let months = [];
+    let ordersSeries = [];
+    let assetsSeries = [];
+
+    const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
+    const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
+    const down5 = v => Math.floor(v/5)*5;
+    const up5   = v => Math.ceil(v/5)*5;
+
+    /* ===== flip要素 ===== */
+    const cardChart = document.getElementById("card-chart");
+    const flipHintA = document.getElementById("flipHintA");
+    const flipHintB = document.getElementById("flipHintB");
+
+    if(flipHintA) flipHintA.style.display = "none";
+    if(flipHintB) flipHintB.style.display = "none";
+
+    const A = {
+      mount: document.getElementById("chartMountA"),
+      yAxis: document.getElementById("yAxisFixedA"),
+      scroller: document.getElementById("chartScrollerA"),
+      metricValue: document.getElementById("metricValueA"),
+      _pts:[],
+      scale: null,
+      anim: null
+    };
+    const B = {
+      mount: document.getElementById("chartMountB"),
+      yAxis: document.getElementById("yAxisFixedB"),
+      scroller: document.getElementById("chartScrollerB"),
+      metricValue: document.getElementById("metricValueB"),
+      _pts:[],
+      scale: null,
+      anim: null
+    };
+
+    let isFlipped = false;
+
+    /* ===== 表示範囲 ===== */
+    function getVisibleRange(scroller, {padL,xStep,N}){
+      const sl = scroller.scrollLeft;
+      const vw = scroller.clientWidth;
+      const s  = Math.floor((sl-padL)/xStep);
+      const e  = Math.ceil(((sl+vw)-padL)/xStep);
+      return [clamp(s,0,N-1), clamp(e,0,N-1)];
+    }
+
+    /* ===== スケール計算 ===== */
+    function computeScale(series,i0,i1,isOrders){
+      const slice = series.slice(i0,i1+1);
+      let minV = Math.min(...slice);
+      let maxV = Math.max(...slice);
+
+      const range = (maxV-minV) || 1;
+      const pad = range*0.05;
+
+      let minS = minV - pad;
+      let maxS = maxV + pad;
+
+      if(isOrders){
+        minS = down5(minS);
+        maxS = up5(maxS);
+        if(maxS - minS < 20) maxS = minS + 20;
+        if(maxS === minS) maxS = minS + 20;
+        return {minS,maxS,step:null};
+      }else{
+        const base = 50000; // 5万刻み
+        minS = Math.floor(minS/base)*base;
+        maxS = Math.ceil (maxS/base)*base;
+
+        let step = Math.ceil(((maxS - minS) / 4) / base) * base;
+        if(step < base) step = base;
+
+        maxS = minS + step*4;
+        return {minS,maxS,step};
+      }
+    }
+
+    function makeTicksFromScale(scale){
+      const {minS,maxS,step} = scale;
+      const arr=[];
+      if(step){
+        for(let i=0;i<5;i++) arr.push(minS + step*i);
+        return arr;
+      }
+      const d=(maxS-minS)/4;
+      for(let i=0;i<5;i++) arr.push(minS + d*i);
+      arr[0]=minS; arr[arr.length-1]=maxS;
+      return arr;
+    }
+
+    function labelFor(v,isOrders){
+      return isOrders ? `${Math.round(v)}` : `${Math.round(v/10000)}万`;
+    }
+
+    function renderYAxis(elems, {ticks,yToPx,H,isOrders}){
+      elems.yAxis.innerHTML = `
+        <svg width="42" height="${H}">
+          ${ticks.map(v=>{
+            const y=yToPx(v);
+            return `<text x="34" y="${y+4}" text-anchor="end"
+              font-size="11" fill="rgba(34,34,34,.55)" font-weight="900">
+              ${labelFor(v,isOrders)}
+            </text>`;
+          }).join("")}
+        </svg>
+      `;
+    }
+
+    /* ===== tooltip ===== */
+    function removeTooltip(svg){
+      const old = svg.querySelector(".chartTooltip");
+      if(old) old.remove();
+    }
+    function showTooltip(svg, x, y, text){
+      removeTooltip(svg);
+
+      const ns = "http://www.w3.org/2000/svg";
+      const g = document.createElementNS(ns, "g");
+      g.setAttribute("class","chartTooltip");
+
+      const t = document.createElementNS(ns, "text");
+      t.textContent = text;
+      t.setAttribute("text-anchor","middle");
+      t.setAttribute("x", x);
+      t.setAttribute("y", y - 14);
+
+      g.appendChild(t);
+      svg.appendChild(g);
+
+      const bbox = t.getBBox();
+      const padX = 10, padY = 6;
+
+      const r = document.createElementNS(ns, "rect");
+      r.setAttribute("x", bbox.x - padX);
+      r.setAttribute("y", bbox.y - padY);
+      r.setAttribute("width", bbox.width + padX*2);
+      r.setAttribute("height", bbox.height + padY*2);
+
+      g.insertBefore(r, t);
+    }
+
+    /* ===== 描画：scale指定で描く ===== */
+    function renderWithScale(elems, mode, scale){
+      const isOrders = (mode === "orders");
+      const series = isOrders ? ordersSeries : assetsSeries;
+
+      const N=series.length;
+      const xStep=96;
+      const H=220;
+      const padT=14, padB=42, padR=16;
+      const innerH=H-padT-padB;
+      const W=16 + xStep*(N-1) + padR;
+
+      elems.mount.style.width = `${42 + W}px`;
+
+      const ticks = scale.ticks;
+      const {minS,maxS} = scale;
+
+      const latest=series[N-1];
+      elems.metricValue.textContent = isOrders ? `${latest}件` : formatJPY(latest);
+
+      const denom = (maxS - minS) || 1;
+      const yToPx = v => padT + (1 - (v - minS) / denom) * innerH;
+
+      renderYAxis(elems, {ticks,yToPx,H,isOrders});
+
+      const pts = series.map((v,i)=>({x:42+i*xStep, y:yToPx(v), v}));
+      const path = pts.map((p,i)=> i ? `L ${p.x},${p.y}` : `M ${p.x},${p.y}`).join(" ");
+
+      elems.mount.innerHTML = `
+        <svg width="${42+W}" height="${H}" viewBox="0 0 ${42+W} ${H}">
+          ${ticks.map(v=>{
+            const y=yToPx(v);
+            return `<line x1="42" y1="${y}" x2="${42+W-padR}" y2="${y}" stroke="rgba(0,0,0,.10)"/>`;
+          }).join("")}
+
+          <path d="${path} L ${pts.at(-1).x},${padT+innerH} L ${pts[0].x},${padT+innerH} Z"
+                fill="rgba(225,138,106,.18)"/>
+
+          <path d="${path}" fill="none" stroke="rgba(225,138,106,.95)"
+                stroke-width="3" stroke-linecap="round"/>
+
+          ${pts.map(p=>`
+            <circle cx="${p.x}" cy="${p.y}" r="6"
+              fill="rgba(255,255,255,.95)" stroke="rgba(34,34,34,.28)" stroke-width="2"/>
+          `).join("")}
+
+          ${months.map((m,i)=>`
+            <text x="${42+i*xStep}" y="${H-18}" text-anchor="middle"
+              font-size="12" fill="rgba(34,34,34,.65)" font-weight="900">${m}</text>
+          `).join("")}
+        </svg>
+      `;
+
+      elems._pts = pts.map(p=>({
+        x:p.x, y:p.y,
+        label: isOrders ? `${p.v}件` : formatJPY(p.v)
+      }));
+    }
+
+    function calcTargetScale(elems, mode){
+      const isOrders = (mode === "orders");
+      const series = isOrders ? ordersSeries : assetsSeries;
+      const N = series.length;
+      const xStep = 96;
+
+      const [i0,i1] = getVisibleRange(elems.scroller, {padL:42, xStep, N});
+      const s = computeScale(series, i0, i1, isOrders);
+      const ticks = makeTicksFromScale(s);
+
+      return { ...s, ticks, isOrders };
+    }
+
+    function lerp(a,b,t){ return a + (b-a)*t; }
+    function easeOutCubic(t){ return 1 - Math.pow(1-t, 3); }
+
+    function animateScale(elems, mode, toScale){
+      const fromScale = elems.scale || toScale;
+
+      const same = (Math.abs(fromScale.minS - toScale.minS) < 1e-6) && (Math.abs(fromScale.maxS - toScale.maxS) < 1e-6);
+      if(same){
+        elems.scale = toScale;
+        renderWithScale(elems, mode, toScale);
         return;
       }
 
-      // 管理者のみ：差分件数の可視化（diffPill + 吹き出し）
-      try{ await refreshPatchSummary(); }catch(e){ /* noop */ }
+      if(elems.anim && elems.anim.raf) cancelAnimationFrame(elems.anim.raf);
+
+      const anim = {
+        from: fromScale,
+        to: toScale,
+        start: performance.now(),
+        dur: 260,
+        raf: 0
+      };
+      elems.anim = anim;
+
+      const step = (now)=>{
+        const t = clamp((now - anim.start) / anim.dur, 0, 1);
+        const k = easeOutCubic(t);
+
+        const cur = {
+          minS: lerp(anim.from.minS, anim.to.minS, k),
+          maxS: lerp(anim.from.maxS, anim.to.maxS, k),
+          step: anim.to.step,
+          isOrders: anim.to.isOrders,
+          ticks: anim.to.ticks.map((tv, i)=>{
+            const fv = anim.from.ticks[i] ?? anim.from.ticks.at(-1);
+            return lerp(fv, tv, k);
+          })
+        };
+
+        elems.scale = cur;
+        renderWithScale(elems, mode, cur);
+
+        if(t < 1){
+          anim.raf = requestAnimationFrame(step);
+        }else{
+          elems.scale = anim.to;
+          renderWithScale(elems, mode, anim.to);
+        }
+      };
+
+      anim.raf = requestAnimationFrame(step);
+    }
+
+    function initChart(elems, mode){
+      const target = calcTargetScale(elems, mode);
+      elems.scale = target;
+      renderWithScale(elems, mode, target);
+
+      elems.scroller.scrollLeft = elems.scroller.scrollWidth - elems.scroller.clientWidth;
+
+      const target2 = calcTargetScale(elems, mode);
+      elems.scale = target2;
+      renderWithScale(elems, mode, target2);
+    }
+
+    function attachSmoothScaleOnScroll(elems, mode){
+      let raf = 0;
+      elems.scroller.addEventListener("scroll", ()=>{
+        if(raf) return;
+        raf = requestAnimationFrame(()=>{
+          raf = 0;
+          const target = calcTargetScale(elems, mode);
+          animateScale(elems, mode, target);
+        });
+      }, {passive:true});
+    }
+
+    function attachTapToShowTooltip(elems){
+      let downX=0, downY=0, moved=false;
+
+      const onDown = (e)=>{
+        const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        downX=p.clientX; downY=p.clientY;
+        moved=false;
+      };
+      const onMove = (e)=>{
+        const p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+        if(Math.abs(p.clientX-downX)>6 || Math.abs(p.clientY-downY)>6) moved=true;
+      };
+      const onUp = (e)=>{
+        if(moved) return;
+
+        const svg = elems.mount.querySelector("svg");
+        if(!svg) return;
+
+        const rect = svg.getBoundingClientRect();
+        const p = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
+        const x = p.clientX - rect.left;
+        const y = p.clientY - rect.top;
+
+        if(x<0 || y<0 || x>rect.width || y>rect.height){
+          removeTooltip(svg);
+          return;
+        }
+
+        const vb = svg.viewBox.baseVal;
+        const sx = vb.width / rect.width;
+        const sy = vb.height / rect.height;
+        const vx = x * sx;
+        const vy = y * sy;
+
+        const pts = elems._pts || [];
+        let best=null, bestD=1e9;
+        for(const pt of pts){
+          const dx=pt.x-vx, dy=pt.y-vy;
+          const d2=dx*dx+dy*dy;
+          if(d2<bestD){bestD=d2; best=pt;}
+        }
+
+        const threshold = 14*14;
+        if(best && bestD<=threshold){
+          showTooltip(svg, best.x, best.y, best.label);
+        }else{
+          removeTooltip(svg);
+        }
+      };
+
+      elems.scroller.addEventListener("pointerdown", onDown, {passive:true});
+      elems.scroller.addEventListener("pointermove", onMove, {passive:true});
+      elems.scroller.addEventListener("pointerup",   onUp,   {passive:true});
+
+      elems.scroller.addEventListener("touchstart", onDown, {passive:true});
+      elems.scroller.addEventListener("touchmove",  onMove, {passive:true});
+      elems.scroller.addEventListener("touchend",   onUp,   {passive:true});
+    }
+
+    /* ===== 起動（グラフ） ===== */
+    let chartsStarted = false;
+    function startCharts(){
+      if(chartsStarted) return;
+      if(!Array.isArray(months) || months.length !== 12) return;
+      if(!Array.isArray(ordersSeries) || ordersSeries.length !== 12) return;
+      if(!Array.isArray(assetsSeries) || assetsSeries.length !== 12) return;
+
+      chartsStarted = true;
+      initChart(A, "orders");
+      initChart(B, "assets");
+      attachSmoothScaleOnScroll(A, "orders");
+      attachSmoothScaleOnScroll(B, "assets");
+      attachTapToShowTooltip(A);
+      attachTapToShowTooltip(B);
+    }
+
+    // module側でデータが用意できたら差し込む
+    function applyChartData(d){
+      if(!d) return;
+      months = Array.isArray(d.months) ? d.months : months;
+      ordersSeries = Array.isArray(d.ordersSeries) ? d.ordersSeries : ordersSeries;
+      assetsSeries = Array.isArray(d.assetsSeries) ? d.assetsSeries : assetsSeries;
+      startCharts();
+    }
+
+    // すでに入っている場合（リロード/キャッシュ）
+    applyChartData(window.__dashboardChartData);
+    // 後から来る場合
+    window.addEventListener("dashboard:chartDataReady", (e)=>{
+      applyChartData(e?.detail);
     });
 
-    setStatus(true, "Firestore接続OK");
-  }catch(e){
-    console.error(e);
-    setStatus(false, "Firestore未接続");
-    alert("Firebase初期化に失敗しました");
-  }
-}
-
-/* =====================================================
-   Settings
-===================================================== */
-const LS_SETTINGS_KEY = "pos_settings_v2";
-
-const POS_PREFS_URL = "./pos_prefs_bundle.json";
-let posPrefs = { defaults: { channelId: null, venueId: null, paymentByChannel: {} } };
-
-async function loadPosPrefs(){
-  try{
-    const res = await fetch(POS_PREFS_URL, { cache: "no-store" });
-    if(!res.ok){
-      console.warn(`[prefs] missing: ${POS_PREFS_URL} (${res.status}) -> fallback to localStorage/masters`);
-      return;
+    /* ===== flip ===== */
+    const ANIM_MS = 650;
+    function flip(){
+      isFlipped = !isFlipped;
+      cardChart.classList.add("is-animating");
+      cardChart.classList.toggle("is-flipped", isFlipped);
+      setTimeout(()=> cardChart.classList.remove("is-animating"), ANIM_MS);
     }
-    const json = await res.json();
-    const d = json.defaults || json.default || json || {};
-    posPrefs = {
-      defaults: {
-        channelId: d.channelId ?? d.defaultChannelId ?? null,
-        venueId: d.venueId ?? d.defaultVenueId ?? null,
-        paymentByChannel: d.paymentByChannel ?? d.defaultPaymentByChannel ?? {}
-      }
+    cardChart.addEventListener("click", (e)=>{
+      if(e.target.closest(".chartScroller")) return;
+      flip();
+    });
+    if(flipHintA) flipHintA.addEventListener("click", (e)=>{ e.stopPropagation(); flip(); });
+    if(flipHintB) flipHintB.addEventListener("click", (e)=>{ e.stopPropagation(); flip(); });
+
+    /* ===== section2: Calendar ===== */
+    const HOLIDAY_API = "https://holidays-jp.github.io/api/v1/date.json";
+    const LS_EVENTS = "enue_events_v1";
+    const LS_POPUPS = "enue_popups_v1";
+
+    const defaultPopups = ["2025-12-10","2025-12-11"];
+    const defaultEvents = {
+      "2025-12-08": { color:"blue",   title:"現地MT", memo:"14:00〜" },
+      "2025-12-15": { color:"orange", title:"発送締め", memo:"" }
     };
-  }catch(e){
-    console.warn("[prefs] load failed -> fallback", e);
-  }
-}
 
-function detectPaymentIdByLabelIncludes(keyword){
-  const k = String(keyword || "").toLowerCase();
-  const hit = (masters.payments || []).find(x=>{
-    const id = String(x.id || "").toLowerCase();
-    const label = String(x.label ?? x.name ?? "").toLowerCase();
-    return id.includes(k) || label.includes(k);
-  });
-  return hit?.id || null;
-}
-
-function resolveDefaultChannelId(){
-  // 1) schedule override (future)
-  if(typeof resolveChannelBySchedule === 'function'){
-    const s = resolveChannelBySchedule(new Date());
-    if(s) return s;
-  }
-
-  // 2) prefs (strong default)
-  if(posPrefs?.defaults?.channelId) return posPrefs.defaults.channelId;
-
-  // 3) localStorage settings (fallback)
-  if(settings.currentChannel) return settings.currentChannel;
-
-  // 3) auto-detect instagram
-  if(INSTAGRAM_CHANNEL_ID) return INSTAGRAM_CHANNEL_ID;
-
-  // 4) first master
-  return masters.channels?.[0]?.id || "";
-}
-
-function resolveDefaultVenueId(){
-  if(settings.currentVenue) return settings.currentVenue;
-  if(posPrefs?.defaults?.venueId) return posPrefs.defaults.venueId;
-  return masters.venues?.[0]?.id || "";
-}
-
-function resolveDefaultPaymentId(channelId){
-  // 1) user last choice by channel
-  if(settings.lastPaymentByChannel && settings.lastPaymentByChannel[channelId]){
-    return settings.lastPaymentByChannel[channelId];
-  }
-
-  // 2) prefs mapping
-  const mapped = posPrefs?.defaults?.paymentByChannel?.[channelId];
-  if(mapped) return mapped;
-
-  // 3) heuristic fallback (not hardcode by id, detect by label)
-  if(channelId === "marche"){
-    return detectPaymentIdByLabelIncludes("cash") || detectPaymentIdByLabelIncludes("現金") || masters.payments?.[0]?.id || "";
-  }
-  if(channelId === INSTAGRAM_CHANNEL_ID){
-    return detectPaymentIdByLabelIncludes("paypay") || detectPaymentIdByLabelIncludes("PayPay") || masters.payments?.[0]?.id || "";
-  }
-  return masters.payments?.[0]?.id || "";
-}
-
-
-const defaultSettings = {
-  currentChannel: "",
-  currentVenue: "",
-  paymentMethod: "",
-  paymentMethods: [],
-  kind: "",
-  lastPaymentByChannel: {},
-};
-
-
-function migratePaymentMethod(s){
-  const map = { "現金":"cash", "PayPay":"paypay", "クレカ":"credit", "その他":"other" };
-  if(map[s.paymentMethod]) s.paymentMethod = map[s.paymentMethod];
-  return s;
-}
-function loadSettings(){
-  try{
-    const raw = localStorage.getItem(LS_SETTINGS_KEY);
-    const s = raw ? { ...defaultSettings, ...JSON.parse(raw) } : structuredClone(defaultSettings);
-    return migratePaymentMethod(s);
-  }catch{
-    return structuredClone(defaultSettings);
-  }
-}
-function saveSettings(){
-  localStorage.setItem(LS_SETTINGS_KEY, JSON.stringify(settings));
-}
-
-let settings = loadSettings();
-
-/* =====================================================
-   商品マスタ（bundle + updates/adds patch）
-===================================================== */
-const BUNDLE_URL = "./products_bundle.json";
-let products = [];
-let baseIdSet = new Set(); // bundleに存在するID
-
-const COL_PATCH_UPDATES = "products_patch_updates";
-const COL_PATCH_ADDS    = "products_patch_adds";
-
-async function loadProductsFromBundle(){
-  const res = await fetch(BUNDLE_URL, { cache: "no-store" });
-  if(!res.ok) throw new Error("bundle fetch failed");
-  const json = await res.json();
-  return (json.products || []).filter(p => p.active !== false);
-}
-
-async function loadProductsWithPatch(){
-  const base = await loadProductsFromBundle();
-  baseIdSet = new Set(base.map(p => p.id));
-
-  // base map
-  const map = new Map(base.map(p => [p.id, { ...p }]));
-
-  let updatesCount = 0;
-  let addsCount = 0;
-
-  // 1) updates: 既存IDへ上書き
-  try{
-    const snapU = await getDocs(collection(db, COL_PATCH_UPDATES));
-    snapU.forEach(d=>{
-      const id = d.id;
-      const patch = d.data() || {};
-      const cur = map.get(id) || { id };
-      map.set(id, { ...cur, ...patch, id });
-      updatesCount++;
-    });
-  }catch(e){
-    console.warn("patch_updates read failed", e);
-  }
-
-  // 2) adds: 新規商品として追加
-  try{
-    const snapA = await getDocs(collection(db, COL_PATCH_ADDS));
-    snapA.forEach(d=>{
-      const id = d.id;
-      const patch = d.data() || {};
-      const cur = map.get(id) || { id };
-      // addsは「新規商品」扱いなので、baseになくても追加される
-      map.set(id, { ...cur, ...patch, id });
-      addsCount++;
-    });
-  }catch(e){
-    console.warn("patch_adds read failed", e);
-  }
-
-  // base順に並べ、残り（adds由来など）を末尾へ
-  const ordered = [];
-  for(const p of base){
-    const merged = map.get(p.id);
-    if(merged && merged.active !== false) ordered.push(merged);
-    map.delete(p.id);
-  }
-  for(const merged of map.values()){
-    if(merged.active !== false) ordered.push(merged);
-  }
-
-  return { products: ordered, updatesCount, addsCount };
-}
-
-/* =====================================================
-   UI render
-===================================================== */
-function renderSettingsUI(){
-  // チャンネル（販売方法）
-  fillSelect($channelSelect, masters.channels, settings.currentChannel);
-  if(!$channelSelect.value && $channelSelect.options.length){
-    $channelSelect.selectedIndex = 0;
-    settings.currentChannel = $channelSelect.value;
-  }else{
-    settings.currentChannel = $channelSelect.value;
-  }
-
-  // 開催場所（マルシェの時だけ表示）
-  fillSelect($venueSelect, masters.venues, settings.currentVenue);
-  if(!$venueSelect.value && $venueSelect.options.length){
-    $venueSelect.selectedIndex = 0;
-    settings.currentVenue = $venueSelect.value;
-  }else{
-    settings.currentVenue = $venueSelect.value;
-  }
-
-  // 決済方法
-  fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
-  if(!$paymentSelect.value && $paymentSelect.options.length){
-    $paymentSelect.selectedIndex = 0;
-    settings.paymentMethod = $paymentSelect.value;
-  }else{
-    settings.paymentMethod = $paymentSelect.value;
-  }
-
-  $venueWrap.style.display = (settings.currentChannel === "marche") ? "inline-flex" : "none";
-}
-/* =====================================================
-   Channel → Payment default rules
-   - 販売方法 初期値：インスタ
-   - 販売方法=インスタ → 決済初期値=PayPay
-   - 販売方法=マルシェ → 決済初期値=現金
-   - マルシェ初期値でも「開催場所」が必ず表示されるようにする（トグル往復不要）
-===================================================== */
-let INSTAGRAM_CHANNEL_ID = "instagram"; // masters読込後に自動検出で上書きする
-
-function detectInstagramChannelId(){
-  const hit = (masters.channels || []).find(x=>{
-    const id = (x.id || "").toLowerCase();
-    const label = (x.label ?? x.name ?? "").toString();
-    return id.includes("insta") || id.includes("instagram") || label.includes("インスタ");
-  });
-  if(hit?.id) INSTAGRAM_CHANNEL_ID = hit.id;
-}
-
-function setPaymentIfExists(paymentId){
-  if(!$paymentSelect) return;
-  const exists = [...$paymentSelect.options].some(o => o.value === paymentId);
-  if(!exists) return;
-  $paymentSelect.value = paymentId;
-  settings.paymentMethod = paymentId;
-}
-
-function applyChannelRules(opts={ forcePayment:false }){
-  const ch = settings.currentChannel;
-
-  // venue visibility（マルシェのときだけ）
-  if($venueWrap) $venueWrap.style.display = (ch === "marche") ? "inline-flex" : "none";
-
-  // payment default（チャンネルごと：prefs → last choice → fallback）
-  if(opts.forcePayment){
-    const p = resolveDefaultPaymentId(ch);
-    if(p) setPaymentIfExists(p);
-  }
-}
-
-
-function renderProducts(){
-  $products.innerHTML = "";
-
-  products.forEach(p=>{
-    const row = document.createElement("div");
-    row.className = "product-row";
-
-    const left = document.createElement("div");
-    left.className = "product-left";
-
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.dataset.id = p.id;
-
-    const name = document.createElement("div");
-    name.className = "product-name";
-    name.textContent = p.name;
-
-    const price = document.createElement("span");
-    price.className = "product-price";
-    price.textContent = `￥${p.price}`;
-
-    name.appendChild(price);
-    left.appendChild(cb);
-    left.appendChild(name);
-
-    const qty = document.createElement("div");
-    qty.className = "qty";
-    const sel = document.createElement("select");
-    sel.disabled = true;
-    for(let i=1;i<=10;i++){
-      const o=document.createElement("option");
-      o.value=o.textContent=i;
-      sel.appendChild(o);
+    function loadJson(key, fallback){
+      try{
+        const s = localStorage.getItem(key);
+        if(!s) return fallback;
+        return JSON.parse(s);
+      }catch(e){
+        return fallback;
+      }
+    }
+    function saveJson(key, value){
+      localStorage.setItem(key, JSON.stringify(value));
     }
 
-    cb.addEventListener("change",()=>{
-      sel.disabled = !cb.checked;
-      updateTotal();
-    });
-    sel.addEventListener("change", updateTotal);
+    let POPUP_DATES = new Set(loadJson(LS_POPUPS, defaultPopups));
+    let EVENTS = loadJson(LS_EVENTS, defaultEvents);
 
-    qty.appendChild(sel);
-    qty.append(" 個");
+    const calBox = document.getElementById("calBox");
+    const calViewport = document.getElementById("calViewport");
+    const monthLabel = document.getElementById("monthLabel");
+    const monthLabelMini = document.getElementById("monthLabelMini");
 
-    row.append(left, qty);
-    $products.appendChild(row);
-  });
+    const todayBtn = document.getElementById("todayBtn");
+    const prevBtn  = document.getElementById("prevBtn");
+    const nextBtn  = document.getElementById("nextBtn");
+    const modeBtn  = document.getElementById("modeBtn");
 
-  updateTotal();
-}
+    const pad2 = n => String(n).padStart(2,"0");
+    const ymd = (dt) => `${dt.getFullYear()}-${pad2(dt.getMonth()+1)}-${pad2(dt.getDate())}`;
 
-/* =====================================================
-   POS logic
-===================================================== */
-function getSelected(){
-  const items = [];
-  let total = 0;
+    const now = new Date();
+    const baseMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    let view = new Date(baseMonth);
 
-  document.querySelectorAll(".product-row").forEach(row=>{
-    const cb = row.querySelector("input[type=checkbox]");
-    const sel = row.querySelector("select");
-    if(!cb.checked) return;
+    const MIN = new Date(baseMonth.getFullYear(), baseMonth.getMonth()-12, 1);
+    const MAX = new Date(baseMonth.getFullYear(), baseMonth.getMonth()+12, 1);
 
-    const p = products.find(x=>x.id===cb.dataset.id);
-    const qty = Number(sel.value);
-    const subtotal = p.price * qty;
+    const storedMode = localStorage.getItem("enue_dow_mode");
+    let dowMode = storedMode === "mon" ? "mon" : "sun";
 
-    items.push({
-      id: p.id,
-      name: p.name,
-      unitPrice: p.price,
-      qty,
-      subtotal
-    });
-    total += subtotal;
-  });
+    let holidayMap = null;
 
-  return { items, total };
-}
-
-function updateTotal(){
-  const { total } = getSelected();
-  $totalText.textContent = `合計：￥${total}`;
-}
-
-function todayYMD(){
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth()+1).padStart(2,"0");
-  const day = String(d.getDate()).padStart(2,"0");
-  return `${y}-${m}-${day}`;
-}
-
-/* =====================================================
-   Firestore write
-===================================================== */
-/* =====================================================
-   Simple masters (bundle + patch): channels / venues / payments / kinds
-===================================================== */
-const MASTER_DEFS = {
-  channels: { bundleUrl: "./channels_bundle.json", updates: "channels_patch_updates", adds: "channels_patch_adds" },
-  venues:   { bundleUrl: "./venues_bundle.json",   updates: "venues_patch_updates",   adds: "venues_patch_adds" },
-  payments: { bundleUrl: "./payments_bundle.json", updates: "payments_patch_updates", adds: "payments_patch_adds" },
-  kinds:    { bundleUrl: "./kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" },
-  urgentOptions: { bundleUrl: "./urgent_options_bundle.json", updates: "urgent_options_patch_updates", adds: "urgent_options_patch_adds" }
-};
-
-const masters = { channels: [], venues: [], payments: [], kinds: [], urgentOptions: [] };
-const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new Set(), kinds: new Set(), urgentOptions: new Set() };
-
-async function loadSimpleBundle(key){
-  const def = MASTER_DEFS[key];
-  try{
-    const res = await fetch(def.bundleUrl, { cache: "no-store" });
-    if(!res.ok){
-      console.warn(`[masters] bundle missing: ${def.bundleUrl} (${res.status}) -> empty bundle used for ${key}`);
-      return [];
+    function updateCellSize(){
+      if(!calBox) return;
+      const rect = calBox.getBoundingClientRect();
+      const innerW = rect.width - 2;
+      const cell = Math.floor(innerW / 7);
+      const clamped = Math.max(44, Math.min(74, cell));
+      document.documentElement.style.setProperty("--cell", clamped + "px");
     }
-    const json = await res.json();
-    const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
-    return Array.isArray(arr) ? arr : [];
-  }catch(e){
-    console.warn(`[masters] bundle load failed: ${def.bundleUrl} -> empty bundle used for ${key}`, e);
-    return [];
-  }
-}
+    if(calBox && window.ResizeObserver){
+      new ResizeObserver(updateCellSize).observe(calBox);
+    }
+    updateCellSize();
 
-async function loadSimplePatch(key){
-  // patch read は権限やログインタイミングで失敗することがある。
-  // その場合でも bundle は使って UI を壊さないため、ここは必ず「空パッチ」で継続する。
-  const def = MASTER_DEFS[key];
-  let updatesSnap = null;
-  let addsSnap = null;
+    async function loadHolidays(){
+      if(holidayMap) return holidayMap;
+      try{
+        const res = await fetch(HOLIDAY_API, { cache:"force-cache" });
+        holidayMap = await res.json();
+      }catch(e){
+        console.warn("holiday api fetch failed", e);
+        holidayMap = {};
+      }
+      return holidayMap;
+    }
 
-  try{ updatesSnap = await getDocs(collection(db, def.updates)); }
-  catch(e){ console.warn(`[masters] patch updates read failed: ${key}`, e); }
+    function getDows(){
+      return (dowMode === "mon")
+        ? ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+        : ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+    }
+    function dayToCol(day){
+      if(dowMode === "sun") return day;
+      return (day + 6) % 7;
+    }
+    function syncModeBtn(){
+      if(!modeBtn) return;
+      modeBtn.textContent = (dowMode === "sun") ? "Sun–Sat" : "Mon–Sun";
+    }
 
-  try{ addsSnap = await getDocs(collection(db, def.adds)); }
-  catch(e){ console.warn(`[masters] patch adds read failed: ${key}`, e); }
+    let popEl = null;
+    function closePopover(){ if(popEl){ popEl.remove(); popEl=null; } }
 
-  const updates = {};
-  const adds = [];
+    function openPopover(targetEl, html, onMount){
+      closePopover();
+      const r = targetEl.getBoundingClientRect();
+      popEl = document.createElement("div");
+      popEl.className = "popover"; /* ★CSSと一致 */
+      popEl.innerHTML = html;
+      document.body.appendChild(popEl);
 
-  if(updatesSnap){
-    updatesSnap.forEach(d=> updates[d.id] = d.data());
-  }
-  if(addsSnap){
-    addsSnap.forEach(d=> adds.push({ id: d.id, ...d.data() }));
-  }
+      const pr = popEl.getBoundingClientRect();
+      let x = r.left + 6;
+      let y = r.bottom + 8;
+      if(x + pr.width > window.innerWidth - 10) x = window.innerWidth - pr.width - 10;
+      if(y + pr.height > window.innerHeight - 10) y = r.top - pr.height - 8;
+      if(y < 10) y = 10;
+      popEl.style.left = x + "px";
+      popEl.style.top  = y + "px";
 
-  return { 
-    updates, 
-    adds, 
-    updatesCount: updatesSnap ? updatesSnap.size : 0, 
-    addsCount: addsSnap ? addsSnap.size : 0
-  };
-}
+      if(typeof onMount === "function") onMount(popEl);
+    }
 
-async function initSimpleMaster(key){
-  const bundle = await loadSimpleBundle(key);
-  masterBundleIds[key] = new Set(bundle.map(x=>x.id));
+    function escapeHtml(s){
+      return String(s)
+        .replaceAll("&","&amp;")
+        .replaceAll("<","&lt;")
+        .replaceAll(">","&gt;")
+        .replaceAll('"',"&quot;")
+        .replaceAll("'","&#39;");
+    }
 
-  const patch = await loadSimplePatch(key);
+    function moveSchedule(oldKey, newKey){
+      if(!newKey || newKey === oldKey) return;
 
-  const merged = bundle.map(x => patch.updates[x.id] ? ({ ...x, ...patch.updates[x.id] }) : x);
-  patch.adds.forEach(a => { if(!merged.find(m=>m.id===a.id)) merged.push(a); });
+      const hadPopup = POPUP_DATES.has(oldKey);
+      const hadEvent = !!EVENTS[oldKey];
 
-  masters[key] = merged.filter(x => x.active !== false);
-  return patch;
-}
+      if(hadPopup){
+        POPUP_DATES.delete(oldKey);
+        POPUP_DATES.add(newKey);
+      }
+      if(hadEvent){
+        const payload = EVENTS[oldKey];
+        delete EVENTS[oldKey];
+        EVENTS[newKey] = payload;
+      }
 
-function fillSelect(sel, arr, currentValue){
-  if(!sel) return;
-  sel.innerHTML = "";
-  arr.forEach(x=>{
-    const opt=document.createElement("option");
-    opt.value = x.id;
-    opt.textContent = x.label ?? x.name ?? x.id;
-    if(currentValue && opt.value === currentValue) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
+      saveJson(LS_POPUPS, Array.from(POPUP_DATES));
+      saveJson(LS_EVENTS, EVENTS);
 
-function fillSelectWithPlaceholder(sel, arr, currentValue, placeholder="---"){
-  if(!sel) return;
-  sel.innerHTML = "";
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = placeholder;
-  sel.appendChild(ph);
-  arr.forEach(x=>{
-    const opt=document.createElement("option");
-    opt.value = x.id;
-    opt.textContent = x.label ?? x.name ?? x.id;
-    if(currentValue && opt.value === currentValue) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
+      const [yy,mm] = newKey.split("-").map(Number);
+      view = new Date(yy, mm-1, 1);
 
-function applyKindDefault(){
-  if(!$kindSelect) return;
-  const hasStock = [...$kindSelect.options].some(o=>o.value==="stock");
-  if(hasStock) $kindSelect.value = "stock";
-  else if($kindSelect.options.length) $kindSelect.selectedIndex = 0;
-}
+      renderMonth("none");
+    }
 
+    function buildGrid(year, month){
+      const grid = document.createElement("div");
+      grid.className = "calGrid";
 
-function applyUrgentOptions(){
-  if(!$urgentSelect || !$urgentWrap) return;
-  // placeholder付き（未選択OK）
-  fillSelectWithPlaceholder($urgentSelect, masters.urgentOptions || [], $urgentSelect.value || "", "---");
-}
+      const dows = getDows();
+      for(let i=0;i<7;i++){
+        const dow = document.createElement("div");
+        dow.className = "dow";
+        dow.textContent = dows[i];
+        grid.appendChild(dow);
+      }
 
+      const firstDow = new Date(year, month-1, 1).getDay();
+      const firstCol = dayToCol(firstDow);
+      const lastDate = new Date(year, month, 0).getDate();
 
-/* =====================================================
-   Status (マルシェ以外のとき)
-   - channels !== marche のときだけ表示
-   - kind=stock / kind=order でリスト切替
-===================================================== */
-const STATUS_STOCK_URL = "./status_stock_bundle.json";
-const STATUS_ORDER_URL = "./status_order_bundle.json";
-let statusMasters = { stock: [], order: [] };
-let statusLoaded = false;
+      const needed = firstCol + lastDate;
+      const weeks = Math.ceil(needed / 7);
+      const totalCells = weeks * 7;
 
-async function loadStatusBundles(){
-  if(statusLoaded) return;
-  const loadOne = async (url, key)=>{
-    try{
-      const res = await fetch(url, { cache: "no-store" });
-      if(!res.ok){
-        console.warn(`[status] missing: ${url} (${res.status})`);
+      const prevLast = new Date(year, month-1, 0).getDate();
+      const nextY = (month === 12) ? year+1 : year;
+      const nextM = (month === 12) ? 1 : month+1;
+      const prevY = (month === 1) ? year-1 : year;
+      const prevM = (month === 1) ? 12 : month-1;
+
+      const todayKey = ymd(new Date());
+
+      for(let idx=0; idx<totalCells; idx++){
+        let d, cellY=year, cellM=month, outside=false;
+
+        if(idx < firstCol){
+          outside = true;
+          cellY = prevY; cellM = prevM;
+          d = prevLast - (firstCol - 1 - idx);
+        }else if(idx >= firstCol + lastDate){
+          outside = true;
+          cellY = nextY; cellM = nextM;
+          d = (idx - (firstCol + lastDate)) + 1;
+        }else{
+          d = (idx - firstCol) + 1;
+        }
+
+        const key = `${cellY}-${pad2(cellM)}-${pad2(d)}`;
+        const isToday = key === todayKey;
+
+        const realDay = new Date(cellY, cellM-1, d).getDay();
+        const isSun = realDay === 0;
+        const isSat = realDay === 6;
+
+        const hName = holidayMap?.[key] || "";
+        const isHoliday = !!hName;
+
+        const isPopup = POPUP_DATES.has(key);
+        const ev = EVENTS[key] || null;
+        const hasEvent = !!ev;
+
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "day"
+          + (outside ? " dim" : "")
+          + (isSun ? " sun" : "")
+          + (isSat ? " sat" : "")
+          + (isHoliday ? " holiday" : "")
+          + (isToday ? " today" : "");
+
+        let centerHtml = `<div class="centerMark"></div>`;
+        if(isPopup){
+          centerHtml = `<div class="centerMark"><span class="stamp" aria-label="POPUP"><span>POP</span><span>UP</span></span></div>`;
+        }else if(hasEvent){
+          const c = ev.color || "orange";
+          centerHtml = `<div class="centerMark"><span class="eventDot ${c}" aria-label="event"></span></div>`;
+        }
+
+        cell.innerHTML = `
+          <div class="num">${d}</div>
+          ${centerHtml}
+        `;
+
+        cell.addEventListener("click", ()=>{
+          const editable = (isPopup || hasEvent);
+
+          const pills = [];
+          if(isPopup) pills.push(`<span class="badge">POP UP</span>`);
+          if(hasEvent) pills.push(`<span class="badge">予定：${escapeHtml(ev.title || "予定")}</span>`);
+          if(isHoliday) pills.push(`<span class="badge red">祝日：${escapeHtml(hName)}</span>`);
+          if(isSun && !isHoliday) pills.push(`<span class="badge red">日曜</span>`);
+          if(isSat) pills.push(`<span class="badge blue">土曜</span>`);
+          if(!editable && !isHoliday) pills.push(`<span class="badge">予定なし</span>`);
+
+          const memoLine = hasEvent && ev.memo
+            ? `<div class="popSub" style="margin-top:6px;">${escapeHtml(ev.memo)}</div>`
+            : "";
+
+          const headRight = editable
+            ? `<button class="iconBtn" type="button" id="editBtn" title="日付を変更">✏️</button>`
+            : ``;
+
+          const html = `
+            <div class="popHead">
+              <div>
+                <div class="popTitle">${key}</div>
+                <div class="popSub">${cellY}.${pad2(cellM)}${outside ? "（前後月）" : ""}</div>
+                ${memoLine}
+              </div>
+              ${headRight}
+            </div>
+
+            <div class="popRow">${pills.join("")}</div>
+
+            ${editable ? `
+              <div class="editBox" id="editBox">
+                <label>日付を変更</label>
+                <div class="editRow">
+                  <input class="dateInput" id="dateInput" type="date" value="${key}">
+                  <button class="saveBtn" type="button" id="saveBtn">保存</button>
+                </div>
+                <div class="note">※この操作は（POPUP / 予定）を新しい日付へ移動します</div>
+              </div>
+            ` : ""}
+
+            <div class="closeHint">外側タップで閉じる</div>
+          `;
+
+          openPopover(cell, html, (pop)=>{
+            if(!editable) return;
+
+            const editBtn = pop.querySelector("#editBtn");
+            const editBox = pop.querySelector("#editBox");
+            const dateInput = pop.querySelector("#dateInput");
+            const saveBtn = pop.querySelector("#saveBtn");
+
+            editBtn.addEventListener("click", (e)=>{
+              e.stopPropagation();
+              editBox.classList.toggle("show");
+              if(editBox.classList.contains("show")){
+                setTimeout(()=> dateInput.focus(), 0);
+              }
+            });
+
+            saveBtn.addEventListener("click", (e)=>{
+              e.stopPropagation();
+              const newKey = dateInput.value;
+              moveSchedule(key, newKey);
+              closePopover();
+            });
+
+            dateInput.addEventListener("keydown", (e)=>{
+              if(e.key === "Enter"){
+                e.preventDefault();
+                const newKey = dateInput.value;
+                moveSchedule(key, newKey);
+                closePopover();
+              }
+            });
+          });
+        }, { passive:true });
+
+        grid.appendChild(cell);
+      }
+
+      return grid;
+    }
+
+    function setNavDisabled(){
+      if(!prevBtn || !nextBtn) return;
+      prevBtn.disabled = view <= MIN;
+      nextBtn.disabled = view >= MAX;
+    }
+
+    function setHeader(){
+      const y = view.getFullYear();
+      const m = view.getMonth()+1;
+      const label = `${y}.${pad2(m)}`;
+      if(monthLabel) monthLabel.textContent = label;
+      if(monthLabelMini) monthLabelMini.textContent = label;
+      syncModeBtn();
+    }
+
+    function renderMonth(direction){
+      closePopover();
+      setNavDisabled();
+      setHeader();
+
+      const y = view.getFullYear();
+      const m = view.getMonth()+1;
+
+      const incoming = buildGrid(y, m);
+
+      if(direction === "none" || !calViewport){
+        if(calViewport){
+          calViewport.innerHTML = "";
+          calViewport.appendChild(incoming);
+        }
+        incoming.classList.add("slideActive");
+        return;
+      }
+
+      const current = calViewport.querySelector(".calGrid");
+      calViewport.appendChild(incoming);
+
+      if(direction === "left"){
+        incoming.classList.add("slideEnterRight");
+        requestAnimationFrame(()=>{
+          incoming.classList.add("slideActive");
+          incoming.classList.remove("slideEnterRight");
+          if(current){
+            current.classList.add("slideExitLeft");
+            setTimeout(()=> current.remove(), 300);
+          }
+        });
+      }else{
+        incoming.classList.add("slideEnterLeft");
+        requestAnimationFrame(()=>{
+          incoming.classList.add("slideActive");
+          incoming.classList.remove("slideEnterLeft");
+          if(current){
+            current.classList.add("slideExitRight");
+            setTimeout(()=> current.remove(), 300);
+          }
+        });
+      }
+    }
+
+    if(prevBtn) prevBtn.addEventListener("click", ()=>{
+      if(view <= MIN) return;
+      view = new Date(view.getFullYear(), view.getMonth()-1, 1);
+      renderMonth("right");
+    });
+    if(nextBtn) nextBtn.addEventListener("click", ()=>{
+      if(view >= MAX) return;
+      view = new Date(view.getFullYear(), view.getMonth()+1, 1);
+      renderMonth("left");
+    });
+    if(todayBtn) todayBtn.addEventListener("click", ()=>{
+      view = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), 1);
+      renderMonth("none");
+    });
+    if(modeBtn) modeBtn.addEventListener("click", ()=>{
+      dowMode = (dowMode === "sun") ? "mon" : "sun";
+      localStorage.setItem("enue_dow_mode", dowMode);
+      renderMonth("none");
+    });
+
+    document.addEventListener("click", (e)=>{
+      if(!popEl) return;
+      const t = e.target;
+      if(popEl.contains(t)) return;
+      if(t.closest && t.closest(".day")) return;
+      closePopover();
+    }, { passive:true });
+    window.addEventListener("keydown", (e)=>{ if(e.key === "Escape") closePopover(); });
+
+    (async function initCalendar(){
+      await loadHolidays();
+      renderMonth("none");
+    })();
+
+    /* ===== section3/4: Orders ===== */
+    const ORDERS_LS_KEY = "enue_orders_v1";       // 決済ページが作る購入履歴
+    const ROWS_LS_KEY   = "enue_stock_meta_v1";  // 期日/進捗/担当の上書き保存
+
+    const STATUS = ["未着手","入金待ち","進行中","完了"];
+    const ASSIGNEE_OPTIONS = ["藤原","川原"];
+
+    const tbodyStock = document.getElementById("tbodyStock");
+    const emptyStock = document.getElementById("emptyStock");
+    const tbodyOrder = document.getElementById("tbodyOrder");
+    const emptyOrder = document.getElementById("emptyOrder");
+
+    const overlay = document.getElementById("overlayOrders");
+    const sheetTitle = document.getElementById("sheetTitle");
+    const sheetBody  = document.getElementById("sheetBody");
+    const sheetFoot  = document.getElementById("sheetFoot");
+    const closeBtn   = document.getElementById("closeBtn");
+    const cancelBtn  = document.getElementById("cancelBtn");
+    const saveBtn    = document.getElementById("saveBtn");
+    const datePicker = document.getElementById("datePicker");
+
+    let ordersData = loadOrders();
+    let meta   = loadMeta();
+    let rows   = buildRows(ordersData, meta);
+
+    function rerenderAll(){
+      ordersData = loadOrders();
+      meta   = loadMeta();
+      rows   = buildRows(ordersData, meta);
+      renderTable("stock");
+      renderTable("order");
+    }
+
+    function renderTable(kind){
+      const tbody = (kind==="stock") ? tbodyStock : tbodyOrder;
+      const emptyEl = (kind==="stock") ? emptyStock : emptyOrder;
+      if(!tbody || !emptyEl) return;
+
+      tbody.innerHTML = "";
+
+      const visible = rows
+        .filter(r => r.method !== "マルシェ")
+        .filter(r => r.status !== "完了");
+
+      emptyEl.style.display = (visible.length===0) ? "block" : "none";
+
+      visible.forEach(r=>{
+        const tr = document.createElement("tr");
+        tr.appendChild(td("名前", nameCell(r)));
+        tr.appendChild(td("期日", dueCell(r)));
+        tr.appendChild(td("進捗", statusCell(r)));
+        tr.appendChild(td("担当", assigneeCell(r)));
+        tbody.appendChild(tr);
+      });
+    }
+
+    function td(label, child){
+      const cell = document.createElement("td");
+      cell.setAttribute("data-label", label);
+      cell.appendChild(child);
+      return cell;
+    }
+
+    function nameCell(r){
+      const btn = document.createElement("button");
+      btn.className = "nameBtn";
+      btn.type = "button";
+      btn.innerHTML = `<span>${escapeHtml(r.name)}</span><span class="chev">›</span>`;
+      btn.onclick = ()=> openReceiptById(r.receiptId);
+      return btn;
+    }
+
+    function dueCell(r){
+      const btn = document.createElement("div");
+      btn.className = "tap duePill";
+      btn.role = "button";
+      btn.tabIndex = 0;
+      btn.textContent = formatNoYear(r.due);
+      btn.onclick = ()=> editDue(r.receiptId);
+      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editDue(r.receiptId); } };
+      return btn;
+    }
+
+    function statusCell(r){
+      const btn = document.createElement("div");
+      btn.className = "tap";
+      btn.role = "button";
+      btn.tabIndex = 0;
+
+      const pill = document.createElement("div");
+      pill.className = "statusPill " + statusClass(r.status);
+      pill.innerHTML = `<span class="dot"></span><span>${escapeHtml(r.status)}</span>`;
+      btn.appendChild(pill);
+
+      btn.onclick = ()=> editStatus(r.receiptId);
+      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editStatus(r.receiptId); } };
+      return btn;
+    }
+
+    function assigneeCell(r){
+      const btn = document.createElement("div");
+      btn.className = "tap";
+      btn.role = "button";
+      btn.tabIndex = 0;
+
+      const wrap = document.createElement("div");
+      wrap.className = "chips";
+
+      if(!r.assignees || r.assignees.length===0){
+        const c = document.createElement("span");
+        c.className = "chip muted";
+        c.textContent = "未設定";
+        wrap.appendChild(c);
+      }else{
+        r.assignees.forEach(a=>{
+          const c = document.createElement("span");
+          c.className = "chip";
+          c.textContent = a;
+          wrap.appendChild(c);
+        });
+      }
+
+      btn.appendChild(wrap);
+      btn.onclick = ()=> editAssignees(r.receiptId);
+      btn.onkeydown = (e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); editAssignees(r.receiptId); } };
+      return btn;
+    }
+
+    function openReceiptById(receiptId){
+      location.href = `receipt.html?id=${encodeURIComponent(receiptId)}`;
+    }
+
+    function editDue(receiptId){
+      const r = rows.find(x=>x.receiptId===receiptId);
+      if(!r || !datePicker) return;
+
+      datePicker.value = r.due || "";
+      datePicker.onchange = ()=>{
+        const next = datePicker.value || r.due;
+        upsertMeta(receiptId, { due: next });
+      };
+      datePicker.focus();
+      datePicker.click();
+    }
+
+    function editStatus(receiptId){
+      const r = rows.find(x=>x.receiptId===receiptId);
+      if(!r) return;
+
+      openSheet("進捗を選択", ()=>{
+        const body = document.createElement("div");
+        body.className = "enueOptList";
+
+        STATUS.forEach(s=>{
+          const opt = document.createElement("div");
+          opt.className = "enueOpt";
+          opt.innerHTML = `
+            <div class="left">
+              <span class="statusPill ${statusClass(s)}" style="margin:0;">
+                <span class="dot"></span><span>${escapeHtml(s)}</span>
+              </span>
+            </div>
+            <div class="right">${r.status===s ? "選択中" : ""}</div>
+          `;
+          opt.onclick = ()=> upsertMeta(receiptId, { status: s }, true);
+          body.appendChild(opt);
+        });
+
+        return body;
+      });
+    }
+
+    function editAssignees(receiptId){
+      const r = rows.find(x=>x.receiptId===receiptId);
+      if(!r) return;
+
+      const draft = new Set(r.assignees || []);
+
+      openSheet("担当を選択（複数可）", ()=>{
+        const body = document.createElement("div");
+        body.className = "enueOptList";
+
+        ASSIGNEE_OPTIONS.forEach(a=>{
+          const opt = document.createElement("div");
+          opt.className = "enueOpt";
+
+          const check = document.createElement("span");
+          check.className = "enueCheck" + (draft.has(a) ? " on" : "");
+          check.textContent = draft.has(a) ? "✓" : "";
+
+          const left = document.createElement("div");
+          left.className = "left";
+          left.innerHTML = `<span style="font-weight:900;">${escapeHtml(a)}</span>`;
+          left.prepend(check);
+
+          const right = document.createElement("div");
+          right.className = "right";
+          right.textContent = draft.has(a) ? "選択中" : "";
+
+          opt.appendChild(left);
+          opt.appendChild(right);
+
+          opt.onclick = ()=>{
+            if(draft.has(a)) draft.delete(a);
+            else draft.add(a);
+            check.className = "enueCheck" + (draft.has(a) ? " on" : "");
+            check.textContent = draft.has(a) ? "✓" : "";
+            right.textContent = draft.has(a) ? "選択中" : "";
+          };
+
+          body.appendChild(opt);
+        });
+
+        showSheetFooter(
+          ()=> closeSheet(),
+          ()=> upsertMeta(receiptId, { assignees: Array.from(draft) })
+        );
+
+        return body;
+      });
+    }
+
+    function upsertMeta(receiptId, patch, closeImmediately=false){
+      meta[receiptId] = { ...(meta[receiptId]||{}), ...patch };
+      saveMeta(meta);
+
+      if(closeImmediately) closeSheet();
+      rerenderAll();
+    }
+
+    function buildRows(orders, meta){
+      const mapped = (orders || [])
+        .map(mapOrderToRow)
+        .filter(Boolean)
+        .filter(r => r.method !== "マルシェ");
+
+      const merged = mapped.map(r=>{
+        const m = meta[r.receiptId];
+        if(!m) return r;
+        return {
+          ...r,
+          due: (m.due ?? r.due),
+          status: (m.status ?? r.status),
+          assignees: (m.assignees ?? r.assignees),
+        };
+      });
+
+      merged.sort((a,b)=> (b.createdAt ?? 0) - (a.createdAt ?? 0));
+      return merged;
+    }
+
+    function mapOrderToRow(o){
+      if(!o) return null;
+
+      const receiptId = o.id ?? o.receiptId ?? o.receipt_id ?? null;
+      if(!receiptId) return null;
+
+      const method = o.method ?? o.salesMethod ?? o.channel ?? o.saleType ?? "";
+
+      const name =
+        o.name ??
+        o.title ??
+        (Array.isArray(o.items) && o.items[0]?.name ? `${o.items[0].name}${o.items.length>1 ? ` 他${o.items.length-1}` : ""}` : "（名称なし）");
+
+      const due = normalizeDate(o.due ?? o.deadline ?? o.limit ?? "");
+      const status = (o.status && STATUS.includes(o.status)) ? o.status : "未着手";
+      const assignees = Array.isArray(o.assignees) ? o.assignees : [];
+
+      const createdAt = o.createdAt ?? o.created_at ?? o.ts ?? 0;
+
+      return { receiptId, method, name, due, status, assignees, createdAt };
+    }
+
+    if(overlay){
+      overlay.addEventListener("click", closeSheet);
+    }
+    if(closeBtn){
+      closeBtn.addEventListener("click", closeSheet);
+    }
+
+    function openSheet(title, bodyFactory){
+      if(!overlay || !sheetTitle || !sheetBody || !sheetFoot) return;
+
+      sheetTitle.textContent = title;
+      sheetBody.innerHTML = "";
+      sheetFoot.style.display = "none";
+      cancelBtn && (cancelBtn.onclick = null);
+      saveBtn && (saveBtn.onclick = null);
+
+      const body = bodyFactory();
+      sheetBody.appendChild(body);
+
+      overlay.classList.add("show");
+    }
+
+    function showSheetFooter(onCancel, onSave){
+      if(!sheetFoot) return;
+      sheetFoot.style.display = "flex";
+      if(cancelBtn) cancelBtn.onclick = onCancel;
+      if(saveBtn) saveBtn.onclick = onSave;
+    }
+
+    function closeSheet(){
+      if(!overlay || !sheetBody || !sheetFoot) return;
+      overlay.classList.remove("show");
+      sheetBody.innerHTML = "";
+      sheetFoot.style.display = "none";
+    }
+
+    function statusClass(status){
+      if(status==="未着手") return "s-michakushu";
+      if(status==="入金待ち") return "s-nyuukin";
+      if(status==="進行中") return "s-shinkochu";
+      if(status==="完了") return "s-done";
+      return "s-michakushu";
+    }
+
+    function formatNoYear(iso){
+      if(!iso) return "-";
+      const d = new Date(iso + "T00:00:00");
+      if(Number.isNaN(d.getTime())) return "-";
+      const m = String(d.getMonth()+1).padStart(2,"0");
+      const day = String(d.getDate()).padStart(2,"0");
+      return `${m}/${day}`;
+    }
+
+    function normalizeDate(v){
+      if(!v) return "";
+      const s = String(v).trim();
+      if(/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(s)) return s;
+      if(/^[0-9]{4}\/[0-9]{2}\/[0-9]{2}$/.test(s)) return s.replaceAll("/","-");
+      return "";
+    }
+
+    function loadOrders(){
+      try{
+        const raw = localStorage.getItem(ORDERS_LS_KEY);
+        if(!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      }catch{
         return [];
       }
-      const j = await res.json();
-      // どちらでも受けられるように key は "statuses" 固定で読む
-      const arr = j.statuses || j.status || j[key] || [];
-      return Array.isArray(arr) ? arr.filter(x=>x.active !== false) : [];
-    }catch(e){
-      console.warn(`[status] load failed: ${url}`, e);
-      return [];
-    }
-  };
-  statusMasters.stock = await loadOne(STATUS_STOCK_URL, "stock");
-  statusMasters.order = await loadOne(STATUS_ORDER_URL, "order");
-  statusLoaded = true;
-}
-
-function applyStatusOptions(kindId){
-  if(!$statusSelect) return;
-  const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
-  const prev = $statusSelect.value || "";
-  fillSelectWithPlaceholder($statusSelect, list, prev, "---");
-  // 初期値：未着手（not_started）
-  if(!$statusSelect.value){
-    $statusSelect.value = "not_started";
-    if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // 念のため
-  }
-}
-
-function toggleStatusUI(){
-  if(!$statusWrap || !$statusSelect) return;
-
-  const ch = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect?.value || "");
-  const kindId = ($kindSelect?.value || "stock");
-  const isNonMarche = (ch && ch !== "marche");
-
-  const show = isNonMarche && (kindId === "stock" || kindId === "order");
-  $statusWrap.style.display = show ? "" : "none";
-
-  if(show){
-    // 初回だけjsonを読み込む（失敗しても空のまま継続）
-    loadStatusBundles().then(()=>{
-      applyStatusOptions(kindId);
-      if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // --- を先頭に
-      setReceiptMetaText();
-    });
-  }else{
-    $statusSelect.value = "";
-  }
-}
-
-function toggleUrgentUI(){
-  const kindId = ($kindSelect?.value || "stock");
-
-  // urgent UI（kind=order のときだけ）
-  if($urgentWrap){
-    const show = (kindId === "order");
-    $urgentWrap.style.display = show ? "" : "none";
-    if(show){
-      applyUrgentOptions();
-      // 未選択なら先頭（---）
-      if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
-    }
-  }
-
-  // status UI（マルシェ以外のとき）
-  toggleStatusUI();
-}
-
-/* =====================================================
-   Admin: Export all diffs as ONE CSV (admin only)
-===================================================== */
-function csvEscape(v){
-  const s = (v === null || v === undefined) ? "" : String(v);
-  // normalize newlines
-  const t = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
-  // wrap always (safer for commas/quotes)
-  return `"${t.replace(/"/g,'""')}"`;
-}
-function tsToString(v){
-  try{
-    if(!v) return "";
-    if(typeof v === "string") return v;
-    if(typeof v?.toDate === "function") return v.toDate().toISOString();
-    if(v instanceof Date) return v.toISOString();
-    return "";
-  }catch{
-    return "";
-  }
-}
-function downloadCsv(filename, csvText){
-  // Excel向けにBOM付与
-  const bom = "\uFEFF";
-  const blob = new Blob([bom + csvText], { type: "text/csv;charset=utf-8;" });
-  const link = document.createElement("a");
-  link.href = URL.createObjectURL(blob);
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-}
-
-async function exportAllDiffsOneCsv(){
-  const isAdmin = (currentUserEmail === ADMIN_EMAIL);
-  if(!isAdmin){
-    alert("管理者のみ実行できます");
-    return;
-  }
-  if(!db){
-    alert("Firestore未接続です");
-    return;
-  }
-
-  const targets = [
-    { key:"products",  label:"商品マスタ",     updates:"products_patch_updates", adds:"products_patch_adds" },
-    { key:"channels",  label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
-    { key:"venues",    label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates,   adds:MASTER_DEFS.venues.adds },
-    { key:"payments",  label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
-    { key:"kinds",     label:"kindマスタ",     updates:MASTER_DEFS.kinds.updates,    adds:MASTER_DEFS.kinds.adds },
-    { key:"urgentOptions", label:"お急ぎOPマスタ", updates:MASTER_DEFS.urgentOptions.updates, adds:MASTER_DEFS.urgentOptions.adds }
-  ];
-
-  const rows = [];
-  for(const t of targets){
-    // updates
-    try{
-      const snapU = await getDocs(collection(db, t.updates));
-      snapU.forEach(d=>{
-        const id = d.id;
-        const data = d.data() || {};
-        const updatedAt = tsToString(data.updatedAt);
-        const updatedBy = data.updatedBy || "";
-        Object.keys(data).forEach(field=>{
-          if(field === "updatedAt" || field === "updatedBy") return;
-          rows.push({
-            masterKey: t.key,
-            masterLabel: t.label,
-            diffType: "update",
-            id,
-            field,
-            value: (data[field] === undefined ? "" : data[field]),
-            updatedAt,
-            updatedBy
-          });
-        });
-        // フィールドが1つも無いパッチも行として残す（空パッチ対策）
-        const hasFields = Object.keys(data).some(k=>k!=="updatedAt" && k!=="updatedBy");
-        if(!hasFields){
-          rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"update", id, field:"", value:"", updatedAt, updatedBy });
-        }
-      });
-    }catch(e){
-      console.warn("export updates failed", t, e);
-      rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"update", id:"", field:"__ERROR__", value:(e?.message||String(e)), updatedAt:"", updatedBy:"" });
     }
 
-    // adds
-    try{
-      const snapA = await getDocs(collection(db, t.adds));
-      snapA.forEach(d=>{
-        const id = d.id;
-        const data = d.data() || {};
-        const updatedAt = tsToString(data.updatedAt);
-        const updatedBy = data.updatedBy || "";
-        Object.keys(data).forEach(field=>{
-          if(field === "updatedAt" || field === "updatedBy") return;
-          rows.push({
-            masterKey: t.key,
-            masterLabel: t.label,
-            diffType: "add",
-            id,
-            field,
-            value: (data[field] === undefined ? "" : data[field]),
-            updatedAt,
-            updatedBy
-          });
-        });
-        const hasFields = Object.keys(data).some(k=>k!=="updatedAt" && k!=="updatedBy");
-        if(!hasFields){
-          rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"add", id, field:"", value:"", updatedAt, updatedBy });
-        }
-      });
-    }catch(e){
-      console.warn("export adds failed", t, e);
-      rows.push({ masterKey:t.key, masterLabel:t.label, diffType:"add", id:"", field:"__ERROR__", value:(e?.message||String(e)), updatedAt:"", updatedBy:"" });
-    }
-  }
-
-  // 並び：マスタ→diff→id→field
-  rows.sort((a,b)=>{
-    const k1 = (a.masterKey||"").localeCompare(b.masterKey||"");
-    if(k1) return k1;
-    const k2 = (a.diffType||"").localeCompare(b.diffType||"");
-    if(k2) return k2;
-    const k3 = (a.id||"").localeCompare(b.id||"");
-    if(k3) return k3;
-    return (a.field||"").localeCompare(b.field||"");
-  });
-
-  const headers = ["masterKey","masterLabel","diffType","id","field","value","updatedAt","updatedBy"];
-  const csv = [
-    headers.join(","),
-    ...rows.map(r => headers.map(h => csvEscape(r[h])).join(","))
-  ].join("\n");
-
-  const now = new Date();
-  const stamp = now.toISOString().slice(0,19).replace(/[:T]/g,"-");
-  downloadCsv(`enue_diff_all_${stamp}.csv`, csv);
-}
-
-
-/* Admin: patch summary */
-
-async function refreshPatchSummary(){
-  const isAdmin = (currentUserEmail === ADMIN_EMAIL);
-
-  // 非管理者は非表示
-  if(!isAdmin) {
-    if($diffPill) $diffPill.style.display = "none";
-    if($diffPop) $diffPop.style.display = "none";
-    if($exportDiffCsvBtn) $exportDiffCsvBtn.style.display = "none";
-    // 旧UIは使わない
-    if($patchPill) $patchPill.style.display = "none";
-    if($patchPop) $patchPop.style.display = "none";
-    return;
-  }
-
-  const targets = [
-    { key:"products", label:"商品マスタ", updates:"products_patch_updates", adds:"products_patch_adds" },
-    { key:"channels", label:"販売方法マスタ", updates:MASTER_DEFS.channels.updates, adds:MASTER_DEFS.channels.adds },
-    { key:"venues", label:"開催場所マスタ", updates:MASTER_DEFS.venues.updates, adds:MASTER_DEFS.venues.adds },
-    { key:"payments", label:"決済方法マスタ", updates:MASTER_DEFS.payments.updates, adds:MASTER_DEFS.payments.adds },
-    { key:"kinds", label:"kindマスタ", updates:MASTER_DEFS.kinds.updates, adds:MASTER_DEFS.kinds.adds },
-    { key:"urgentOptions", label:"お急ぎOPマスタ", updates:MASTER_DEFS.urgentOptions.updates, adds:MASTER_DEFS.urgentOptions.adds }
-  ];
-
-  // まずは「0件でも出す」を保証（読めなくても表示される）
-  let totalUpdates = 0;
-  let totalAdds = 0;
-  let hadError = false;
-  const lines = [];
-
-  if($diffPill){
-    $diffPill.textContent = `updates 0 / adds 0`;
-    $diffPill.style.display = "inline-flex";
-  }
-  if($exportDiffCsvBtn) $exportDiffCsvBtn.style.display = "inline-flex";
-
-  for(const t of targets){
-    let u = 0, a = 0, err = null;
-
-    try{
-      u = (await getDocs(collection(db, t.updates))).size;
-    }catch(e){
-      hadError = true;
-      err = e;
+    function loadMeta(){
+      try{
+        const raw = localStorage.getItem(ROWS_LS_KEY);
+        if(!raw) return {};
+        const parsed = JSON.parse(raw);
+        return (parsed && typeof parsed === "object") ? parsed : {};
+      }catch{
+        return {};
+      }
     }
 
-    try{
-      a = (await getDocs(collection(db, t.adds))).size;
-    }catch(e){
-      hadError = true;
-      err = err || e;
+    function saveMeta(meta){
+      localStorage.setItem(ROWS_LS_KEY, JSON.stringify(meta));
     }
 
-    totalUpdates += u;
-    totalAdds += a;
+    /* first render */
+    renderTable("stock");
+    renderTable("order");
 
-    lines.push({
-      label: t.label,
-      updates: u,
-      adds: a,
-      err: err ? (err.code || "error") : null
-    });
+  }catch(err){
+    console.error("Dashboard init error:", err);
+    alert("JSエラーで描画が止まりました。Consoleを見てね: " + err);
   }
-
-  // ヘッダー横の表示（0件でも表示）
-  if($diffPill){
-    $diffPill.textContent = hadError
-      ? `updates ${totalUpdates} / adds ${totalAdds} ⚠`
-      : `updates ${totalUpdates} / adds ${totalAdds}`;
-    $diffPill.style.display = "inline-flex";
-    $diffPill.title = hadError ? "一部マスタの差分read権限/接続でエラーがあります" : "";
-  }
-
-  // 吹き出し内訳（エラーなら code を表示）
-  if($diffPopLines){
-    $diffPopLines.innerHTML = lines
-      .map(x => {
-        const right = x.err ? `ERR(${x.err})` : `u${x.updates} / a${x.adds}`;
-        return `<div style="display:flex; justify-content:space-between; gap:10px; padding:4px 0;">
-          <span style="opacity:.85">${x.label}</span>
-          <span style="font-variant-numeric: tabular-nums;">${right}</span>
-        </div>`;
-      })
-      .join("");
-  }
-
-  // 旧UI（画面右下）は非表示に統一
-  if($patchPill) $patchPill.style.display = "none";
-  if($patchPop) $patchPop.style.display = "none";
-  if($patchBreakdown){
-    $patchBreakdown.innerHTML = lines.map(x=>`
-      <div class="row">
-        <span>${x.label}</span>
-        <span>${x.err ? `ERR(${x.err})` : `updates ${x.updates} / adds ${x.adds}`}</span>
-      </div>
-    `).join("");
-  }
-}
-
-async function writeSale(){
-  const { items, total: baseTotal } = getSelected();
-  if(!items.length) throw new Error("empty");
-
-  const orderDate = ($orderDateInput?.value || "").trim();
-  // orderDate: YYYY-MM-DD（ユーザーが指定した受注日）
-  // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
-  const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
-
-  const kindId = ($kindSelect?.value || "stock");
-  const kindLabel = getSelectedLabel($kindSelect);
-
-  const channelId = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect.value);
-  const paymentId = ($receiptPaymentSelect?.value || $paymentSelect.value);
-  const paymentLabel = getSelectedLabel($receiptPaymentSelect || $paymentSelect);
-  const customerName = (($receiptCustomerName?.value || "").trim());
-
-  // チャンネルに応じて開催場所（マルシェ以外は空）
-  const venueId = (channelId === "marche") ? settings.currentVenue : "";
-
-  const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
-  const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
-  const statusId = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
-  const statusLabel = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
-
-  // お急ぎOPの料金（kind=order のときだけ合計へ加算）
-  let urgentOptionPrice = 0;
-  if(kindId === "order" && urgentOptionId){
-    const opt = (masters.urgentOptions || []).find(o => o.id === urgentOptionId) || null;
-    const p = opt ? Number(opt.price) : 0;
-    urgentOptionPrice = Number.isFinite(p) ? p : 0;
-  }
-
-  const total = Number(baseTotal || 0) + Number(urgentOptionPrice || 0);
-
-  await addDoc(collection(db,"sales"),{
-    createdAt: serverTimestamp(),
-    clientCreatedAt: Date.now(),
-    orderDate: orderDate || todayYMD(),
-    kindId,
-    kindLabel,
-    orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
-    channel: channelId,
-    venue: venueId,
-    customerName,
-    paymentId,
-    paymentLabel,
-    urgentOptionId,
-    urgentOptionLabel,
-    statusId,
-    statusLabel,
-    // 互換用（過去集計が paymentMethod を見ている場合の保険）
-    paymentMethod: paymentId,
-    baseTotal,
-    urgentOptionPrice,
-    total,
-    items
-  });
-}
-
-/* =====================================================
-   Events
-===================================================== */
-$checkoutBtn.onclick = ()=>{
-  if(!firebaseOk) return;
-  const { items, total } = getSelected();
-  if(!items.length) return alert("商品を選択してね");
-
-  if($orderDateInput){
-    // 初期値は本日（タップで変更OK）
-    $orderDateInput.value = todayYMD();
-  }
-
-  // レシート側の編集UIへ現在値を反映
-  if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
-  if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
-  if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
-  if($receiptCustomerName) $receiptCustomerName.value = "";
-
-  const showVenue = ($channelSelect.value === "marche");
-  if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
-
-  // kind 初期値：stock（ルール）
-  if($kindSelect){
-    const hasStock = [...$kindSelect.options].some(o=>o.value==="stock");
-    if(!($kindSelect.value||"") && hasStock) $kindSelect.value = "stock";
-    else if(hasStock) $kindSelect.value = ($kindSelect.value||"stock");
-  }
-  toggleUrgentUI();
-  setReceiptMetaText();
-
-  // Receipt preview (items + urgent fee)
-  __receiptItems = items;
-  __receiptBaseTotal = total;
-  renderReceiptLines(__receiptItems, __receiptBaseTotal);
-
-  setReceiptModalOpen(true);
-};
-
-$confirmBtn.onclick = async ()=>{
-  try{
-    await writeSale();
-    setReceiptModalOpen(false);
-    showToast("決済完了🌟");
-    document.querySelectorAll("input[type=checkbox]").forEach(c=>c.checked=false);
-    document.querySelectorAll(".product-row select").forEach(s=>{s.disabled=true; s.value=1});
-    updateTotal();
-  }catch(e){
-    alert("保存に失敗しました");
-  }
-};
-
-$closeReceiptBtn.onclick = $cancelBtn.onclick =
-  ()=> setReceiptModalOpen(false);
-
-if($orderDateInput){
-  $orderDateInput.addEventListener("change", setReceiptMetaText);
-  if($kindSelect) $kindSelect.addEventListener("change", ()=>{
-    settings.kind = $kindSelect.value;
-    toggleUrgentUI();
-    // kind変更でお急ぎOPの表示/選択肢が変わるので、合計も更新
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-    setReceiptMetaText();
-    saveSettings();
-  });
-}
-
-
-function getSelectedLabel(selectEl){
-  const opt = selectEl?.selectedOptions?.[0];
-  return opt ? opt.textContent : (selectEl?.value || "");
-}
-function showToast(msg){
-  $toast.textContent = msg;
-  $toast.classList.add("show");
-  setTimeout(()=> $toast.classList.remove("show"),1200);
-}
-
-function setReceiptMetaText(){
-  const d = ($orderDateInput?.value || todayYMD());
-  const chLabel = getSelectedLabel($receiptChannelSelect) || settings.currentChannel || "-";
-  const payLabel = getSelectedLabel($receiptPaymentSelect) || getSelectedLabel($paymentSelect) || "-";
-  const kindLabel = getSelectedLabel($kindSelect) || ($kindSelect?.value || "-");
-  const name = ($receiptCustomerName?.value || "").trim();
-  const nameText = name ? ` / 購入者：${name}` : "";
-  const urgentLabel = ($kindSelect?.value === "order") ? (getSelectedLabel($urgentSelect) || "-") : "";
-  const urgentText = ($kindSelect?.value === "order") ? ` / お急ぎOP：${urgentLabel}` : "";
-  const statusLabel = ($statusWrap && $statusWrap.style.display !== "none") ? (getSelectedLabel($statusSelect) || "-") : "";
-  const statusText = ($statusWrap && $statusWrap.style.display !== "none") ? ` / ステータス：${statusLabel}` : "";
-  $receiptMeta.textContent = `受注日：${d}${nameText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}${statusText}`;
-}
-
-/* =====================================================
-   INIT
-===================================================== */
-await bootFirebase();
-
-// load simple masters (bundle + patch)
-try{
-  await initSimpleMaster("channels");
-  await initSimpleMaster("venues");
-  await initSimpleMaster("payments");
-  await initSimpleMaster("kinds");
-  await initSimpleMaster("urgentOptions");
-}catch(e){
-  console.warn("masters init failed", e);
-}
-
-
-// masters読込後：インスタのIDを自動検出（idが instagram / insta_... などでもOK）
-detectInstagramChannelId();
-
-// 1回だけ：初期値（prefs → localStorageへ確定）
-// - 販売方法 初期値：インスタ（prefsで変更可）
-// - 販売方法=マルシェ → 決済初期値=現金（prefsで変更可）
-// - 販売方法=インスタ → 決済初期値=PayPay（prefsで変更可）
-const MIG_DEFAULTS_KEY = "pos_migrated_defaults_v5";
-await loadPosPrefs();
-
-/**
- * Root fix for defaults:
- * - Channel default should come from prefs (instagram) unless schedule override exists.
- * - Do NOT let old localStorage "marche" stick forever.
- * - Payment default is applied when channel is changed by this resolver or when current payment is invalid.
- */
-const resolvedChannel = resolveDefaultChannelId();
-const resolvedPayment = resolveDefaultPaymentId(resolvedChannel);
-
-// If user has never saved settings before, or if prefs/schedule says a different channel, adopt it.
-if(!settings.currentChannel || settings.currentChannel !== resolvedChannel){
-  settings.currentChannel = resolvedChannel;
-  // when channel changes, reset payment to channel default
-  settings.paymentMethod = resolvedPayment;
-}
-
-// Venue: keep user's previous choice; if empty, pick first venue.
-if(!settings.currentVenue){
-  settings.currentVenue = resolveDefaultVenueId();
-}
-
-// If payment is missing/invalid, set it.
-{
-  const payIds = masters.payments?.map(x=>x.id) || [];
-  if(!settings.paymentMethod || !payIds.includes(settings.paymentMethod)){
-    settings.paymentMethod = resolvedPayment;
-  }
-}
-
-// One-time migration flag (kept for future migrations)
-if(!localStorage.getItem(MIG_DEFAULTS_KEY)){
-  localStorage.setItem(MIG_DEFAULTS_KEY, "1");
-}
-saveSettings();
-
-// migrate legacy settings (label -> id)
-(function migrateLegacySettings(){
-  // channel
-  const chIds = masters.channels.map(x=>x.id);
-  if(settings.currentChannel && !chIds.includes(settings.currentChannel)){
-    const hit = masters.channels.find(x => (x.label ?? x.name ?? x.id) === settings.currentChannel);
-    if(hit) settings.currentChannel = hit.id;
-  }
-  // venue
-  const vIds = masters.venues.map(x=>x.id);
-  if(settings.currentVenue && !vIds.includes(settings.currentVenue)){
-    const hitV = masters.venues.find(x => (x.label ?? x.name ?? x.id) === settings.currentVenue);
-    if(hitV) settings.currentVenue = hitV.id;
-  }
-  // payment
-  const pIds = masters.payments.map(x=>x.id);
-  if(settings.paymentMethod && !pIds.includes(settings.paymentMethod)){
-    const hitP = masters.payments.find(x => (x.label ?? x.name ?? x.id) === settings.paymentMethod);
-    if(hitP) settings.paymentMethod = hitP.id;
-  }
-  saveSettings();
 })();
-
-renderSettingsUI();
-// 初期表示の整合（決済初期値・開催場所表示）
-applyChannelRules({ forcePayment:true });
-
-// kinds -> kindSelect（UI配線）
-if($kindSelect && masters.kinds?.length){
-  fillSelect($kindSelect, masters.kinds);
-  applyKindDefault();
-}
-
-// urgentOptions -> urgentSelect（UI配線）
-if($urgentSelect){
-  applyUrgentOptions();
-  toggleUrgentUI();
-}
-
-// settings change handlers
-if($channelSelect){
-  $channelSelect.addEventListener("change", ()=>{
-    settings.currentChannel = $channelSelect.value;
-
-    // チャンネル変更時：開催場所の表示＆決済初期値
-    applyChannelRules({ forcePayment:true });
-
-    // receipt側へ同期
-    if($receiptChannelSelect) $receiptChannelSelect.value = $channelSelect.value;
-    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect?.value || "";
-    if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect?.value || "";
-
-    // venue wrap（receiptも同じ）
-    const showVenue = (settings.currentChannel === "marche");
-    if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
-
-    saveSettings();
-    toggleStatusUI();
-    setReceiptMetaText();
-  });
-}
-
-if($venueSelect){
-  $venueSelect.addEventListener("change", ()=>{
-    settings.currentVenue = $venueSelect.value;
-    if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
-    saveSettings();
-    setReceiptMetaText();
-  });
-}
-
-if($paymentSelect){
-  $paymentSelect.addEventListener("change", ()=>{
-    settings.paymentMethod = $paymentSelect.value;
-    settings.lastPaymentByChannel = settings.lastPaymentByChannel || {};
-    if(settings.currentChannel) settings.lastPaymentByChannel[settings.currentChannel] = settings.paymentMethod;
-
-    if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
-    saveSettings();
-    setReceiptMetaText();
-  });
-}
-
-// receipt modal change handlers（決済確認画面で編集）
-if($receiptChannelSelect){
-  $receiptChannelSelect.addEventListener("change", ()=>{
-    $channelSelect.value = $receiptChannelSelect.value;
-    $channelSelect.dispatchEvent(new Event("change"));
-  });
-}
-if($receiptVenueSelect){
-  $receiptVenueSelect.addEventListener("change", ()=>{
-    $venueSelect.value = $receiptVenueSelect.value;
-    $venueSelect.dispatchEvent(new Event("change"));
-  });
-}
-if($receiptPaymentSelect){
-  $receiptPaymentSelect.addEventListener("change", ()=>{
-    $paymentSelect.value = $receiptPaymentSelect.value;
-    $paymentSelect.dispatchEvent(new Event("change"));
-  });
-}
-if($receiptCustomerName){
-  $receiptCustomerName.addEventListener("input", ()=>{
-    setReceiptMetaText();
-  });
-}
-
-if($statusSelect){
-  $statusSelect.addEventListener("change", ()=>{
-    setReceiptMetaText();
-    saveSettings();
-  });
-
-if($urgentSelect){
-  $urgentSelect.addEventListener("change", ()=>{
-    // 受注確認画面：お急ぎOPの料金を合計へ反映
-    renderReceiptLines(__receiptItems, __receiptBaseTotal);
-    setReceiptMetaText();
-    saveSettings();
-  });
-}
-}
-
-/* =====================================================
-   商品マスタ編集（updates/adds patchへ差分保存）
-===================================================== */
-const $pmModal = $("pmModal");
-const $pmCloseBtn = $("pmCloseBtn");
-const $pmSaveBtn = $("pmSaveBtn");
-const $pmDiscardBtn = $("pmDiscardBtn");const $pmSelect = $("pmSelect");
-const $pmId = $("pmId");
-const $pmName = $("pmName");
-const $pmPrice = $("pmPrice");
-const $pmHidden = $("pmHidden");
-
-let pmDirty = false;
-let pmDraft = null; // {id,name,price,active}
-let pmOrigin = null;
-
-function pmMarkDirty(){ pmDirty = true; }
-
-function pmOpen(mode){
-  pmDirty = false;
-  pmOrigin = null;
-  pmDraft = null;
-  pmRenderSelect();
-
-  const pmSelectField = $pmSelect?.closest?.(".field");
-  const pmHiddenWrap = $pmHidden?.closest?.("div"); // inner wrap
-  if(mode === "add"){
-    // 追加：商品名・金額のみ（IDは自動採番）
-    const id = pmNextId();
-    pmSetForm({ id, name:"", price:"", active:true });
-    if($pmHidden) $pmHidden.checked = false;
-    if($pmSelect) $pmSelect.value = "";
-    if(pmSelectField) pmSelectField.style.display = "none";
-    if(pmHiddenWrap) pmHiddenWrap.style.display = "none";
-  }else{
-    // 修正：対象商品を選んで編集（非表示も可）
-    if(pmSelectField) pmSelectField.style.display = "";
-    if(pmHiddenWrap) pmHiddenWrap.style.display = "";
-    if($pmSelect.options.length > 1){
-      $pmSelect.selectedIndex = 1;
-      pmLoadFromSelect();
-    }else{
-      $pmSelect.selectedIndex = 0;
-      pmSetForm(null);
-    }
-  }
-
-  // default select first (placeholderを除いた先頭)
-  if(mode !== "add" && $pmSelect.options.length > 1){
-    $pmSelect.selectedIndex = 1;
-    pmLoadFromSelect();
-  }else if(mode !== "add"){
-    $pmSelect.selectedIndex = 0;
-    pmSetForm(null);
-  }
-  $pmModal.classList.add("show");
-}
-
-function pmClose(force){
-  if(!force && pmDirty){
-    const ok = confirm("変更があります。保存しますか？");
-    if(ok){
-      pmSave(true);
-      return;
-    }
-    // 破棄して閉じる
-  }
-  $pmModal.classList.remove("show");
-}
-
-function pmRenderSelect(){
-  $pmSelect.innerHTML = "";
-  // 「新規追加」時に対象商品を --- 表示にできるよう、先頭にプレースホルダを入れる
-  const ph = document.createElement("option");
-  ph.value = "";
-  ph.textContent = "---";
-  $pmSelect.appendChild(ph);
-
-  const list = [...products].sort((a,b)=> (a.id||"").localeCompare(b.id||""));
-  for(const p of list){
-    const o = document.createElement("option");
-    o.value = p.id;
-    o.textContent = `${p.id}｜${p.name}（¥${p.price}）`;
-    $pmSelect.appendChild(o);
-  }
-}
-
-function pmSetForm(p){
-  pmOrigin = p ? { ...p } : null;
-  pmDraft = p ? { id: p.id, name: p.name ?? "", price: p.price ?? "", active: (p.active !== false) } : null;
-  $pmId.value = pmDraft?.id || "";
-  $pmName.value = pmDraft?.name || "";
-  $pmPrice.value = (pmDraft?.price ?? "") + "";
-  if($pmHidden) $pmHidden.checked = !(pmDraft?.active ?? true);
-}
-
-function pmLoadFromSelect(){
-  const id = $pmSelect.value;
-  if(!id){
-    pmSetForm(null);
-    return;
-  }
-  const p = products.find(x => x.id === id);
-  pmSetForm(p);
-}
-
-function pmNextId(){
-  let max = 0;
-  for(const p of products){
-    const m = String(p.id||"").match(/^p(\d{3})$/);
-    if(m) max = Math.max(max, parseInt(m[1],10));
-  }
-  return "p" + String(max+1).padStart(3,"0");
-}
-
-$pmSelect.addEventListener("change", ()=>{
-  pmLoadFromSelect();
-});
-
-[$pmName,$pmPrice,$pmHidden].forEach(el=>{
-  el.addEventListener("input", pmMarkDirty);
-  el.addEventListener("change", pmMarkDirty);
-});
-
-
-async function pmSave(closeAfter){
-  if(!pmDraft) return;
-
-  const id = $pmId.value.trim();
-  const name = $pmName.value.trim();
-  const price = parseInt(($pmPrice.value||"").toString().replace(/[^0-9]/g,""), 10);
-  const active = $pmHidden ? (!$pmHidden.checked) : true;
-
-  if(!id){
-    alert("IDが不正です");
-    return;
-  }
-  if(!name){
-    alert("商品名を入力してください");
-    return;
-  }
-  if(!Number.isFinite(price)){
-    alert("価格を数値で入力してください");
-    return;
-  }
-
-  try{
-    // 差分として保存（bundleは後で管理者が更新）
-    const targetCol = baseIdSet.has(id) ? COL_PATCH_UPDATES : COL_PATCH_ADDS;
-
-    await setDoc(doc(db, targetCol, id), {
-      name,
-      price,
-      active,
-      updatedAt: serverTimestamp(),
-      updatedBy: currentUser?.email || ""
-    }, { merge: true });
-
-    showToast("保存しました");
-
-    // ローカル表示も更新（次回ロードでpatchが反映されるが、体感のため即反映）
-    const idx = products.findIndex(p => p.id === id);
-    const merged = { id, name, price, active };
-    if(idx >= 0) products[idx] = { ...products[idx], ...merged };
-    else products.push(merged);
-
-    renderProducts();
-    pmDirty = false;
-    if(closeAfter) pmClose(true);
-  }catch(e){
-    console.error(e);
-    alert("保存に失敗しました（権限 or 通信を確認）");
-  }
-}
-
-$pmSaveBtn.addEventListener("click", ()=> pmSave(true));
-$pmDiscardBtn.addEventListener("click", ()=> { pmDirty = false; pmClose(true); });
-$pmCloseBtn.addEventListener("click", ()=> pmClose(false));
-
-const loaded = await loadProductsWithPatch();
-products = loaded.products;
-
-// 表示用（右上ピルがあれば）
-const $masterPill = document.getElementById('masterPill');
-if($masterPill){
-  $masterPill.textContent = `商品マスタ：${products.length}件`;
-}
-
-renderProducts();
-
-
-/* =====================================================
-   Override top selects with masters (if loaded)
-===================================================== */
-function applyMastersToTopSelects(){
-  if(masters.channels?.length) fillSelect($channelSelect, masters.channels, settings.currentChannel);
-  if(masters.venues?.length)   fillSelect($venueSelect, masters.venues, settings.currentVenue);
-  if(masters.payments?.length) fillSelect($paymentSelect, masters.payments, settings.paymentMethod);
-
-  if(masters.channels?.length) fillSelect($receiptChannelSelect, masters.channels, settings.currentChannel);
-  if(masters.venues?.length)   fillSelect($receiptVenueSelect, masters.venues, settings.currentVenue);
-  if(masters.payments?.length) fillSelect($receiptPaymentSelect, masters.payments, settings.paymentMethod);
-
-  const showVenue = ($channelSelect.value === "marche");
-  if($venueWrap) $venueWrap.style.display = showVenue ? "inline-flex" : "none";
-  if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
-}
-applyMastersToTopSelects();
-// bundle/patch読込後のselect再描画でもルールを維持
-settings.currentChannel = $channelSelect.value;
-settings.currentVenue = $venueSelect.value;
-settings.paymentMethod = $paymentSelect.value;
-applyChannelRules({ forcePayment:true });
-saveSettings();
-
-/* =====================================================
-   Masters modal (patch writer)
-===================================================== */
-let currentMasterKey = "channels";
-let currentMasterMode = "edit"; // "add" | "edit"
-
-function mastersOpen(key, mode){
-  if(key) currentMasterKey = key;
-  currentMasterMode = mode || "edit";
-  if(!$mastersModal) return;
-
-  // title
-  if($mastersTitle){
-    const labelMap = { channels:"販売方法マスタ編集", venues:"開催場所マスタ編集", payments:"決済方法マスタ編集", kinds:"kindマスタ編集", urgentOptions:"お急ぎOPマスタ編集" };
-    $mastersTitle.textContent = labelMap[currentMasterKey] || "マスタ編集";
-  }
-
-  // mode UI
-  if($masterAddRowBtn) $masterAddRowBtn.style.display = (currentMasterMode === "add") ? "" : "none";
-  if($masterDeleteRowBtn) $masterDeleteRowBtn.style.display = (currentMasterMode === "add") ? "" : "none";
-
-  $mastersModal.classList.add("show");
-  $mastersModal.setAttribute("aria-hidden","false");
-
-  // rows
-  $masterRows.innerHTML = "";
-  if(currentMasterMode === "add"){
-    addRow("", "", true); // 1行だけ
-  }else{
-    buildMasterRows();
-  }
-}
-
-function mastersClose(){
-  if(!$mastersModal) return;
-  $mastersModal.classList.remove("show");
-  $mastersModal.setAttribute("aria-hidden","true");
-}
-
-function buildMasterRows(){
-  const key = currentMasterKey;
-  const arr = masters[key] || [];
-  $masterRows.innerHTML = "";
-  arr.forEach(x => addRow(x.id, (x.label ?? x.name ?? ""), x.active !== false));
-}
-
-function slugifyId(text){
-  const base = (text || "")
-    .toString()
-    .trim()
-    .toLowerCase()
-    .replace(/[　\s]+/g, "_")
-    .replace(/[^a-z0-9_]/g, "")
-    .replace(/^_+|_+$/g, "");
-  return base || "item";
-}
-
-function ensureUniqueId(desired){
-  const existing = new Set(
-    [...$masterRows.querySelectorAll(".m_id")]
-      .map(i => (i.value || "").trim())
-      .filter(Boolean)
-  );
-  let id = desired;
-  let n = 2;
-  while(existing.has(id)){
-    id = `${desired}_${n++}`;
-  }
-  return id;
-}
-
-function addRow(id="", label="", active=true){
-  const isAddMode = (currentMasterMode === "add");
-
-  const row = document.createElement("div");
-  row.className = "card";
-  row.style.padding = "12px";
-
-  // delete button removed (use top "行を削除")
-  const delHtml = ``;
-
-row.innerHTML = `
-    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-        id <input class="m_id" style="width:180px" value="${escapeHtml(id)}" placeholder="例: marche" ${isAddMode ? "" : "disabled"} />
-      </span>
-      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-        表示 <input class="m_label" style="width:220px" value="${escapeHtml(label)}" placeholder="例: マルシェ" />
-      </span>
-      <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
-        有効 <input class="m_active" type="checkbox" ${active ? "checked":""} />
-      </span>
-      ${delHtml}
-    </div>
-    <div class="muted" style="margin-top:8px;">※ 基本はactive=falseで非表示運用がおすすめ</div>
-  `;
-
-  const $id = row.querySelector(".m_id");
-  const $label = row.querySelector(".m_label");
-
-  // 追加モード：表示名からID自動生成（IDが空のときだけ）
-  if(isAddMode){
-    const autoFill = ()=>{
-      if(!$id) return;
-      const cur = ($id.value || "").trim();
-      if(cur) return; // 既に入ってるなら触らない
-      const base = slugifyId(($label?.value || "").trim());
-      $id.value = ensureUniqueId(base);
-    };
-    if($label){
-      $label.addEventListener("blur", autoFill);
-      $label.addEventListener("change", autoFill);
-    }
-  }
-$masterRows.appendChild(row);
-}
-
-function escapeHtml(str){
-  return (str ?? "").toString()
-    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
-    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
-}
-
-async function saveMasterRows(){
-  const key = currentMasterKey;
-  const def = MASTER_DEFS[key];
-  const bundleIds = masterBundleIds[key] || new Set();
-
-  const rows = [...$masterRows.querySelectorAll(".card")].map(card=>{
-    const id = card.querySelector(".m_id").value.trim();
-    const label = card.querySelector(".m_label").value.trim();
-    const active = card.querySelector(".m_active").checked;
-    return { id, label, active };
-  }).filter(r=>r.id);
-
-  for(const r of rows){
-    // 修正モードは「既存IDのみ」想定。ID変更をdisabledにしてるので基本ここは安全。
-    const collName = bundleIds.has(r.id) ? def.updates : def.adds;
-    await setDoc(doc(db, collName, r.id), { label: r.label, active: r.active }, { merge:true });
-  }
-
-  await initSimpleMaster(key);
-  applyMastersToTopSelects();
-// bundle/patch読込後のselect再描画でもルールを維持
-settings.currentChannel = $channelSelect.value;
-settings.currentVenue = $venueSelect.value;
-settings.paymentMethod = $paymentSelect.value;
-applyChannelRules({ forcePayment:true });
-saveSettings();
-  await refreshPatchSummary();
-  showToast("マスタ保存OK");
-}
-
-if($mastersCloseBtn)  $mastersCloseBtn.addEventListener("click", mastersClose);
-if($masterAddRowBtn)  $masterAddRowBtn.addEventListener("click", ()=>addRow());
-if($masterDeleteRowBtn) $masterDeleteRowBtn.addEventListener("click", ()=>{
-  if(currentMasterMode !== "add") return;
-  const rows = $masterRows ? Array.from($masterRows.children) : [];
-  if(rows.length === 0) return;
-
-  if(rows.length === 1){
-    const only = rows[0];
-    const idI = only.querySelector(".m_id");
-    const labI = only.querySelector(".m_label");
-    const actI = only.querySelector(".m_active");
-    if(idI) idI.value = "";
-    if(labI) labI.value = "";
-    if(actI) actI.checked = true;
-    return;
-  }
-  rows[rows.length - 1].remove();
-});
-if($masterSaveBtn)    $masterSaveBtn.addEventListener("click", async ()=>{
-  try{
-    await saveMasterRows();
-    // 保存後は閉じる（他マスタと同じ挙動）
-    closeModeModal();
-  }
-  catch(e){ console.error(e); alert("保存に失敗しました"); }
-});
-
-
-/* =====================================================
-   Master menu (⚙) 5 choices
-===================================================== */
-if($masterMenuCloseBtn) $masterMenuCloseBtn.addEventListener("click", closeMasterMenu);
-if($masterMenuModal){
-  $masterMenuModal.addEventListener("click",(e)=>{
-    if(e.target === $masterMenuModal) closeMasterMenu();
-  });
-}
-
-function goMaster(key,label){
-  closeMasterMenu();
-  openModeModal(key,label);
-}
-
-if($menuProductMasterBtn)  $menuProductMasterBtn.onclick  = ()=> goMaster("products","商品マスタ編集");
-if($menuChannelsMasterBtn) $menuChannelsMasterBtn.onclick = ()=> goMaster("channels","販売方法マスタ編集");
-if($menuVenuesMasterBtn)   $menuVenuesMasterBtn.onclick   = ()=> goMaster("venues","開催場所マスタ編集");
-if($menuPaymentsMasterBtn) $menuPaymentsMasterBtn.onclick = ()=> goMaster("payments","決済方法マスタ編集");
-if($menuKindsMasterBtn)    $menuKindsMasterBtn.onclick    = ()=> goMaster("kinds","kindマスタ編集");
-if($menuUrgentOptionsMasterBtn) $menuUrgentOptionsMasterBtn.onclick = ()=> goMaster("urgentOptions","お急ぎOPマスタ編集");
-
-if($masterModeCloseBtn) $masterModeCloseBtn.onclick = closeModeModal;
-if($masterModeModal){
-  $masterModeModal.addEventListener("click",(e)=>{
-    if(e.target === $masterModeModal) closeModeModal();
-  });
-}
-
-if($masterModeAddBtn) $masterModeAddBtn.onclick = ()=>{
-  pendingMasterEditMode = "add";
-  closeModeModal();
-  if(pendingMasterKey === "products") pmOpen("add");
-  else mastersOpen(pendingMasterKey, "add");
-};
-if($masterModeEditBtn) $masterModeEditBtn.onclick = ()=>{
-  pendingMasterEditMode = "edit";
-  closeModeModal();
-  if(pendingMasterKey === "products") pmOpen("edit");
-  else mastersOpen(pendingMasterKey, "edit");
-};
-
-// admin diff popover (next to status)
-if($diffPill){
-  $diffPill.addEventListener("click", ()=>{
-    const show = ($diffPop.style.display === "none" || $diffPop.style.display === "");
-    $diffPop.style.display = show ? "block" : "none";
-  });
-}
-document.addEventListener("click", (e)=>{
-  if(!$diffPop || !$diffPill) return;
-  if(e.target === $diffPill || $diffPill.contains(e.target)) return;
-  if($diffPop.contains(e.target)) return;
-  $diffPop.style.display = "none";
-});
-
-// admin pill popover
-if($patchPill){
-  $patchPill.addEventListener("click", ()=>{
-    const show = $patchPop.style.display === "none";
-    $patchPop.style.display = show ? "block" : "none";
-  });
-}
-document.addEventListener("click", (e)=>{
-  if(!$patchPop || !$patchPill) return;
-  if(e.target === $patchPill || $patchPill.contains(e.target)) return;
-  if($patchPop.contains(e.target)) return;
-  $patchPop.style.display = "none";
-});
 </script>
 </body>
-</html
-function getUrgentOptionObj(){
-  const kindId = ($kindSelect?.value || "stock");
-  if(kindId !== "order") return null;
-  const id = ($urgentSelect?.value || "").trim();
-  if(!id) return null;
-  return (masters.urgentOptions || []).find(o => o.id === id) || null;
-}
-
-function calcUrgentFee(){
-  const opt = getUrgentOptionObj();
-  const fee = opt && Number.isFinite(Number(opt.price)) ? Number(opt.price) : 0;
-  return { opt, fee };
-}
-
-function renderReceiptLines(items, baseTotal){
-  const lines = (items || []).map(i => `${i.name} ×${i.qty}：￥${i.subtotal}`);
-
-  const { opt, fee } = calcUrgentFee();
-  if(fee > 0){
-    // 表示名： "指定なし（300円）" -> "指定なし"
-    const displayName = (opt?.label || getSelectedLabel($urgentSelect) || "").split("（")[0].trim() || "指定";
-    lines.push(`オーダー料(${displayName})：￥${fee}`);
-  }
-
-  const total = Number(baseTotal || 0) + fee;
-  if($receiptList) $receiptList.innerHTML = lines.join("<br>");
-  if($receiptTotal) $receiptTotal.textContent = `合計：￥${total}`;
-}
->
+</html>
