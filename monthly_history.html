@@ -1869,7 +1869,9 @@ async function loadFixRequests(){
           top.appendChild(b);
         }
 
-        if(s.isBundled){
+        // バンドル修正待ち（バンドル由来 かつ 修正依頼が「申請中」のものだけ表示）
+        const frBundle = fixReqBySaleId.get(s.id);
+        if(s.isBundled && frBundle && safeStr(frBundle.status || "申請中") !== "完了"){
           const b = document.createElement("span");
           b.className = "badge";
           b.textContent = "バンドル修正待ち";
@@ -2097,7 +2099,7 @@ async function loadFixRequests(){
         ${memo ? kv("メモ", memo) : ""}
                 ${sale.parentSaleId ? kv("親Sale", sale.parentSaleId) : ""}
         ${sale.isRefund ? kv("返金", "はい") : ""}
-        ${sale.isBundled ? kv("バンドル修正待ち", "はい（バンドル更新で反映）") : ""}
+        ${sale.isBundled ? kv("バンドル", "はい") : ""}
       </div>
     `;
 
@@ -2219,10 +2221,15 @@ async function loadFixRequests(){
       bc.querySelector(".hint").textContent = "不可";
     }
 
-    // バンドル由来は修正不可（バンドル更新待ち）だが、内容確認はできるようにボタンは有効のまま
-    if(sale.isBundled){
+    // バンドル由来：修正依頼が「申請中」のものだけ「バンドル修正待ち」を表示
+    {
       const bf = modal.querySelector("#btnFix");
-      bf.querySelector(".hint").textContent = "バンドル修正待ち";
+      const frBundle = fixReqBySaleId.get(sale.id);
+      if(sale.isBundled && frBundle && safeStr(frBundle.status || "申請中") !== "完了"){
+        bf.querySelector(".hint").textContent = "バンドル修正待ち";
+      }else{
+        bf.querySelector(".hint").textContent = "";
+      }
     }
 
     modal.querySelector("#btnClaim").onclick = ()=>{
