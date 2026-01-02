@@ -1,0 +1,19 @@
+{
+  "statuses": [
+    {
+      "id": "not_started",
+      "label": "未着手",
+      "active": true
+    },
+    {
+      "id": "making",
+      "label": "作成中",
+      "active": true
+    },
+    {
+      "id": "shipped",
+      "label": "発送完了",
+      "active": true
+    }
+  ]
+}
