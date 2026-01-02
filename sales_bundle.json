@@ -18,13 +18,13 @@
       "items": [
         {
           "name": "ピアスA",
-          "qty": 1,
-          "unitPrice": 1800,
-          "price": 1800,
-          "subtotal": 1800
+          "qty": 0,
+          "unitPrice": 0,
+          "price": 0,
+          "subtotal": 0
         }
       ],
-      "total": 1800,
+      "total": 0,
       "isBundled": true,
       "source": "bundle"
     },
@@ -40,13 +40,13 @@
       "items": [
         {
           "name": "イヤリングB",
-          "qty": 2,
-          "unitPrice": 1200,
-          "price": 1200,
-          "subtotal": 2400
+          "qty": 0,
+          "unitPrice": 0,
+          "price": 0,
+          "subtotal": 0
         }
       ],
-      "total": 2400,
+      "total": 0,
       "isBundled": true,
       "source": "bundle"
     }
