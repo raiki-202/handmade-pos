@@ -2,6 +2,29 @@
 
 <html lang="ja">
 <head>
+
+<script>
+// === Fixed-path fetch guard (bundle/data only; sales_data untouched) ===
+(function(){
+  const _fetch = window.fetch.bind(window);
+  window.fetch = function(input, init){
+    try{
+      let url = (typeof input === 'string') ? input : input.url;
+      // Ignore absolute URLs and sales_data
+      if (typeof url === 'string' && !/^https?:\/\//i.test(url) && !url.includes('/sales_data/')) {
+        // Force *_bundle.json to /bundle/
+        url = url.replace(/(^|\/)([a-z_]+_bundle\.json)(\?.*)?$/i, '/bundle/$2$3');
+        // Force known data files to /data/
+        url = url.replace(/(^|\/)(receipt_statuses\.json|expense_categories\.json)(\?.*)?$/i, '/data/$2$3');
+        if (typeof input === 'string') input = url;
+        else input = new Request(url, input);
+      }
+    }catch(e){}
+    return _fetch(input, init);
+  };
+})();
+</script>
+
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>e.nue Dashboard</title>
