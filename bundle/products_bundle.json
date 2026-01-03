@@ -43,7 +43,7 @@
     { "id": "p032",  "name": "フリマ", "price": 500, "active": true },
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
     { "id": "p034",  "name": "手数料", "price": 900, "active": true },
-    { "id": "p035", "name": "マルシェ調整費用1",   "price": 5200, "active": true },
+    { "id": "p035a", "name": "マルシェ調整費用1",   "price": 5200, "active": true },
     { "id": "p035", "name": "マルシェ調整費用2",   "price": 28700, "active": true },
     { "id": "p036", "name": "マルシェ調整費用3",   "price": 13700, "active": true },
     { "id": "p037", "name": "マルシェ調整費用4",   "price": 13096, "active": true },
