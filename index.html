@@ -675,6 +675,10 @@ body{
 .tileTitle{ font-weight:900; font-size:13px; line-height:1.2;  color: var(--text-main); }
 .tileSub{ font-weight:700; font-size:10.5px; color: rgba(34,34,34,.60); line-height:1.2; }
 
+/* OTHER: ファイル名のグレー文字は非表示（今後実装予定枠のみ表示） */
+.tile:not(.tileDisabled) .tileSub{ display:none; }
+.tile.tileDisabled .tileSub{ display:block; }
+
 
 .tileDisabled{ opacity:.55; cursor:default; }
 .tileDisabled:active{ transform:none; }
