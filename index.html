@@ -188,6 +188,7 @@ body{
   min-width: 88px;
   flex: 0 0 auto;
 }
+.badgeBig .subv{ font-size:12px; color:rgba(34,34,34,.55); font-weight:900; margin-top:2px; }
 .badgeBig .k{
   font-size:11px; font-weight:800; color:rgba(34,34,34,.55);
   white-space:nowrap;
@@ -925,6 +926,7 @@ body{
 <div class="badgeBig">
 <div class="k" id="metricLabelB">総資産</div>
 <div class="v" id="metricValueB">—</div>
+<div class="subv" id="metricSubB">—</div>
 </div>
 </div>
 <div class="chartWrap">
@@ -1355,8 +1357,12 @@ async function loadSalesForChart(){
     snap1.forEach(docSnap=>{
       const d = docSnap.data() || {};
       const ms = saleToDateMs(d);
-      fbList.push({ id: docSnap.id, ms, raw: d });
-    });
+      {
+      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
+      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
+      s.ms = ms || saleToDateMs(data) || 0;
+      fbList.push(s);
+    }});
   }catch(e){
     // orderDateMs が未整備 / インデックス等で失敗してもページは死なない
     // console.warn("orderDateMs query failed", e);
@@ -1375,8 +1381,12 @@ async function loadSalesForChart(){
     snap2.forEach(docSnap=>{
       const d = docSnap.data() || {};
       const ms = saleToDateMs(d) || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0);
-      fbList.push({ id: docSnap.id, ms, raw: d });
-    });
+      {
+      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
+      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
+      s.ms = ms || saleToDateMs(data) || 0;
+      fbList.push(s);
+    }});
   }catch(e){
     // さらにフォールバック（最低限）
     try{
@@ -1385,8 +1395,12 @@ async function loadSalesForChart(){
       snap3.forEach(docSnap=>{
         const d = docSnap.data() || {};
         const ms = saleToDateMs(d) || 0;
-        if(ms >= startMs) fbList.push({ id: docSnap.id, ms, raw: d });
-      });
+        if(ms >= startMs) {
+      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
+      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
+      s.ms = ms || saleToDateMs(data) || 0;
+      fbList.push(s);
+    }});
     }catch(_e){
       fbList = [];
     }
@@ -1508,8 +1522,8 @@ async function buildDashboardChartSeries(){
   // = (売上合計 - 支出合計) を月次で積み上げた「累計」を表示
   // ※ assets.html の「総資産＝（売上−支出）」の思想に合わせる
   let assetsSeries = keys.map(()=>0);
-
-  try{
+  let assetsDeltaLatest = 0;
+try{
     // 支出（expense_receipts.sum）を全件（上限8000）読み、月次で合算
     const expSnap = await getDocs(query(collection(db, "expense_receipts"), limit(8000)));
     const expByMonth = new Map();
@@ -1557,12 +1571,17 @@ async function buildDashboardChartSeries(){
       // その月のデータが無い場合も「累計」は前月のまま
       return last;
     });
-  }catch(_e){
+    // 「今月の収支（売上-支出）」：表示中の最新月の差分だけを出す
+    const latestKey = keys[keys.length-1];
+    assetsDeltaLatest = (salesByMonth.get(latestKey) || 0) - (expByMonth.get(latestKey) || 0);
+
+  }
+  catch(_e){
     // 取れない場合は0のまま
     assetsSeries = keys.map(()=>0);
   }
 
-  return { months: labels, ordersSeries, assetsSeries };
+  return { months: labels, ordersSeries, assetsSeries, assetsDeltaLatest };
 }
 
 /* =========
@@ -2297,6 +2316,7 @@ onAuthStateChanged(auth, async (user) => {
     let months = [];
     let ordersSeries = [];
     let assetsSeries = [];
+     let assetsDeltaLatest = 0;
 
     const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
@@ -2455,6 +2475,15 @@ onAuthStateChanged(auth, async (user) => {
 
       const latest=series[N-1];
       elems.metricValue.textContent = isOrders ? `${latest}件` : formatJPY(latest);
+       if(!isOrders){
+         const sub = document.getElementById('metricSubB');
+         if(sub){
+           const v = Math.round(assetsDeltaLatest||0);
+           const sign = v>0 ? '+' : (v<0 ? '−' : '');
+           const abs = Math.abs(v);
+           sub.textContent = sign + '¥' + abs.toLocaleString('ja-JP');
+         }
+       }
 
       const denom = (maxS - minS) || 1;
       const yToPx = v => padT + (1 - (v - minS) / denom) * innerH;
@@ -2667,6 +2696,7 @@ onAuthStateChanged(auth, async (user) => {
       months = Array.isArray(d.months) ? d.months : months;
       ordersSeries = Array.isArray(d.ordersSeries) ? d.ordersSeries : ordersSeries;
       assetsSeries = Array.isArray(d.assetsSeries) ? d.assetsSeries : assetsSeries;
+      assetsDeltaLatest = Number(d.assetsDeltaLatest||0) || 0;
       startCharts();
     }
 
