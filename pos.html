@@ -555,7 +555,7 @@ select {
             ステータス
             <select id="statusSelect"></select>
           </span>
-          <div class="muted" style="margin-top:6px;">※ マルシェ以外のときだけ表示されます</div>
+          <div class="muted" style="margin-top:6px;">※ kind と販売方法に応じて選択できます（初期値あり）</div>
         </div>
 <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
@@ -1480,8 +1480,8 @@ function applyUrgentOptions(){
    - channels !== marche のときだけ表示
    - kind=stock / kind=order でリスト切替
 ===================================================== */
-const STATUS_STOCK_URL = "./status_stock_bundle.json";
-const STATUS_ORDER_URL = "./status_order_bundle.json";
+const STATUS_STOCK_URL = "./bundle/status_stock_bundle.json";
+const STATUS_ORDER_URL = "./bundle/status_order_bundle.json";
 let statusMasters = { stock: [], order: [] };
 let statusLoaded = false;
 
@@ -1508,15 +1508,41 @@ async function loadStatusBundles(){
   statusLoaded = true;
 }
 
-function applyStatusOptions(kindId){
+function findStatusDefaultId(kindId, channelId){
+  const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
+  const findBy = (kw)=>{
+    const k = String(kw||"").toLowerCase();
+    return list.find(x=>{
+      const id = String(x.id||"").toLowerCase();
+      const label = String(x.label ?? x.name ?? "").toLowerCase();
+      return id === k || label === k || id.includes(k) || label.includes(k);
+    })?.id || "";
+  };
+
+  // マルシェのとき：kind=stock → 発送完了 / kind=order → 未着手
+  if(channelId === "marche"){
+    if(kindId === "stock"){
+      return findBy("発送完了") || findBy("shipped") || findBy("ship") || findBy("complete") || findBy("done") || list?.[0]?.id || "";
+    }
+    return findBy("未着手") || findBy("not_started") || list?.[0]?.id || "";
+  }
+
+  // マルシェ以外：初期値は未着手
+  return findBy("未着手") || findBy("not_started") || list?.[0]?.id || "";
+}
+
+function applyStatusOptions(kindId, channelId){
   if(!$statusSelect) return;
   const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
-  const prev = $statusSelect.value || "";
+  const prev = ($statusSelect.value || "").trim();
+
   fillSelectWithPlaceholder($statusSelect, list, prev, "---");
-  // 初期値：未着手（not_started）
-  if(!$statusSelect.value){
-    $statusSelect.value = "not_started";
-    if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // 念のため
+
+  const defId = findStatusDefaultId(kindId, channelId);
+  if(defId) $statusSelect.value = defId;
+
+  if(!$statusSelect.value && $statusSelect.options.length > 1){
+    $statusSelect.selectedIndex = 1; // placeholderの次
   }
 }
 
@@ -1525,16 +1551,14 @@ function toggleStatusUI(){
 
   const ch = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect?.value || "");
   const kindId = ($kindSelect?.value || "stock");
-  const isNonMarche = (ch && ch !== "marche");
 
-  const show = isNonMarche && (kindId === "stock" || kindId === "order");
+  // 表示条件：kind が stock / order のとき（マルシェも含む）
+  const show = (kindId === "stock" || kindId === "order");
   $statusWrap.style.display = show ? "" : "none";
 
   if(show){
-    // 初回だけjsonを読み込む（失敗しても空のまま継続）
     loadStatusBundles().then(()=>{
-      applyStatusOptions(kindId);
-      if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // --- を先頭に
+      applyStatusOptions(kindId, ch);
       setReceiptMetaText();
     });
   }else{
@@ -1830,8 +1854,8 @@ async function writeSale(){
 
   // 保存する total は「加算後」
   const total = baseTotal + urgentOptionPrice;
-  const statusId = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
-  const statusLabel = (channelId !== "marche" && (kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
+  const statusId = ((kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
+  const statusLabel = ((kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : ""
 
 
   await addDoc(collection(db,"sales"),{
