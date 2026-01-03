@@ -941,7 +941,7 @@ async function bootFirebase(){
 ===================================================== */
 const LS_SETTINGS_KEY = "pos_settings_v2";
 
-const POS_PREFS_URL = "./pos_prefs_bundle.json";
+const POS_PREFS_URL = "./bundle/pos_prefs_bundle.json";
 let posPrefs = { defaults: { channelId: null, venueId: null, paymentByChannel: {} } };
 
 async function loadPosPrefs(){
@@ -1074,8 +1074,8 @@ async function fetchFirstOkJson(urlCandidates, label="json"){
 }
 
 const PRODUCT_BUNDLE_CANDIDATES = [
-  "./products_bundle.json",
-  "products_bundle.json",
+  "./bundle/products_bundle.json",
+  "bundle/products_bundle.json",
   "./bundle/products_bundle.json",
   "bundle/products_bundle.json"
 ];
@@ -1359,11 +1359,11 @@ function renderReceiptItemsAndTotal(){
    Simple masters (bundle + patch): channels / venues / payments / kinds
 ===================================================== */
 const MASTER_DEFS = {
-  channels: { bundleUrl: "./channels_bundle.json", updates: "channels_patch_updates", adds: "channels_patch_adds" },
-  venues:   { bundleUrl: "./venues_bundle.json",   updates: "venues_patch_updates",   adds: "venues_patch_adds" },
-  payments: { bundleUrl: "./payments_bundle.json", updates: "payments_patch_updates", adds: "payments_patch_adds" },
-  kinds:    { bundleUrl: "./kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" },
-  urgentOptions: { bundleUrl: "./urgent_options_bundle.json", updates: "urgent_options_patch_updates", adds: "urgent_options_patch_adds" }
+  channels: { bundleUrl: "./bundle/channels_bundle.json", updates: "channels_patch_updates", adds: "channels_patch_adds" },
+  venues:   { bundleUrl: "./bundle/venues_bundle.json",   updates: "venues_patch_updates",   adds: "venues_patch_adds" },
+  payments: { bundleUrl: "./bundle/payments_bundle.json", updates: "payments_patch_updates", adds: "payments_patch_adds" },
+  kinds:    { bundleUrl: "./bundle/kinds_bundle.json",    updates: "kinds_patch_updates",    adds: "kinds_patch_adds" },
+  urgentOptions: { bundleUrl: "./bundle/urgent_options_bundle.json", updates: "urgent_options_patch_updates", adds: "urgent_options_patch_adds" }
 };
 
 const masters = { channels: [], venues: [], payments: [], kinds: [], urgentOptions: [] };
