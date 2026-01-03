@@ -188,7 +188,6 @@ body{
   min-width: 88px;
   flex: 0 0 auto;
 }
-.badgeBig .subv{ font-size:12px; color:rgba(34,34,34,.55); font-weight:900; margin-top:2px; }
 .badgeBig .k{
   font-size:11px; font-weight:800; color:rgba(34,34,34,.55);
   white-space:nowrap;
@@ -926,7 +925,6 @@ body{
 <div class="badgeBig">
 <div class="k" id="metricLabelB">総資産</div>
 <div class="v" id="metricValueB">—</div>
-<div class="subv" id="metricSubB">—</div>
 </div>
 </div>
 <div class="chartWrap">
@@ -1173,7 +1171,10 @@ function saleToDateMs(d){
     if(typeof d.orderDateMs === "number" && Number.isFinite(d.orderDateMs)) return d.orderDateMs;
 
     if(typeof d.orderDate === "string" && d.orderDate.trim()){
-      const t = Date.parse(d.orderDate.trim());
+      const od = d.orderDate.trim();
+      // "YYYY-MM-DD" はUTC解釈になりやすいのでJST固定で解釈
+      const iso = /^\d{4}-\d{2}-\d{2}$/.test(od) ? `${od}T00:00:00+09:00` : od;
+      const t = Date.parse(iso);
       if(Number.isFinite(t)) return t;
     }
 
@@ -1335,13 +1336,23 @@ function deref(obj, key){
 async function loadSalesForChart(){
   // bundle + firebase（monthly_history と同じ「read節約」思想）
   const bundle = await loadBundleSalesForChart();
-  const bundleList = bundle.list || [];
+  const bundleListRaw = bundle.list || [];
 
   // 直近12ヶ月の開始（月初）を基準に取得（受注日基準でブレないように）
   const now = new Date();
   const start = new Date(now.getFullYear(), now.getMonth()-11, 1);
   start.setHours(0,0,0,0);
   const startMs = start.getTime();
+
+  // bundle側：ms（集計用）を付与
+  const bundleList = [];
+  for(const s of bundleListRaw){
+    const ms = saleToDateMs(s) || 0;
+    if(ms >= startMs){
+      // id は bundle に入っている前提。なければ落とさないで一応残す
+      bundleList.push({ ...s, ms });
+    }
+  }
 
   let fbList = [];
 
@@ -1356,19 +1367,17 @@ async function loadSalesForChart(){
     const snap1 = await getDocs(q1);
     snap1.forEach(docSnap=>{
       const d = docSnap.data() || {};
-      const ms = saleToDateMs(d);
-      {
-      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
-      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
-      s.ms = ms || saleToDateMs(data) || 0;
-      fbList.push(s);
-    }});
-  }catch(e){
-    // orderDateMs が未整備 / インデックス等で失敗してもページは死なない
-    // console.warn("orderDateMs query failed", e);
+      const ms = saleToDateMs(d) || 0;
+      if(ms >= startMs){
+        // sales集計はトップレベル total/ms を見るので、rawを包まない
+        fbList.push({ ...d, id: docSnap.id, ms });
+      }
+    });
+  }catch(_e){
+    fbList = [];
   }
 
-  // ② orderDateMs が無い古いデータ保険：createdAt で直近を補完
+  // ② orderDateMs が無い/欠損データ保険：createdAt で直近を補完（orderDate を元にms算出）
   try{
     const since = Timestamp.fromMillis(startMs);
     const q2 = query(
@@ -1380,38 +1389,78 @@ async function loadSalesForChart(){
     const snap2 = await getDocs(q2);
     snap2.forEach(docSnap=>{
       const d = docSnap.data() || {};
-      const ms = saleToDateMs(d) || (typeof d.createdAt?.toDate === "function" ? d.createdAt.toDate().getTime() : 0);
-      {
-      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
-      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
-      s.ms = ms || saleToDateMs(data) || 0;
-      fbList.push(s);
-    }});
-  }catch(e){
-    // さらにフォールバック（最低限）
-    try{
-      const q3 = query(collection(db, "sales"), orderBy("createdAt", "desc"), limit(300));
-      const snap3 = await getDocs(q3);
-      snap3.forEach(docSnap=>{
-        const d = docSnap.data() || {};
-        const ms = saleToDateMs(d) || 0;
-        if(ms >= startMs) {
-      const data = { ...d, id: docSnap.id, isBundled: false, source: "firebase" };
-      const s = normalizeSale({ id: docSnap.id, data: ()=>data });
-      s.ms = ms || saleToDateMs(data) || 0;
-      fbList.push(s);
-    }});
-    }catch(_e){
-      fbList = [];
+      // orderDateMs が無いものだけ拾う（あるものは①で取得済み）
+      const hasOrderMs = (typeof d.orderDateMs === "number" && Number.isFinite(d.orderDateMs) && d.orderDateMs > 0);
+      if(hasOrderMs) return;
+      const ms = saleToDateMs(d) || 0;
+      if(ms >= startMs){
+        fbList.push({ ...d, id: docSnap.id, ms });
+      }
+    });
+  }catch(_e){
+    // ignore
+  }
+
+  // bundle + firebase を id で統合（基本は firebase優先。ただし「欠損はbundleで補完」）
+  function mergePreferNonEmpty(bundleItem, fbItem){
+    const b = bundleItem || {};
+    const f = fbItem || {};
+
+    // “値が入っている方”を優先してマージ（0は有効値として扱う）
+    const pick = (fv, bv) => (fv !== undefined && fv !== null && !(typeof fv === "number" && !Number.isFinite(fv)) ? fv : bv);
+
+    // 数値は「有限ならOK」扱い（0もOK）
+    const pickNum = (fv, bv) => (typeof fv === "number" && Number.isFinite(fv) ? fv : (typeof bv === "number" && Number.isFinite(bv) ? bv : 0));
+
+    const merged = { ...b, ...f };
+
+    // キー系
+    merged.id = pick(f.id, b.id) || pick(f.saleId, b.saleId) || merged.id || "";
+    merged.saleId = pick(f.saleId, b.saleId) || merged.saleId || "";
+
+    // 日付系（orderDateMs優先）
+    merged.orderDateMs = pickNum(f.orderDateMs, b.orderDateMs);
+    merged.orderDate   = pick(f.orderDate, b.orderDate) || merged.orderDate || "";
+
+    // 金額系（total / baseTotal など）
+    merged.total     = pickNum(f.total, pickNum(f.baseTotal, b.total));
+    merged.baseTotal = pickNum(f.baseTotal, pickNum(f.total, b.baseTotal));
+
+    // bundleフラグ（どちらかがbundleならbundle扱い、sourceはわかりやすく）
+    merged.isBundled = Boolean(b.isBundled) || Boolean(f.isBundled);
+    merged.source = (b.source && f.source) ? "bundle+firebase" : (f.source || b.source || "");
+
+    return merged;
+  }
+
+  const map = new Map();
+
+  // まずbundleを入れる
+  for(const s of bundleList){
+    const key = String((s && (s.id || s.saleId)) || "");
+    if(!key) continue;
+    map.set(key, s);
+  }
+
+  // firebaseが来たら「上書き」ではなく「補完マージ」
+  for(const s of fbList){
+    const key = String((s && (s.id || s.saleId)) || "");
+    if(!key){
+      // id無しは落とさず追加（超レア）
+      map.set(String(crypto?.randomUUID?.() || Math.random()), s);
+      continue;
+    }
+    if(map.has(key)){
+      map.set(key, mergePreferNonEmpty(map.get(key), s));
+    }else{
+      map.set(key, s);
     }
   }
 
-  // bundle + firebase を id で統合（firebase側を優先）
-  const map = new Map();
-  for(const s of bundleList) map.set(s.id, s);
-  for(const s of fbList) map.set(s.id, s);
+  // idが無いbundleが居た場合の保険（ここまで来たら無視でOK）
   return [...map.values()];
 }
+
 
 function pickNumberDeep(obj, paths){
   // paths: ["a","b.c","d.e.f"]
@@ -1522,8 +1571,8 @@ async function buildDashboardChartSeries(){
   // = (売上合計 - 支出合計) を月次で積み上げた「累計」を表示
   // ※ assets.html の「総資産＝（売上−支出）」の思想に合わせる
   let assetsSeries = keys.map(()=>0);
-  let assetsDeltaLatest = 0;
-try{
+
+  try{
     // 支出（expense_receipts.sum）を全件（上限8000）読み、月次で合算
     const expSnap = await getDocs(query(collection(db, "expense_receipts"), limit(8000)));
     const expByMonth = new Map();
@@ -1571,17 +1620,12 @@ try{
       // その月のデータが無い場合も「累計」は前月のまま
       return last;
     });
-    // 「今月の収支（売上-支出）」：表示中の最新月の差分だけを出す
-    const latestKey = keys[keys.length-1];
-    assetsDeltaLatest = (salesByMonth.get(latestKey) || 0) - (expByMonth.get(latestKey) || 0);
-
-  }
-  catch(_e){
+  }catch(_e){
     // 取れない場合は0のまま
     assetsSeries = keys.map(()=>0);
   }
 
-  return { months: labels, ordersSeries, assetsSeries, assetsDeltaLatest };
+  return { months: labels, ordersSeries, assetsSeries };
 }
 
 /* =========
@@ -2316,7 +2360,6 @@ onAuthStateChanged(auth, async (user) => {
     let months = [];
     let ordersSeries = [];
     let assetsSeries = [];
-     let assetsDeltaLatest = 0;
 
     const formatJPY = n => "¥" + Math.round(n).toLocaleString("ja-JP");
     const clamp = (n,a,b)=>Math.max(a,Math.min(b,n));
@@ -2475,15 +2518,6 @@ onAuthStateChanged(auth, async (user) => {
 
       const latest=series[N-1];
       elems.metricValue.textContent = isOrders ? `${latest}件` : formatJPY(latest);
-       if(!isOrders){
-         const sub = document.getElementById('metricSubB');
-         if(sub){
-           const v = Math.round(assetsDeltaLatest||0);
-           const sign = v>0 ? '+' : (v<0 ? '−' : '');
-           const abs = Math.abs(v);
-           sub.textContent = sign + '¥' + abs.toLocaleString('ja-JP');
-         }
-       }
 
       const denom = (maxS - minS) || 1;
       const yToPx = v => padT + (1 - (v - minS) / denom) * innerH;
@@ -2696,7 +2730,6 @@ onAuthStateChanged(auth, async (user) => {
       months = Array.isArray(d.months) ? d.months : months;
       ordersSeries = Array.isArray(d.ordersSeries) ? d.ordersSeries : ordersSeries;
       assetsSeries = Array.isArray(d.assetsSeries) ? d.assetsSeries : assetsSeries;
-      assetsDeltaLatest = Number(d.assetsDeltaLatest||0) || 0;
       startCharts();
     }
 
