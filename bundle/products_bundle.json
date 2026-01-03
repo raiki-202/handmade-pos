@@ -5,7 +5,7 @@
     { "id": "p001", "name": "フリルスタイ", "price": 1000, "active": true },
     { "id": "p002", "name": "つけ襟", "price": 1100, "active": true },
     { "id": "p003", "name": "ダブルフリルスタイ", "price": 1300, "active": true },
-    { "id": "p004", "name": "ダブルフリルスタイつけ襟", "price": 1100, "active": true },
+    { "id": "p004", "name": "ダブルフリルスタイつけ襟", "price": 1300, "active": true },
     { "id": "p005", "name": "バブーシュカ", "price": 1400, "active": true },
     { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1600, "active": true },
     { "id": "p007", "name": "バブーシュカ（大人用）", "price": 1800, "active": true },
