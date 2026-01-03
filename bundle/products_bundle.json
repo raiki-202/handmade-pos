@@ -41,7 +41,8 @@
     { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
 
     { "id": "p032",  "name": "フリマ", "price": 500, "active": true },
-    { "id": "p033", "name": "送料",   "price": 250, "active": true }
+    { "id": "p033", "name": "送料",   "price": 250, "active": true },
+     { "id": "p034",  "name": "手数料", "price": 900, "active": true }
   ]
 }
 
