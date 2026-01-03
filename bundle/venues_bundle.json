@@ -4,6 +4,11 @@
       "id": "cafe1400",
       "label": "cafe1400",
       "active": true
+    },
+    {
+      "id": "sangyo_kaikan",
+      "label": "産業会館",
+      "active": true
     }
   ]
 }
