@@ -1597,12 +1597,7 @@ function deref(obj, key){
 
 async function loadProductsBundle(){
   // ✅ 商品マスタ（バンドル）を読む：打ち間違い修正の「商品名トグル」に使用
-  const candidates = [
-    "./products_bundle.json",
-    "products_bundle.json",
-    "./bundle/products_bundle.json",
-    "bundle/products_bundle.json"
-  ];
+  const candidates = ["./bundle/products_bundle.json"];
   for(const url of candidates){
     try{
       const res = await fetch(url, { cache: "no-store" });
@@ -1656,35 +1651,35 @@ function __dup_activeEntries(arr, labelKey="label"){
 async function loadMastersBundles(){
   // channels
   const channels = await loadSimpleBundle(
-    ["./channels_bundle.json","channels_bundle.json","./bundle/channels_bundle.json","bundle/channels_bundle.json"],
+    ["./bundle/channels_bundle.json"],
     (js)=> js?.channels
   );
   optChannels = activeEntries(channels);
 
   // payments
   const payments = await loadSimpleBundle(
-    ["./payments_bundle.json","payments_bundle.json","./bundle/payments_bundle.json","bundle/payments_bundle.json"],
+    ["./bundle/payments_bundle.json"],
     (js)=> js?.payments
   );
   optPaymentMethods = activeEntries(payments);
 
   // kinds
   const kinds = await loadSimpleBundle(
-    ["./kinds_bundle.json","kinds_bundle.json","./bundle/kinds_bundle.json","bundle/kinds_bundle.json"],
+    ["./bundle/kinds_bundle.json"],
     (js)=> js?.kinds
   );
   optKinds = activeEntries(kinds);
 
   // venues
   const venues = await loadSimpleBundle(
-    ["./venues_bundle.json","venues_bundle.json","./bundle/venues_bundle.json","bundle/venues_bundle.json"],
+    ["./bundle/venues_bundle.json"],
     (js)=> js?.venues
   );
   optVenues = activeEntries(venues);
 
   // urgent options
   const urgent = await loadSimpleBundle(
-    ["./urgent_options_bundle.json","urgent_options_bundle.json","./bundle/urgent_options_bundle.json","bundle/urgent_options_bundle.json"],
+    ["./bundle/urgent_options_bundle.json"],
     (js)=> js?.urgentOptions
   );
   optUrgentOptions = activeEntries(urgent);
