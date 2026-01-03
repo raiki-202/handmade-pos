@@ -14,7 +14,7 @@
     { "id": "p010", "name": "フレアパンツ", "price": 1800, "active": true },
     { "id": "p011", "name": "スウェットパンツ", "price": 2000, "active": true },
     { "id": "p012", "name": "サス付きタイツ", "price": 1800, "active": true },
-    { "id": "p013", "name": "キャミソール", "price": 1800, "active": true }
+    { "id": "p013", "name": "キャミソール", "price": 1800, "active": true },
     { "id": "p014", "name": "ビスチェ", "price": 1800, "active": true },
     { "id": "p015", "name": "ベスト（無地）", "price": 2500, "active": true },
     { "id": "p016", "name": "ベスト（柄）", "price": 3000, "active": true },
@@ -34,7 +34,7 @@
     { "id": "p031", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p032", "name": "ワークショップ（￥500）", "price": 500, "active": true },
     { "id": "p033", "name": "パーティーハット", "price": 1200, "active": true },
-    { "id": "p034", "name": "フリマ", "price": 500, "active": true }
+    { "id": "p034", "name": "フリマ", "price": 500, "active": true },
     { "id": "p035", "name": "送料", "price": 250, "active": true }
   ]
 }
