@@ -478,10 +478,18 @@
     const total = Number(d.total ?? d.totalAmount ?? d.grandTotal ?? d.amount ?? 0) || 0;
 
     const date =
-      toDate(d.createdAt) ||
+      (function(){
+        const od = safeStr(d.orderDate).trim();
+        if(!od) return null;
+        // Prefer local-date parse for YYYY-MM-DD to avoid timezone shifts
+        const m = od.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        if(m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+        const dt = new Date(od);
+        return isNaN(dt.getTime()) ? null : dt;
+      })() ||
       (Number.isFinite(Number(d.orderDateMs)) ? new Date(Number(d.orderDateMs)) : null) ||
+      toDate(d.createdAt) ||
       (Number.isFinite(Number(d.clientCreatedAt)) ? new Date(Number(d.clientCreatedAt)) : null) ||
-      (safeStr(d.orderDate) ? new Date(safeStr(d.orderDate)) : null) ||
       new Date(0);
 
     const channel = safeStr(d.channelLabel ?? d.channel ?? d.channelId ?? "").trim();
