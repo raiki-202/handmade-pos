@@ -1055,7 +1055,30 @@ let settings = loadSettings();
 /* =====================================================
    商品マスタ（bundle + updates/adds patch）
 ===================================================== */
-const BUNDLE_URL = "./products_bundle.json";
+
+async function fetchFirstOkJson(urlCandidates, label="json"){
+  let lastErr = null;
+  for(const url of urlCandidates){
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(res.ok){
+        const json = await res.json();
+        return { url, json };
+      }
+      lastErr = new Error(`${label} fetch not ok: ${url} (${res.status})`);
+    }catch(e){
+      lastErr = e;
+    }
+  }
+  throw lastErr || new Error(`${label} fetch failed`);
+}
+
+const PRODUCT_BUNDLE_CANDIDATES = [
+  "./products_bundle.json",
+  "products_bundle.json",
+  "./bundle/products_bundle.json",
+  "bundle/products_bundle.json"
+];
 let products = [];
 let baseIdSet = new Set(); // bundleに存在するID
 
@@ -1063,9 +1086,7 @@ const COL_PATCH_UPDATES = "products_patch_updates";
 const COL_PATCH_ADDS    = "products_patch_adds";
 
 async function loadProductsFromBundle(){
-  const res = await fetch(BUNDLE_URL, { cache: "no-store" });
-  if(!res.ok) throw new Error("bundle fetch failed");
-  const json = await res.json();
+  const { json } = await fetchFirstOkJson(PRODUCT_BUNDLE_CANDIDATES, "products bundle");
   return (json.products || []).filter(p => p.active !== false);
 }
 
@@ -1351,16 +1372,18 @@ const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new 
 async function loadSimpleBundle(key){
   const def = MASTER_DEFS[key];
   try{
-    const res = await fetch(def.bundleUrl, { cache: "no-store" });
-    if(!res.ok){
-      console.warn(`[masters] bundle missing: ${def.bundleUrl} (${res.status}) -> empty bundle used for ${key}`);
-      return [];
-    }
-    const json = await res.json();
+    const fileName = (def.bundleUrl || "").split("/").pop();
+    const candidates = [
+      `./${fileName}`,
+      `${fileName}`,
+      `./bundle/${fileName}`,
+      `bundle/${fileName}`
+    ];
+    const { url, json } = await fetchFirstOkJson(candidates, `masters bundle (${key})`);
     const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
     return Array.isArray(arr) ? arr : [];
   }catch(e){
-    console.warn(`[masters] bundle load failed: ${def.bundleUrl} -> empty bundle used for ${key}`, e);
+    console.warn(`[masters] bundle load failed: ${key} -> empty bundle used for ${key}`, e);
     return [];
   }
 }
