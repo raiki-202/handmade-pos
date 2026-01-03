@@ -1,0 +1,245 @@
+{
+  "sales": [
+    {
+      "id": "Mc1apcPruSGMq41yW7r4",
+      "channel": "マルシェ",
+      "paymentMethod": "PayPay",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765345560000,
+      "createdAt": "2025-12-10T14:46:00+09:00",
+      "total": 3100,
+      "items": [
+        {
+          "id": "i01",
+          "name": "シューズクリップ",
+          "qty": 1,
+          "unitPrice": 800,
+          "subtotal": 800
+        },
+        {
+          "id": "i02",
+          "name": "シュシュ・ヘアピン",
+          "qty": 2,
+          "unitPrice": 400,
+          "subtotal": 800
+        },
+        {
+          "id": "i03",
+          "name": "メロウTシャツ",
+          "qty": 1,
+          "unitPrice": 1500,
+          "subtotal": 1500
+        }
+      ]
+    },
+    {
+      "id": "43BxegKttcbK2tW4Xydv",
+      "channel": "マルシェ",
+      "paymentMethod": "PayPay",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765345200000,
+      "createdAt": "2025-12-10T14:40:00+09:00",
+      "total": 3200,
+      "items": [
+        {
+          "id": "i01",
+          "name": "フリルスタイ",
+          "qty": 1,
+          "unitPrice": 1000,
+          "subtotal": 1000
+        },
+        {
+          "id": "i02",
+          "name": "ダブルフリルスタイつけ襟",
+          "qty": 1,
+          "unitPrice": 1400,
+          "subtotal": 1400
+        },
+        {
+          "id": "i03",
+          "name": "スマホストラップ",
+          "qty": 1,
+          "unitPrice": 800,
+          "subtotal": 800
+        }
+      ]
+    },
+    {
+      "id": "wT4HCSbw1uXsyZU58PWJ",
+      "channel": "マルシェ",
+      "paymentMethod": "現金",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765343760000,
+      "createdAt": "2025-12-10T14:16:00+09:00",
+      "total": 4800,
+      "items": [
+        {
+          "id": "i01",
+          "name": "フリルスタイ",
+          "qty": 1,
+          "unitPrice": 1000,
+          "subtotal": 1000
+        },
+        {
+          "id": "i02",
+          "name": "つけ襟",
+          "qty": 1,
+          "unitPrice": 1100,
+          "subtotal": 1100
+        },
+        {
+          "id": "i03",
+          "name": "ダブルフリルスタイ",
+          "qty": 1,
+          "unitPrice": 1300,
+          "subtotal": 1300
+        },
+        {
+          "id": "i04",
+          "name": "ダブルフリルスタイつけ襟",
+          "qty": 1,
+          "unitPrice": 1400,
+          "subtotal": 1400
+        }
+      ]
+    },
+    {
+      "id": "ZV1ElH1oCgnpGY2BWf65",
+      "channel": "マルシェ",
+      "paymentMethod": "現金",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765340700000,
+      "createdAt": "2025-12-10T13:25:00+09:00",
+      "total": 400,
+      "items": [
+        {
+          "id": "i01",
+          "name": "シュシュ・ヘアピン",
+          "qty": 1,
+          "unitPrice": 400,
+          "subtotal": 400
+        }
+      ]
+    },
+    {
+      "id": "iD2DJuoTJUUYjaqOjwZS",
+      "channel": "マルシェ",
+      "paymentMethod": "現金",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765340400000,
+      "createdAt": "2025-12-10T13:20:00+09:00",
+      "total": 2800,
+      "items": [
+        {
+          "id": "i01",
+          "name": "スウェット",
+          "qty": 1,
+          "unitPrice": 2800,
+          "subtotal": 2800
+        }
+      ]
+    },
+    {
+      "id": "q9Yk6el6fyUStm8nyUJC",
+      "channel": "マルシェ",
+      "paymentMethod": "PayPay",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765339260000,
+      "createdAt": "2025-12-10T13:01:00+09:00",
+      "total": 3200,
+      "items": [
+        {
+          "id": "i01",
+          "name": "スウェット",
+          "qty": 1,
+          "unitPrice": 2800,
+          "subtotal": 2800
+        },
+        {
+          "id": "i02",
+          "name": "シュシュ・ヘアピン",
+          "qty": 1,
+          "unitPrice": 400,
+          "subtotal": 400
+        }
+      ]
+    },
+    {
+      "id": "zBeD8FTAyy2ubvKEQtF7",
+      "channel": "マルシェ",
+      "paymentMethod": "PayPay",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765334520000,
+      "createdAt": "2025-12-10T11:42:00+09:00",
+      "total": 2900,
+      "items": [
+        {
+          "id": "i01",
+          "name": "つけ襟",
+          "qty": 1,
+          "unitPrice": 1100,
+          "subtotal": 1100
+        },
+        {
+          "id": "i02",
+          "name": "かぼちゃパンツ",
+          "qty": 1,
+          "unitPrice": 1800,
+          "subtotal": 1800
+        }
+      ]
+    },
+    {
+      "id": "0nvfIKQvRKwuy09q0z8Q",
+      "channel": "マルシェ",
+      "paymentMethod": "PayPay",
+      "kind": "stock",
+      "parentSaleId": null,
+      "isRefund": false,
+      "memo": "",
+      "customerName": "",
+      "orderDateMs": 1765333860000,
+      "createdAt": "2025-12-10T11:31:00+09:00",
+      "total": 500,
+      "items": [
+        {
+          "id": "i01",
+          "name": "フリマ",
+          "qty": 1,
+          "unitPrice": 500,
+          "subtotal": 500
+        }
+      ]
+    }
+  ],
+  "generatedAt": "2026-01-02T22:27:16.115681+09:00",
+  "source": "csv_import_filtered"
+}
