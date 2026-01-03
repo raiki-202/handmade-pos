@@ -38,6 +38,7 @@
     { "id": "p025a", "name": "変更料","price": 100, "active": true },
     { "id": "p026", "name": "ミニシュシュ", "price": 200, "active": true },
     { "id": "p027", "name": "ヘアゴム", "price": 300, "active": true },
+    { "id": "p027a", "name": "ヘアゴム", "price": 500, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
