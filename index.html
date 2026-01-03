@@ -1179,12 +1179,98 @@ function saleToDateMs(d){
 }
 
 async function loadBundleSalesForChart(){
+  /*
+    ✅ sales bundle loader (階層対応・将来拡張OK)
+
+    1) まずは「一覧ファイル」があればそれを使う（おすすめ）
+       - sales_data/index.json
+         例: { "bundles": ["sales_data/2025/sales_bundle.json","sales_data/2026/jan/sales_bundle.json"] }
+
+       ※ 2027年, 2028年…と増えても、"index.json" にパスを追記するだけでOK（コード変更不要）
+
+    2) 無ければ従来の単一ファイル候補へフォールバック（壊さない）
+  */
+
+  // ---- (A) index/manifest方式：ここだけ更新すれば年が増えても追従できる ----
+  const indexCandidates = [
+    "./sales_data/index.json",
+    "sales_data/index.json",
+    "./sales_data/manifest.json",
+    "sales_data/manifest.json"
+  ];
+
+  const indexObj = await (async()=>{
+    for(const url of indexCandidates){
+      try{
+        const res = await fetch(url, { cache: "no-store" });
+        if(!res.ok) continue;
+        const js = await res.json();
+        if(js && (Array.isArray(js.bundles) || Array.isArray(js.files))) return js;
+      }catch(e){}
+    }
+    return null;
+  })();
+
+  // bundles（推奨） or files（互換）を許容
+  const bundlePaths = indexObj
+    ? (Array.isArray(indexObj.bundles) ? indexObj.bundles
+      : Array.isArray(indexObj.files) ? indexObj.files : [])
+    : [];
+
+  // 1本でも指定があれば、そこから集約して返す
+  if(bundlePaths.length){
+    const list = [];
+    let throughMs = 0;
+
+    // 並列取りすぎ防止（GitHub Pages想定）
+    const CONCURRENCY = 4;
+    const queue = [...bundlePaths].filter(Boolean);
+
+    async function worker(){
+      while(queue.length){
+        const path = queue.shift();
+        try{
+          const res = await fetch(path, { cache: "no-store" });
+          if(!res.ok) continue;
+          const json = await res.json();
+          const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
+          if(!arr.length) continue;
+
+          for(const d of arr){
+            const id = safeStr(d?.id || d?.saleId || "").trim() || `bundle_${list.length}`;
+            const data = { ...d, id, isBundled: true, source: "bundle" };
+            const s = normalizeSale({ id, data: ()=>data });
+            list.push(s);
+
+            const t = Math.max(
+              Number(deref(s, "clientCreatedAt")||0),
+              Number(deref(s, "orderDateMs")||0),
+              Number(s.date?.getTime ? s.date.getTime() : 0)
+            );
+            if(t > throughMs) throughMs = t;
+          }
+        }catch(e){
+          // ignore and continue
+        }
+      }
+    }
+
+    const workers = [];
+    for(let i=0;i<CONCURRENCY;i++) workers.push(worker());
+    await Promise.all(workers);
+
+    if(!list.length) return { list: [], throughMs: 0 };
+    return { list, throughMs };
+  }
+
+  // ---- (B) 従来方式：単一 sales_bundle.json を読む（後方互換） ----
   const candidates = [
     "./sales_bundle.json",
     "sales_bundle.json",
     "./bundle/sales_bundle.json",
     "bundle/sales_bundle.json"
   ];
+
   for(const url of candidates){
     try{
       const res = await fetch(url, { cache: "no-store" });
@@ -1193,20 +1279,33 @@ async function loadBundleSalesForChart(){
       const arr = Array.isArray(json) ? json : (Array.isArray(json.sales) ? json.sales : []);
       if(!arr.length) return { list: [], throughMs: 0 };
 
-      let throughMs = 0;
-      const list = arr.map((row, idx)=>{
-        const id = String(row.id || row.saleId || `bundle_${idx}`);
-        const ms = saleToDateMs(row);
-        if(ms > throughMs) throughMs = ms;
-        return { id, ms, raw: row };
+      const list = arr.map((d, idx)=>{
+        const id = safeStr(d.id || d.saleId || "").trim() || `bundle_${idx}`;
+        const data = { ...d, id, isBundled: true, source: "bundle" };
+        return normalizeSale({ id, data: ()=>data });
       });
+
+      let throughMs = 0;
+      for(const s of list){
+        const t = Math.max(
+          Number(deref(s, "clientCreatedAt")||0),
+          Number(deref(s, "orderDateMs")||0),
+          Number(s.date?.getTime ? s.date.getTime() : 0)
+        );
+        if(t > throughMs) throughMs = t;
+      }
       return { list, throughMs };
-    }catch(_e){
+    }catch(e){
       // try next
     }
   }
   return { list: [], throughMs: 0 };
 }
+
+function deref(obj, key){
+  try{ return obj?.[key]; }catch{ return undefined; }
+}
+
 
 async function loadSalesForChart(){
   // bundle + firebase（monthly_history と同じ「read節約」思想）
