@@ -9,13 +9,13 @@
     { "id": "p004",  "name": "ダブルフリルスタイつけ襟", "price": 1400, "active": true },
     { "id": "p004a", "name": "デニムフリルスタイ",       "price": 1200, "active": true },
 
-    { "id": "p005", "name": "バブーシュカ", "price": 1200, "active": true },
+    { "id": "p005", "name": "バブーシュカ", "price": 1400, "active": true },
     { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1600, "active": true },
     { "id": "p007", "name": "バブーシュカ（大人用）", "price": 1800, "active": true },
     { "id": "p008", "name": "ボンネット", "price": 1500, "active": true },
     { "id": "p009", "name": "かぼちゃパンツ", "price": 1800, "active": true },
     { "id": "p010", "name": "フレアパンツ", "price": 1800, "active": true },
-    { "id": "p011", "name": "スウェットパンツ", "price": 1800, "active": true },
+    { "id": "p011", "name": "スウェットパンツ", "price": 2000, "active": true },
     { "id": "p012", "name": "サス付きタイツ", "price": 1800, "active": true },
 
     { "id": "p013",  "name": "ビスチェ",     "price": 1800, "active": true },
@@ -23,8 +23,8 @@
 
     { "id": "p014", "name": "ベスト（無地）", "price": 2500, "active": true },
     { "id": "p015", "name": "ベスト（柄）", "price": 3000, "active": true },
-    { "id": "p015a", "name": "ベスト(特注)", "price": 2800, "active": true },
-    { "id": "p015b", "name": "ベスト(特注2)", "price": 4000, "active": true },
+    { "id": "p015a", "name": "ベスト(特注)", "price": 2800, "active": false },
+    { "id": "p015b", "name": "ベスト(特注2)", "price": 4000, "active": false },
     { "id": "p016", "name": "ボアベスト", "price": 3500, "active": true },
     { "id": "p017", "name": "ロンT", "price": 2000, "active": true },
     { "id": "p018", "name": "メロウTシャツ", "price": 1500, "active": true },
@@ -42,14 +42,14 @@
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
-    { "id": "p031", "name": "パーティーハット", "price": 1000, "active": true },
+    { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
 
     { "id": "p032",  "name": "フリマ", "price": 500, "active": true },
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
     { "id": "p033aa", "name": "送料",   "price": 700, "active": true },
     { "id": "p033a", "name": "送料",   "price": 900, "active": true },
     { "id": "p033b", "name": "送料",   "price": 1100, "active": true },
-    { "id": "p034",  "name": "手数料", "price": 900, "active": true },
+    { "id": "p034",  "name": "手数料", "price": 900, "active": false },
     
     { "id": "p035a", "name": "マルシェ調整費用1",   "price": 5200, "active": false },
     { "id": "p035", "name": "マルシェ調整費用2",   "price": 28700, "active": false },
@@ -57,7 +57,7 @@
     { "id": "p037", "name": "マルシェ調整費用4",   "price": 13096, "active": false },
     { "id": "p038", "name": "マルシェ調整費用5",   "price": 16000, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
-    { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": true }
+    { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false }
   ]
 }
 
