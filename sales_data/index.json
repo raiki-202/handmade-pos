@@ -1,0 +1,7 @@
+{
+  "bundles": [
+    "sales_data/2025/sales_bundle.json",
+    "sales_data/2026/jan/sales_bundle.json",
+    "sales_data/2026/feb/sales_bundle.json"
+  ]
+}
