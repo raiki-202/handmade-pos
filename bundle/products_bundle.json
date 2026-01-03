@@ -33,6 +33,7 @@
     { "id": "p023", "name": "スマホストラップ", "price": 800, "active": true },
     { "id": "p024", "name": "マグホルダー", "price": 800, "active": true },
     { "id": "p025", "name": "シュシュ・ヘアピン", "price": 400, "active": true },
+    { "id": "p025a", "name": "ヘアピンオプション","price": 100, "active": true },
     { "id": "p026", "name": "ミニシュシュ", "price": 200, "active": true },
     { "id": "p027", "name": "ヘアゴム", "price": 300, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
