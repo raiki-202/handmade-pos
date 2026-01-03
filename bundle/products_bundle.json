@@ -41,7 +41,7 @@
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
-    { "id": "p031", "name": "パーティーハット", "price": 1000, "active": true },
+    { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
 
     { "id": "p032",  "name": "フリマ", "price": 500, "active": true },
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
@@ -54,7 +54,8 @@
     { "id": "p036", "name": "マルシェ調整費用3",   "price": 13700, "active": false },
     { "id": "p037", "name": "マルシェ調整費用4",   "price": 13096, "active": false },
     { "id": "p038", "name": "マルシェ調整費用5",   "price": 16000, "active": false },
-    { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false }
+    { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
+    { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": true }
   ]
 }
 
