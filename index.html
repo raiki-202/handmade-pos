@@ -601,14 +601,19 @@ body{
   display:grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--gap);
+  width:100%;
+  grid-auto-rows: 1fr;
 }
 
 .tile{
+  color: var(--text-main);
   position:relative;
   appearance:none;
   -webkit-appearance:none;
   width:100%;
-  height: var(--tile-size);  /* ← iPhoneで確実に収める */
+  aspect-ratio: 1 / 1;
+  height: auto;
+  min-height: 112px;  /* iPhoneで見切れ防止 */
   border-radius: var(--tile-r);
 
   border: 1px solid rgba(255,255,255,.62);
@@ -666,8 +671,12 @@ body{
   stroke-linejoin: round;
 }
 
-.tileTitle{ font-weight:900; font-size:13px; line-height:1.2; }
+.tileTitle{ font-weight:900; font-size:13px; line-height:1.2;  color: var(--text-main); }
 .tileSub{ font-weight:700; font-size:10.5px; color: rgba(34,34,34,.60); line-height:1.2; }
+
+
+.tileDisabled{ opacity:.55; cursor:default; }
+.tileDisabled:active{ transform:none; }
 
 /* さらに小さい端末（SE級）でも余裕を作る */
 @media (max-width: 360px){
@@ -1051,41 +1060,72 @@ body{
 <div class="tileSub">pos.html</div>
 </button>
 <button class="tile" data-href="assets.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- お金（資産） -->
+<svg viewBox="0 0 24 24">
+  <path d="M3 7h18v10H3z"></path>
+  <path d="M7 7V5h10v2"></path>
+  <circle cx="8" cy="12" r="0.8"></circle>
+  <circle cx="12" cy="12" r="0.8"></circle>
+  <circle cx="16" cy="12" r="0.8"></circle>
+</svg>
+</div>
 <div class="tileTitle">資産管理</div>
 <div class="tileSub">assets.html</div>
 </button>
 <button class="tile" data-href="monthly_history.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- お金が入ってくる -->
+<svg viewBox="0 0 24 24">
+  <path d="M4 7h16v10H4z"></path>
+  <path d="M12 3v10"></path>
+  <path d="M9 6l3-3 3 3"></path>
+</svg>
+</div>
 <div class="tileTitle">売上管理</div>
 <div class="tileSub">monthly_history.html</div>
 </button>
 <button class="tile" data-href="expenses.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- お金が出ていく -->
+<svg viewBox="0 0 24 24">
+  <path d="M4 7h16v10H4z"></path>
+  <path d="M12 21V11"></path>
+  <path d="M15 18l-3 3-3-3"></path>
+</svg>
+</div>
 <div class="tileTitle">支出管理</div>
 <div class="tileSub">expenses.html</div>
 </button>
 <button class="tile" data-href="receipt_claims.html" type="button">
+<div aria-hidden="true" class="tileIcon">
+<!-- 領収書 -->
+<svg viewBox="0 0 24 24">
+  <path d="M7 3h10v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"></path>
+  <path d="M9 7h6"></path>
+  <path d="M9 11h6"></path>
+  <path d="M9 15h4"></path>
+</svg>
+</div>
 <div class="tileTitle">領収申請</div>
 <div class="tileSub">receipt_claims.html</div>
 </button>
 
-<button class="tile" data-href="order.html" type="button">
+<button class="tile tileDisabled" data-href="" type="button">
 <div class="tileTitle">オーダー</div>
-<div class="tileSub">order.html</div>
+<div class="tileSub">今後実装予定枠</div>
 </button>
-<button class="tile" data-href="shipping.html" type="button">
+<button class="tile tileDisabled" data-href="" type="button">
 <div class="tileTitle">発送</div>
-<div class="tileSub">shipping.html</div>
+<div class="tileSub">今後実装予定枠</div>
 </button>
-<button class="tile" data-href="sales.html" type="button">
+<button class="tile tileDisabled" data-href="" type="button">
 <div class="tileTitle">売上</div>
-<div class="tileSub">sales.html</div>
+<div class="tileSub">今後実装予定枠</div>
 </button>
-<button class="tile" data-href="income.html" type="button">
+<button class="tile tileDisabled" data-href="" type="button">
 <div class="tileTitle">入金</div>
-<div class="tileSub">income.html</div>
-</button>
-<button class="tile" data-href="analytics.html" type="button">
-<div class="tileTitle">分析</div>
-<div class="tileSub">analytics.html</div>
+<div class="tileSub">今後実装予定枠</div>
 </button>
 </div>
 </section>
