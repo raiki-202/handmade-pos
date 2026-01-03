@@ -12,7 +12,7 @@
     { "id": "p005", "name": "バブーシュカ", "price": 1200, "active": true },
     { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1400, "active": true },
     { "id": "p007", "name": "バブーシュカ（大人用）", "price": 1800, "active": true },
-    { "id": "p008", "name": "ボンネット", "price": 1400, "active": true },
+    { "id": "p008", "name": "ボンネット", "price": 1500, "active": true },
     { "id": "p009", "name": "かぼちゃパンツ", "price": 1800, "active": true },
     { "id": "p010", "name": "フレアパンツ", "price": 1800, "active": true },
     { "id": "p011", "name": "スウェットパンツ", "price": 1800, "active": true },
