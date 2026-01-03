@@ -696,7 +696,7 @@ body{
               </select>
             </td>
             <td><input class="lineInp" data-k="qty" type="number" inputmode="numeric" value="${esc(String(li.qty??0))}" style="width:50px"></td>
-            <td><div class="unitWrap"><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc((li.unitPrice===0||li.unitPrice===null||li.unitPrice===undefined||li.unitPrice==="") ? "" : String(li.unitPrice))}" style="width:120px"><button class="signBtn" type="button" data-act="toggleSign">±</button></div></td>
+            <td><input class="lineInp" data-k="unitPrice" type="number" inputmode="numeric" value="${esc((li.unitPrice===0||li.unitPrice===null||li.unitPrice===undefined||li.unitPrice==="") ? "" : String(li.unitPrice))}" style="width:110px"></td>
             <td class="mono" data-k="total">${esc(formatJPY(li.total||0))}</td>
             <td><input class="lineInp" data-k="memo" type="text" value="${esc(li.memo||"")}" placeholder="メモ"></td>
             <td style="text-align:right;">
@@ -753,13 +753,13 @@ body{
           <div class="lineTableWrap">
             <table class="lineTable" aria-label="line items">
               <colgroup>
-                <col style="width: 22%;" />
-                <col style="width: 16%;" />
+                <col style="width: 20%;" />
+                <col style="width: 18%;" />
                 <col style="width: 10%;" />
                 <col style="width: 14%;" />
                 <col style="width: 12%;" />
-                <col style="width: 18%;" />
-                <col style="width: 8%;" />
+                <col style="width: 20%;" />
+                <col style="width: 6%;" />
               </colgroup>
               <thead>
                 <tr>
@@ -816,7 +816,19 @@ body{
           const categoryId = tr.querySelector('select[data-k="categoryId"]').value || "";
           const categoryLabel = categories.find(c=>c.id===categoryId)?.label || "";
           const qty = Number(tr.querySelector('[data-k="qty"]').value || 0);
-          const unitPrice = Number(tr.querySelector('[data-k="unitPrice"]').value || 0);
+          const unitInp = tr.querySelector('[data-k="unitPrice"]');
+          const rawUnit = (unitInp?.value ?? "").toString().trim();
+          let unitPrice = (rawUnit === "") ? 0 : Number(rawUnit);
+
+          // カテゴリに「割引」が入った時のみ、単価を自動でマイナス表記にする（外れたらプラスに戻す）
+          const isDiscount = (categoryLabel && categoryLabel.includes("割引"));
+          if(rawUnit !== "" && Number.isFinite(unitPrice)){
+            const adjusted = isDiscount ? -Math.abs(unitPrice) : Math.abs(unitPrice);
+            if(adjusted !== unitPrice){
+              unitPrice = adjusted;
+              if(unitInp) unitInp.value = String(adjusted);
+            }
+          }
           const memo = tr.querySelector('[data-k="memo"]').value || "";
           const total = Math.round((qty||0) * (unitPrice||0));
           tr.querySelector('[data-k="total"]').textContent = formatJPY(total);
@@ -832,26 +844,6 @@ body{
       // attach listeners
       function attachRowHandlers(tr){
         tr.addEventListener("input", ()=>{ recompute(); });
-
-        // ± ボタン：単価をマイナス表記に切替（再タップで戻す）
-        const sign = tr.querySelector('[data-act="toggleSign"]');
-        if(sign){
-          sign.onclick = ()=>{
-            const inp = tr.querySelector('[data-k="unitPrice"]');
-            if(!inp) return;
-            const raw = (inp.value ?? "").toString().trim();
-            if(raw === ""){
-              // 空の時は -0 を入れてから編集しやすくする
-              inp.value = "-0";
-              inp.focus();
-            }else{
-              const v = Number(raw);
-              // NaN の場合は何もしない
-              if(Number.isFinite(v)) inp.value = String(-v);
-            }
-            recompute();
-          };
-        }
 
         const del = tr.querySelector('[data-act="del"]');
         del.onclick = ()=>{ tr.remove(); recompute(); };
