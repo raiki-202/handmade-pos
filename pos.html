@@ -555,7 +555,7 @@ select {
             ステータス
             <select id="statusSelect"></select>
           </span>
-          <div class="muted" style="margin-top:6px;">※ kind と販売方法に応じて初期値が入ります</div>
+          <div class="muted" style="margin-top:6px;">※ マルシェ以外のときだけ表示されます</div>
         </div>
 <div id="receiptList" style="margin-top:10px;"></div>
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
@@ -1476,111 +1476,47 @@ function applyUrgentOptions(){
 
 
 /* =====================================================
-   Status (kindごとに候補切替 / マルシェも対応)
-   - kind=stock → status_stock_bundle.json
-   - kind=order → status_order_bundle.json
-   - 初期値：
-       * 通常（マルシェ以外）：未着手
-       * マルシェ：
-           - kind=stock：発送完了
-           - kind=order：未着手
+   Status (マルシェ以外のとき)
+   - channels !== marche のときだけ表示
+   - kind=stock / kind=order でリスト切替
 ===================================================== */
-const STATUS_STOCK_CANDIDATES = [
-  "./status_stock_bundle.json",
-  "status_stock_bundle.json",
-  "./bundle/status_stock_bundle.json",
-  "bundle/status_stock_bundle.json"
-];
-const STATUS_ORDER_CANDIDATES = [
-  "./status_order_bundle.json",
-  "status_order_bundle.json",
-  "./bundle/status_order_bundle.json",
-  "bundle/status_order_bundle.json"
-];
-
+const STATUS_STOCK_URL = "./status_stock_bundle.json";
+const STATUS_ORDER_URL = "./status_order_bundle.json";
 let statusMasters = { stock: [], order: [] };
 let statusLoaded = false;
 
-function normalizeStatusArray(j){
-  const arr = j?.statuses || j?.status || j?.items || j?.list || [];
-  return Array.isArray(arr) ? arr.filter(x=>x?.active !== false) : [];
-}
-
 async function loadStatusBundles(){
   if(statusLoaded) return;
-  try{
-    const { json: jStock } = await fetchFirstOkJson(STATUS_STOCK_CANDIDATES, "status stock");
-    statusMasters.stock = normalizeStatusArray(jStock);
-  }catch(e){
-    console.warn("[status] stock load failed", e);
-    statusMasters.stock = [];
-  }
-  try{
-    const { json: jOrder } = await fetchFirstOkJson(STATUS_ORDER_CANDIDATES, "status order");
-    statusMasters.order = normalizeStatusArray(jOrder);
-  }catch(e){
-    console.warn("[status] order load failed", e);
-    statusMasters.order = [];
-  }
+  const loadOne = async (url, key)=>{
+    try{
+      const res = await fetch(url, { cache: "no-store" });
+      if(!res.ok){
+        console.warn(`[status] missing: ${url} (${res.status})`);
+        return [];
+      }
+      const j = await res.json();
+      // どちらでも受けられるように key は "statuses" 固定で読む
+      const arr = j.statuses || j.status || j[key] || [];
+      return Array.isArray(arr) ? arr.filter(x=>x.active !== false) : [];
+    }catch(e){
+      console.warn(`[status] load failed: ${url}`, e);
+      return [];
+    }
+  };
+  statusMasters.stock = await loadOne(STATUS_STOCK_URL, "stock");
+  statusMasters.order = await loadOne(STATUS_ORDER_URL, "order");
   statusLoaded = true;
 }
 
-function findStatusIdByLabelIncludes(list, keyword){
-  const k = String(keyword||"").toLowerCase();
-  const hit = (list||[]).find(x=>{
-    const id = String(x.id||"").toLowerCase();
-    const label = String(x.label ?? x.name ?? "").toLowerCase();
-    return id.includes(k) || label.includes(k);
-  });
-  return hit?.id || "";
-}
-
-function resolveDefaultStatusId(channelId, kindId){
-  // list
-  const list = (kindId === "order") ? (statusMasters.order||[]) : (statusMasters.stock||[]);
-
-  // key phrases
-  const isMarche = (channelId === "marche");
-  if(isMarche && kindId !== "order"){
-    // マルシェ + stock → 発送完了
-    return (
-      findStatusIdByLabelIncludes(list, "発送完了") ||
-      findStatusIdByLabelIncludes(list, "発送") ||
-      ""
-    );
-  }
-  // それ以外 → 未着手
-  return (
-    findStatusIdByLabelIncludes(list, "not_started") ||
-    findStatusIdByLabelIncludes(list, "未着手") ||
-    ""
-  );
-}
-
-function applyStatusOptions(kindId, channelId){
+function applyStatusOptions(kindId){
   if(!$statusSelect) return;
-
   const list = (kindId === "order") ? (statusMasters.order || []) : (statusMasters.stock || []);
-  const prev = ($statusSelect.value || "").trim();
-
+  const prev = $statusSelect.value || "";
   fillSelectWithPlaceholder($statusSelect, list, prev, "---");
-
-  // 初期値を入れる（prevが無い or prevが候補に無い場合）
-  const exists = [...$statusSelect.options].some(o => o.value === prev && prev);
-  if(!exists){
-    const defId = resolveDefaultStatusId(channelId, kindId);
-    if(defId){
-      $statusSelect.value = defId;
-      // valueが合わない(=id未一致)なら、label一致で選ぶ（念のため）
-      if(!$statusSelect.value){
-        const defLabel = (defId === "not_started") ? "未着手" : "発送完了";
-        const idx = [...$statusSelect.options].findIndex(o => (o.textContent||"").includes(defLabel));
-        if(idx >= 0) $statusSelect.selectedIndex = idx;
-      }
-    }else{
-      // 候補が空 or defaultが見つからない → 先頭（---の次）
-      if($statusSelect.options.length > 1) $statusSelect.selectedIndex = 1;
-    }
+  // 初期値：未着手（not_started）
+  if(!$statusSelect.value){
+    $statusSelect.value = "not_started";
+    if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // 念のため
   }
 }
 
@@ -1589,18 +1525,39 @@ function toggleStatusUI(){
 
   const ch = ($receiptChannelSelect?.value || settings.currentChannel || $channelSelect?.value || "");
   const kindId = ($kindSelect?.value || "stock");
+  const isNonMarche = (ch && ch !== "marche");
 
-  const show = (kindId === "stock" || kindId === "order");
+  const show = isNonMarche && (kindId === "stock" || kindId === "order");
   $statusWrap.style.display = show ? "" : "none";
 
   if(show){
+    // 初回だけjsonを読み込む（失敗しても空のまま継続）
     loadStatusBundles().then(()=>{
-      applyStatusOptions(kindId, ch);
+      applyStatusOptions(kindId);
+      if(!$statusSelect.value) $statusSelect.selectedIndex = 0; // --- を先頭に
       setReceiptMetaText();
     });
   }else{
     $statusSelect.value = "";
   }
+}
+
+function toggleUrgentUI(){
+  const kindId = ($kindSelect?.value || "stock");
+
+  // urgent UI（kind=order のときだけ）
+  if($urgentWrap){
+    const show = (kindId === "order");
+    $urgentWrap.style.display = show ? "" : "none";
+    if(show){
+      applyUrgentOptions();
+      // 未選択なら先頭（---）
+      if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+    }
+  }
+
+  // status UI（マルシェ以外のとき）
+  toggleStatusUI();
 }
 
 /* =====================================================
