@@ -1371,16 +1371,16 @@ const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new 
 
 async function loadSimpleBundle(key){
   const def = MASTER_DEFS[key];
+  const url = def && def.bundleUrl ? def.bundleUrl : null;
+  if(!url) return [];
   try{
-    const fileName = (def.bundleUrl || "").split("/").pop();
-    const candidates = [
-      `./${fileName}`,
-      `${fileName}`,
-      `./bundle/${fileName}`,
-      `bundle/${fileName}`
-    ];
-    const { url, json } = await fetchFirstOkJson(candidates, `masters bundle (${key})`);
-    const arr = json[key] || json[ key === "payments" ? "paymentMethods" : key ] || [];
+    const res = await fetch(url, { cache: "no-store" });
+    if(!res.ok) throw new Error(`bundle fetch failed: ${key} (${res.status}) ${url}`);
+    const json = await res.json();
+    const arr =
+      json[key]
+      || json[ key === "payments" ? "paymentMethods" : key ]
+      || [];
     return Array.isArray(arr) ? arr : [];
   }catch(e){
     console.warn(`[masters] bundle load failed: ${key} -> empty bundle used for ${key}`, e);
