@@ -599,13 +599,14 @@ body{
 .otherCard{ padding:14px; }
 .tileGrid{
   display:grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--gap);
   width:100%;
   grid-auto-rows: 1fr;
 }
 
 .tile{
+  min-width:0;
   color: var(--text-main);
   position:relative;
   appearance:none;
@@ -613,7 +614,7 @@ body{
   width:100%;
   aspect-ratio: 1 / 1;
   height: auto;
-  min-height: 112px;  /* iPhoneで見切れ防止 */
+  min-height: 0;  /* widthに追従してはみ出し防止 */
   border-radius: var(--tile-r);
 
   border: 1px solid rgba(255,255,255,.62);
