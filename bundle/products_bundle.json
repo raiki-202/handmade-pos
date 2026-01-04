@@ -57,7 +57,8 @@
     { "id": "p037", "name": "マルシェ調整費用4",   "price": 13096, "active": false },
     { "id": "p038", "name": "マルシェ調整費用5",   "price": 16000, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
-    { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false }
+    { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false },
+    { "id": "p040", "name": "online売上調整費用",   "price": 20887, "active": true }
   ]
 }
 
