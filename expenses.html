@@ -311,6 +311,15 @@ body{
           <label for="qInput">検索</label>
           <input id="qInput" type="text" placeholder="店名/メモ/明細名" />
         </div>
+
+        <!-- 合計だけに適用するフィルタ（一覧の表示は崩さない） -->
+        <div class="field">
+          <label for="sumFilterSel">合計</label>
+          <select id="sumFilterSel">
+            <option value="all">表示中（全件）</option>
+            <option value="exclude_received">受取確認を除外</option>
+          </select>
+        </div>
         <button class="pill" id="refreshBtn" type="button">更新</button>
       </div>
 
@@ -405,6 +414,7 @@ body{
     const yearSel = document.getElementById("yearSel");
     const monthSel = document.getElementById("monthSel");
     const qInput = document.getElementById("qInput");
+    const sumFilterSel = document.getElementById("sumFilterSel");
     const tbody = document.getElementById("tbody");
     const empty = document.getElementById("empty");
     const sumAmount = document.getElementById("sumAmount");
@@ -590,8 +600,15 @@ body{
       tbody.innerHTML = "";
       empty.style.display = list.length ? "none" : "";
 
+      // 合計だけに適用するフィルタ
+      // 例）領収申請ステータスが「受取確認」のものは合計から除外
+      const sumMode = (sumFilterSel?.value || "all");
+      const listForSum = (sumMode === "exclude_received")
+        ? list.filter(r => r.receiptStatus !== "received_confirm")
+        : list;
+
       let sum = 0;
-      for(const r of list) sum += (Number(r.sum)||0);
+      for(const r of listForSum) sum += (Number(r.sum)||0);
       sumAmount.textContent = formatJPY(sum);
       sumCount.textContent = String(list.length);
 
@@ -988,6 +1005,7 @@ body{
     addBtn.onclick = ()=> openReceiptEditor(null);
     refreshBtn.onclick = ()=> refreshAll();
     qInput.addEventListener("input", ()=> render());
+    sumFilterSel?.addEventListener("change", ()=> render());
     yearSel.addEventListener("change", ()=> refreshAll());
     monthSel.addEventListener("change", ()=> refreshAll());
 
