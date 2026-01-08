@@ -163,6 +163,21 @@ body{
   pointer-events:none;
 }
 .toast.show{ opacity:1; transform: translateY(0); }
+
+
+/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
+@media (max-width: 600px){
+  input, select, textarea{
+    font-size:16px !important;
+  }
+}
+/* Date inputs in sheets/modals sometimes have own rules */
+@media (max-width: 600px){
+  input[type="date"], input[type="month"], input[type="datetime-local"]{
+    font-size:16px !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -191,14 +206,6 @@ body{
         <div class="field">
           <label for="monthSel">月</label>
           <select id="monthSel"></select>
-        </div>
-
-        <div class="field">
-          <label for="sumSel">合計</label>
-          <select id="sumSel">
-            <option value="all">表示中（全件）</option>
-            <option value="exclude_received">受取確認を除外</option>
-          </select>
         </div>
 
         <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
@@ -250,7 +257,6 @@ body{
     const refreshBtn = document.getElementById("refreshBtn");
     const yearSel = document.getElementById("yearSel");
     const monthSel = document.getElementById("monthSel");
-    const sumSel = document.getElementById("sumSel");
 
     const fltAll = document.getElementById("fltAll");
     const fltK = document.getElementById("fltK");
@@ -318,7 +324,6 @@ body{
     /* ===== state ===== */
     let receipts = [];
     let personFilter = "all"; // all | kawahara | fujiwara
-    let sumMode = "all"; // all | exclude_received (affects sum only)
 
     function normalizeDoc(d){
       const x = d.data();
@@ -352,14 +357,8 @@ body{
       listEl.innerHTML = "";
       emptyEl.style.display = list.length ? "none" : "";
 
-      // sumMode affects ONLY the total amount (一覧表示・件数はそのまま)
-      const listForSum = (sumMode === "exclude_received")
-        ? list.filter(r => (r.receiptStatus || "") !== "received_confirm")
-        : list;
-
       let sum = 0;
-      for(const r of listForSum) sum += (Number(r.sum)||0);
-
+      for(const r of list) sum += (Number(r.sum)||0);
       sumCount.textContent = String(list.length);
       sumAmount.textContent = formatJPY(sum);
 
@@ -479,7 +478,6 @@ body{
     }
 
     async function refreshAll(){
-      sumMode = sumSel.value || "all";
       await loadReceipts();
       setActivePills();
       render();
@@ -490,7 +488,6 @@ body{
     refreshBtn.onclick = ()=> refreshAll();
     yearSel.addEventListener("change", ()=> refreshAll());
     monthSel.addEventListener("change", ()=> refreshAll());
-    sumSel.addEventListener("change", ()=>{ sumMode = sumSel.value || "all"; render(); });
 
     fltAll.onclick = ()=>{ personFilter="all"; setActivePills(); render(); };
     fltK.onclick = ()=>{ personFilter="kawahara"; setActivePills(); render(); };
@@ -506,8 +503,6 @@ body{
 
       initYearMonth();
       await loadReceiptStatuses();
-
-      sumMode = sumSel.value || "all";
 
       try{
         await refreshAll();

@@ -887,6 +887,21 @@ body{
 .detailItemMeta{ display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:rgba(0,0,0,.6); font-weight:800; margin-top:2px; }
 .detailItemSub{ color:rgba(0,0,0,.85); font-weight:900; }
 .detailEmpty{ font-size:12px; color:rgba(0,0,0,.55); font-weight:800; padding:8px 0; }
+
+
+/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
+@media (max-width: 600px){
+  input, select, textarea{
+    font-size:16px !important;
+  }
+}
+/* Date inputs in sheets/modals sometimes have own rules */
+@media (max-width: 600px){
+  input[type="date"], input[type="month"], input[type="datetime-local"]{
+    font-size:16px !important;
+  }
+}
+
 </style>
 </head>
 <body>

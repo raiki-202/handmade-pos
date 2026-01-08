@@ -87,7 +87,22 @@
       color: rgba(0,0,0,.55);
       text-align:center;
     }
-  </style>
+  
+
+/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
+@media (max-width: 600px){
+  input, select, textarea{
+    font-size:16px !important;
+  }
+}
+/* Date inputs in sheets/modals sometimes have own rules */
+@media (max-width: 600px){
+  input[type="date"], input[type="month"], input[type="datetime-local"]{
+    font-size:16px !important;
+  }
+}
+
+</style>
 </head>
 <body>
 
