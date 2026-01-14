@@ -54,6 +54,19 @@ body{
 .pillPrimary{ background:rgba(255,255,255,.92); color:#0b0d12; border-color: rgba(255,255,255,.92); }
 .pillActive{ background:rgba(47,42,34,.08); border-color: rgba(47,42,34,.22); }
 
+
+.pillCount{
+  display:inline-flex; align-items:center; gap:8px;
+}
+.pillCount .count{
+  display:inline-flex; align-items:center; justify-content:center;
+  min-width: 22px;
+  padding:2px 8px;
+  border-radius:999px;
+  border:1px solid var(--line);
+  background:rgba(255,255,255,.92);
+  font-weight:1000;
+}
 .card{
   background:linear-gradient(180deg,var(--glass),var(--glass2));
   border:1px solid var(--line);
@@ -163,21 +176,6 @@ body{
   pointer-events:none;
 }
 .toast.show{ opacity:1; transform: translateY(0); }
-
-
-/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
-@media (max-width: 600px){
-  input, select, textarea{
-    font-size:16px !important;
-  }
-}
-/* Date inputs in sheets/modals sometimes have own rules */
-@media (max-width: 600px){
-  input[type="date"], input[type="month"], input[type="datetime-local"]{
-    font-size:16px !important;
-  }
-}
-
 </style>
 </head>
 <body>
@@ -208,11 +206,23 @@ body{
           <select id="monthSel"></select>
         </div>
 
-        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
-          <button class="pill pillActive" id="fltAll" type="button">すべて</button>
-          <button class="pill" id="fltK" type="button">川原</button>
-          <button class="pill" id="fltF" type="button">藤原</button>
-        </div>
+
+
+<div class="field">
+  <label for="statusSel">ステータス</label>
+  <select id="statusSel">
+    <option value="all">すべて</option>
+  </select>
+</div>
+
+<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;" id="statusBadges"></div>
+
+        <div class="field">
+  <label for="personSel">人物</label>
+  <select id="personSel">
+    <option value="all">すべて</option>
+  </select>
+</div>
       </div>
 
       <div class="sumRow">
@@ -258,11 +268,13 @@ body{
     const yearSel = document.getElementById("yearSel");
     const monthSel = document.getElementById("monthSel");
 
-    const fltAll = document.getElementById("fltAll");
-    const fltK = document.getElementById("fltK");
-    const fltF = document.getElementById("fltF");
+    
 
-    const listEl = document.getElementById("list");
+const statusSel = document.getElementById("statusSel");
+const statusBadges = document.getElementById("statusBadges");
+
+    const personSel = document.getElementById("personSel");
+const listEl = document.getElementById("list");
     const emptyEl = document.getElementById("empty");
     const sumCount = document.getElementById("sumCount");
     const sumAmount = document.getElementById("sumAmount");
@@ -321,11 +333,89 @@ body{
       return `<option value="">(未設定)</option>` + opts;
     }
 
+
+/* ===== status filter UI ===== */
+let statusBtnMap = new Map(); // id -> button
+
+function initStatusFilter(){
+  const opts = [
+    `<option value="all">すべて</option>`,
+    ...receiptStatuses
+      .filter(s=>s.active)
+      .map(s=>`<option value="${esc(s.id)}">${esc(s.label)}</option>`)
+  ];
+  statusSel.innerHTML = opts.join("");
+  statusSel.value = "all";
+  statusFilter = "all";
+}
+
+
+
+function initPersonFilter(){
+  const opts = [
+    `<option value="all">すべて</option>`,
+    `<option value="kawahara">川原</option>`,
+    `<option value="fujiwara">藤原</option>`
+  ];
+  personSel.innerHTML = opts.join("");
+  personSel.value = personFilter || "all";
+}
+function initStatusBadges(){
+  statusBadges.innerHTML = "";
+  statusBtnMap = new Map();  // status buttons (only active statuses)
+  for(const s of receiptStatuses.filter(x=>x.active)){
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "pill pillCount";
+    b.dataset.sid = s.id;
+    b.innerHTML = `${esc(s.label)} <span class="count" data-count>—</span>`;
+    b.onclick = ()=>{
+      statusFilter = s.id;
+      statusSel.value = s.id;
+      setActiveStatusUI();
+      render();
+    };
+    statusBadges.appendChild(b);
+    statusBtnMap.set(s.id, b);
+  }
+
+  setActiveStatusUI();
+}
+
+function setActiveStatusUI(){
+  for(const b of statusBtnMap.values()) b.classList.remove("pillActive");
+  const active = statusBtnMap.get(statusFilter);
+  if(active) active.classList.add("pillActive");
+}
+
+function updateStatusBadgeCounts(baseList){
+  // baseList: year/month already applied, and person filter applied
+  const counts = {};
+  for(const r of baseList){
+    const sid = (r.receiptStatus || "").trim();
+    if(!sid) continue;
+    counts[sid] = (counts[sid]||0) + 1;
+  }
+  const total = baseList.length;
+
+  // set counts
+  for(const [sid, btn] of statusBtnMap.entries()){
+    const el = btn.querySelector('[data-count]');
+    if(!el) continue;
+    el.textContent = String(counts[sid] || 0);
+  }
+}
+
+
+;
+
     /* ===== state ===== */
     let receipts = [];
     let personFilter = "all"; // all | kawahara | fujiwara
 
-    function normalizeDoc(d){
+    
+    let statusFilter = "all"; // all | statusId
+function normalizeDoc(d){
       const x = d.data();
       return {
         id: d.id,
@@ -341,20 +431,36 @@ body{
       };
     }
 
-    function applyFilters(){
-      let list = receipts.filter(r => r.claimKawahara || r.claimFujiwara);
+    
+function baseFiltered(){
+  let list = receipts.filter(r => r.claimKawahara || r.claimFujiwara);
 
-      if(personFilter === "kawahara"){
-        list = list.filter(r => r.claimKawahara);
-      }else if(personFilter === "fujiwara"){
-        list = list.filter(r => r.claimFujiwara);
-      }
-      return list;
-    }
+  if(personFilter === "kawahara"){
+    list = list.filter(r => r.claimKawahara);
+  }else if(personFilter === "fujiwara"){
+    list = list.filter(r => r.claimFujiwara);
+  }
+  return list;
+}
+
+function applyFilters(){
+  let list = baseFiltered();
+
+  if(statusFilter !== "all"){
+    list = list.filter(r => (r.receiptStatus || "").trim() === statusFilter);
+  }
+  return list;
+}
 
     function render(){
       const list = applyFilters();
-      listEl.innerHTML = "";
+      
+      // ステータス別件数（年/月はFirestore取得時点で適用済み、ここでは人物フィルタまで反映）
+      updateStatusBadgeCounts(baseFiltered());
+      setActiveStatusUI();
+      personSel.value = personFilter || "all";
+setActivePersonUI();
+listEl.innerHTML = "";
       emptyEl.style.display = list.length ? "none" : "";
 
       let sum = 0;
@@ -470,16 +576,8 @@ body{
       monthSel.value = String(now.getMonth()+1);
     }
 
-    function setActivePills(){
-      [fltAll, fltK, fltF].forEach(b=>b.classList.remove("pillActive"));
-      if(personFilter==="all") fltAll.classList.add("pillActive");
-      if(personFilter==="kawahara") fltK.classList.add("pillActive");
-      if(personFilter==="fujiwara") fltF.classList.add("pillActive");
-    }
-
     async function refreshAll(){
       await loadReceipts();
-      setActivePills();
       render();
     }
 
@@ -489,11 +587,24 @@ body{
     yearSel.addEventListener("change", ()=> refreshAll());
     monthSel.addEventListener("change", ()=> refreshAll());
 
-    fltAll.onclick = ()=>{ personFilter="all"; setActivePills(); render(); };
-    fltK.onclick = ()=>{ personFilter="kawahara"; setActivePills(); render(); };
-    fltF.onclick = ()=>{ personFilter="fujiwara"; setActivePills(); render(); };
+    
 
-    /* ===== auth gate ===== */
+    statusSel.addEventListener("change", ()=>{
+      statusFilter = statusSel.value || "all";
+      if(!statusFilter) statusFilter = "all";
+      setActiveStatusUI();
+      render();
+    });
+
+
+    
+
+    personSel.addEventListener("change", ()=>{
+      personFilter = personSel.value || "all";
+      if(!personFilter) personFilter = "all";
+      render();
+    });
+/* ===== auth gate ===== */
     onAuthStateChanged(auth, async (user)=>{
       if(!user){
         const redirect = encodeURIComponent("receipt_claims.html");
@@ -503,8 +614,9 @@ body{
 
       initYearMonth();
       await loadReceiptStatuses();
-
-      try{
+      initStatusFilter();
+      initStatusBadges();
+      initPersonFilter();try{
         await refreshAll();
       }catch(e){
         console.error(e);
