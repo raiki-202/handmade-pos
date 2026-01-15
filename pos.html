@@ -528,6 +528,13 @@ select {
           <div class="label">購入者氏名</div>
           <input id="receiptCustomerName" placeholder="例：山田 太郎" />
         </div>
+        <div style="margin-top:8px;">
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="receiptIsCorporate" type="checkbox" />
+            <span style="font-size:12px; font-weight:800; color: var(--text-sub);">（企業）</span>
+          </label>
+        </div>
+
 
         <div style="margin-top:10px;">
           <span class="label" style="display:inline-flex; align-items:center; gap:8px;">
@@ -804,6 +811,7 @@ const $receiptVenueWrap = $("receiptVenueWrap");
 const $receiptVenueSelect = $("receiptVenueSelect");
 const $receiptPaymentSelect = $("receiptPaymentSelect");
 const $receiptCustomerName  = $("receiptCustomerName");
+const $receiptIsCorporate   = $("receiptIsCorporate");
 
 const $mastersToggleBtn = $("mastersToggleBtn");
 const $masterMenuModal = $("masterMenuModal");
@@ -1331,17 +1339,20 @@ function todayYMD(){
    - kind=order のときだけ「オーダー料」を加算
    - baseTotal / urgentOptionPrice / total を一貫して算出
 ===================================================== */
-function getUrgentOptionById(id){
+function getUrgentOptionById(id, list){
   if(!id) return null;
-  return (masters.urgentOptions || []).find(x => x.id === id) || null;
+  const arr = Array.isArray(list) ? list : (masters.urgentOptions || []);
+  return arr.find(x => x.id === id) || null;
 }
 
 function calcTotalsForReceipt(){
   const { items, total: baseTotal } = getSelected();
   const kindId = ($kindSelect?.value || "stock");
+  const isCorp = !!($receiptIsCorporate && $receiptIsCorporate.checked);
+  const list = isCorp ? (masters.urgentOptionsCorp || []) : (masters.urgentOptions || []);
   const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
 
-  const opt = (kindId === "order") ? getUrgentOptionById(urgentOptionId) : null;
+  const opt = (kindId === "order") ? getUrgentOptionById(urgentOptionId, list) : null;
   const urgentOptionPrice = (kindId === "order" && opt && Number.isFinite(Number(opt.price))) ? Number(opt.price) : 0;
 
   return { items, baseTotal, urgentOptionId, urgentOptionLabel: (opt?.label ?? opt?.name ?? ""), urgentOptionPrice, total: baseTotal + urgentOptionPrice };
@@ -1381,7 +1392,7 @@ const MASTER_DEFS = {
   urgentOptions: { bundleUrl: "./bundle/urgent_options_bundle.json", updates: "urgent_options_patch_updates", adds: "urgent_options_patch_adds" }
 };
 
-const masters = { channels: [], venues: [], payments: [], kinds: [], urgentOptions: [] };
+const masters = { channels: [], venues: [], payments: [], kinds: [], urgentOptions: [], urgentOptionsCorp: [] };
 const masterBundleIds = { channels: new Set(), venues: new Set(), payments: new Set(), kinds: new Set(), urgentOptions: new Set() };
 
 async function loadSimpleBundle(key){
@@ -1434,6 +1445,29 @@ async function loadSimplePatch(key){
   };
 }
 
+
+/* =====================================================
+   Urgent options (企業向け)
+   - kind=order かつ 「（企業）」チェックONのとき参照
+===================================================== */
+const URGENT_CORP_URL = "./bundle/urgent_options_corp_bundle.json";
+let urgentCorpLoaded = false;
+
+async function loadUrgentCorpBundle(){
+  if(urgentCorpLoaded) return;
+  try{
+    const res = await fetch(URGENT_CORP_URL, { cache: "no-store" });
+    if(!res.ok) throw new Error(`corp urgent bundle missing (${res.status})`);
+    const j = await res.json();
+    const arr = j.urgentOptions || j.urgentOptionsCorp || j.options || [];
+    masters.urgentOptionsCorp = Array.isArray(arr) ? arr.filter(x=>x.active !== false) : [];
+    urgentCorpLoaded = true;
+  }catch(e){
+    console.warn("[urgentCorp] load failed -> fallback to normal urgentOptions", e);
+    masters.urgentOptionsCorp = [];
+    urgentCorpLoaded = true;
+  }
+}
 async function initSimpleMaster(key){
   const bundle = await loadSimpleBundle(key);
   masterBundleIds[key] = new Set(bundle.map(x=>x.id));
@@ -1483,10 +1517,11 @@ function applyKindDefault(){
 }
 
 
-function applyUrgentOptions(){
+function applyUrgentOptions(list){
   if(!$urgentSelect || !$urgentWrap) return;
+  const arr = Array.isArray(list) ? list : (masters.urgentOptions || []);
   // placeholder付き（未選択OK）
-  fillSelectWithPlaceholder($urgentSelect, masters.urgentOptions || [], $urgentSelect.value || "", "---");
+  fillSelectWithPlaceholder($urgentSelect, arr, $urgentSelect.value || "", "---");
 }
 
 
@@ -1589,9 +1624,14 @@ function toggleUrgentUI(){
     const show = (kindId === "order");
     $urgentWrap.style.display = show ? "" : "none";
     if(show){
-      applyUrgentOptions();
-      // 未選択なら先頭（---）
-      if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+      loadUrgentCorpBundle().then(()=>{
+        const isCorp = !!($receiptIsCorporate && $receiptIsCorporate.checked);
+        const list = isCorp ? (masters.urgentOptionsCorp || []) : (masters.urgentOptions || []);
+        applyUrgentOptions(list);
+        if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+        renderReceiptItemsAndTotal();
+        setReceiptMetaText();
+      });
     }
   }
 
@@ -1883,6 +1923,7 @@ async function writeSale(){
     channel: channelId,
     venue: venueId,
     customerName,
+    isCorporate,
     paymentId,
     paymentLabel,
     urgentOptionId,
@@ -1920,6 +1961,7 @@ $checkoutBtn.onclick = ()=>{
   if($receiptPaymentSelect) $receiptPaymentSelect.value = $paymentSelect.value;
   if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
   if($receiptCustomerName) $receiptCustomerName.value = "";
+  if($receiptIsCorporate) $receiptIsCorporate.checked = false;
 
   const showVenue = ($channelSelect.value === "marche");
   if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
@@ -1983,11 +2025,12 @@ function setReceiptMetaText(){
   const kindLabel = getSelectedLabel($kindSelect) || ($kindSelect?.value || "-");
   const name = ($receiptCustomerName?.value || "").trim();
   const nameText = name ? ` / 購入者：${name}` : "";
+  const corpText = ($receiptIsCorporate && $receiptIsCorporate.checked) ? " / 企業" : "";
   const urgentLabel = ($kindSelect?.value === "order") ? (getSelectedLabel($urgentSelect) || "-") : "";
   const urgentText = ($kindSelect?.value === "order") ? ` / お急ぎOP：${urgentLabel}` : "";
   const statusLabel = ($statusWrap && $statusWrap.style.display !== "none") ? (getSelectedLabel($statusSelect) || "-") : "";
   const statusText = ($statusWrap && $statusWrap.style.display !== "none") ? ` / ステータス：${statusLabel}` : "";
-  $receiptMeta.textContent = `受注日：${d}${nameText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}${statusText}`;
+  $receiptMeta.textContent = `受注日：${d}${nameText}${corpText} / 販売方法：${chLabel} / 決済：${payLabel} / kind：${kindLabel}${urgentText}${statusText}`;
 }
 
 /* =====================================================
@@ -2002,6 +2045,7 @@ try{
   await initSimpleMaster("payments");
   await initSimpleMaster("kinds");
   await initSimpleMaster("urgentOptions");
+  await loadUrgentCorpBundle();
 }catch(e){
   console.warn("masters init failed", e);
 }
@@ -2157,6 +2201,24 @@ if($receiptPaymentSelect){
 if($receiptCustomerName){
   $receiptCustomerName.addEventListener("input", ()=>{
     setReceiptMetaText();
+  });
+}
+
+if($receiptIsCorporate){
+  $receiptIsCorporate.addEventListener("change", ()=>{
+    if(($kindSelect?.value || "stock") === "order"){
+      loadUrgentCorpBundle().then(()=>{
+        const isCorp = !!($receiptIsCorporate && $receiptIsCorporate.checked);
+        const list = isCorp ? (masters.urgentOptionsCorp || []) : (masters.urgentOptions || []);
+        applyUrgentOptions(list);
+        if(!$urgentSelect.value) $urgentSelect.selectedIndex = 0;
+        renderReceiptItemsAndTotal();
+        setReceiptMetaText();
+        saveSettings();
+      });
+    }else{
+      setReceiptMetaText();
+    }
   });
 }
 
