@@ -49,6 +49,7 @@
     { "id": "p032",  "name": "フリマ", "price": 500, "active": false },
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
     { "id": "p033aa", "name": "送料",   "price": 700, "active": false },
+    { "id": "p033ab", "name": "送料",   "price": 800, "active": true },
     { "id": "p033a", "name": "送料",   "price": 900, "active": true },
     { "id": "p033b", "name": "送料",   "price": 1100, "active": true },
     { "id": "p034",  "name": "手数料", "price": 900, "active": false },
