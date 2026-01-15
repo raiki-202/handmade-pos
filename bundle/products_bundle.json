@@ -35,18 +35,20 @@
     { "id": "p023", "name": "スマホストラップ", "price": 800, "active": true },
     { "id": "p024", "name": "マグホルダー", "price": 800, "active": true },
     { "id": "p025", "name": "シュシュ・ヘアピン", "price": 400, "active": true },
-    { "id": "p025a", "name": "変更料","price": 100, "active": true },
+    { "id": "p025a", "name": "カチューシャ", "price": 1200, "active": true },
     { "id": "p026", "name": "ミニシュシュ", "price": 200, "active": true },
     { "id": "p027", "name": "ヘアゴム", "price": 300, "active": true },
     { "id": "p027a", "name": "ヘアゴム", "price": 500, "active": true },
+    { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
     { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
-
-    { "id": "p032",  "name": "フリマ", "price": 500, "active": true },
+    { "id": "p031a", "name": "チュール付きフリルつけ襟", "price": 2400, "active": true },
+    
+    { "id": "p032",  "name": "フリマ", "price": 500, "active": false },
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
-    { "id": "p033aa", "name": "送料",   "price": 700, "active": true },
+    { "id": "p033aa", "name": "送料",   "price": 700, "active": false },
     { "id": "p033a", "name": "送料",   "price": 900, "active": true },
     { "id": "p033b", "name": "送料",   "price": 1100, "active": true },
     { "id": "p034",  "name": "手数料", "price": 900, "active": false },
@@ -58,7 +60,7 @@
     { "id": "p038", "name": "マルシェ調整費用5",   "price": 16000, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false },
-    { "id": "p040", "name": "online売上調整費用",   "price": 20887, "active": true }
+    { "id": "p040", "name": "online売上調整費用",   "price": 20887, "active": false }
   ]
 }
 
