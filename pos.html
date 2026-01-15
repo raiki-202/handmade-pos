@@ -1886,8 +1886,6 @@ async function writeSale(){
   if(!items.length) throw new Error("empty");
 
   const orderDate = ($orderDateInput?.value || "").trim();
-  // orderDate: YYYY-MM-DD（ユーザーが指定した受注日）
-  // ※ createdAt は serverTimestamp のまま。過去入力したい場合は orderDate を参照。
   const orderDateMs = orderDate ? new Date(orderDate + "T00:00:00").getTime() : null;
 
   const kindId = ($kindSelect?.value || "stock");
@@ -1898,46 +1896,55 @@ async function writeSale(){
   const paymentLabel = getSelectedLabel($receiptPaymentSelect || $paymentSelect);
   const customerName = (($receiptCustomerName?.value || "").trim());
 
-  // チャンネルに応じて開催場所（マルシェ以外は空）
-  const venueId = (channelId === "marche") ? settings.currentVenue : "";
+  // 企業チェック
+  const isCorporate = !!($receiptIsCorporate && $receiptIsCorporate.checked);
+
+  // venue（マルシェ以外は空）
+  const venueId = (channelId === "marche") ? (settings.currentVenue || "") : "";
 
   const urgentOptionId = (kindId === "order") ? (($urgentSelect?.value || "").trim()) : "";
   const urgentOptionLabel = (kindId === "order") ? getSelectedLabel($urgentSelect) : "";
 
-  const urgentOpt = (kindId === "order") ? getUrgentOptionById(urgentOptionId) : null;
-  const urgentOptionPrice = (kindId === "order" && urgentOpt && Number.isFinite(Number(urgentOpt.price))) ? Number(urgentOpt.price) : 0;
+  // 企業/通常で参照リスト切替
+  const list = isCorporate ? (masters.urgentOptionsCorp || []) : (masters.urgentOptions || []);
+  const urgentOpt = (kindId === "order") ? getUrgentOptionById(urgentOptionId, list) : null;
+  const urgentOptionPrice =
+    (kindId === "order" && urgentOpt && Number.isFinite(Number(urgentOpt.price)))
+      ? Number(urgentOpt.price)
+      : 0;
 
-  // 保存する total は「加算後」
   const total = baseTotal + urgentOptionPrice;
-  const statusId = ((kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
-  const statusLabel = ((kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : ""
 
+  const statusId = ((kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
+  const statusLabel = ((kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
 
   await addDoc(collection(db,"sales"),{
     createdAt: serverTimestamp(),
     clientCreatedAt: Date.now(),
     orderDate: orderDate || todayYMD(),
+    orderDateMs: orderDateMs ?? new Date((orderDate || todayYMD()) + "T00:00:00").getTime(),
+
     kindId,
     kindLabel,
-    orderDateMs: orderDateMs ?? new Date(todayYMD() + "T00:00:00").getTime(),
+
     channel: channelId,
     venue: venueId,
+
     customerName,
     isCorporate,
+
     paymentId,
     paymentLabel,
+    paymentMethod: paymentId, // 互換用
+
     urgentOptionId,
     urgentOptionLabel,
+
     statusId,
     statusLabel,
-    // 互換用（過去集計が paymentMethod を見ている場合の保険）
-    paymentMethod: paymentId,
 
-    // 検算用
     baseTotal,
     urgentOptionPrice,
-
-    // 加算後（最終）
     total,
     items
   });
