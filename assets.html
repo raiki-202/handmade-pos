@@ -294,7 +294,22 @@
       z-index: 99;
     }
     .toast.on{ opacity:1; transform: translateX(-50%) translateY(-2px); }
-  </style>
+  
+
+/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
+@media (max-width: 600px){
+  input, select, textarea{
+    font-size:16px !important;
+  }
+}
+/* Date inputs in sheets/modals sometimes have own rules */
+@media (max-width: 600px){
+  input[type="date"], input[type="month"], input[type="datetime-local"]{
+    font-size:16px !important;
+  }
+}
+
+</style>
 </head>
 
 <body>
@@ -754,23 +769,7 @@
   }
 
   // ---- Renderers
-  function renderStats({ salesTotal, expensesTotal })
-  function isDoneStatusSale(s){
-    const id = (s.statusId ?? "").toString();
-    const label = (s.statusLabel ?? "").toString();
-    const v = id.toLowerCase();
-    if(v === "shipped" || v === "delivered" || v === "done") return true;
-    if(label.includes("発送完了")) return true;
-    return false;
-  }
-
-  function isSaleCountedForAssets(s){
-    const kindId = (s.kindId ?? s.kind ?? "").toString();
-    if(kindId !== "order") return true;
-    return isDoneStatusSale(s);
-  }
-
-{
+  function renderStats({ salesTotal, expensesTotal }){
     const net = Number(salesTotal||0) - Number(expensesTotal||0);
     const detailMode = detailSel.value;
 
@@ -1088,7 +1087,7 @@
       }
 
       const salesRows = rawSalesAll.slice();
-      const salesTotal = salesRows.reduce((a,r)=> a + (isSaleCountedForAssets(r) ? (Number(r.total||0)||0) : 0), 0);
+      const salesTotal = salesRows.reduce((a,r)=>a+(Number(r.total||0)||0),0);
 
       let expTotal = 0;
       let expRows = [];

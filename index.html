@@ -887,6 +887,21 @@ body{
 .detailItemMeta{ display:flex; gap:10px; flex-wrap:wrap; font-size:12px; color:rgba(0,0,0,.6); font-weight:800; margin-top:2px; }
 .detailItemSub{ color:rgba(0,0,0,.85); font-weight:900; }
 .detailEmpty{ font-size:12px; color:rgba(0,0,0,.55); font-weight:800; padding:8px 0; }
+
+
+/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
+@media (max-width: 600px){
+  input, select, textarea{
+    font-size:16px !important;
+  }
+}
+/* Date inputs in sheets/modals sometimes have own rules */
+@media (max-width: 600px){
+  input[type="date"], input[type="month"], input[type="datetime-local"]{
+    font-size:16px !important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1636,9 +1651,6 @@ async function buildDashboardChartSeries(){
     for(const s of sales){
       const ms = Number(s.ms || 0);
       if(!ms) continue;
-      const kindId = (s.kindId ?? s.kind ?? "").toString();
-      // order は発送完了のみ売上に含める
-      if(kindId === "order" && !isDoneStatus(s)) continue;
       const mk = monthKey(new Date(ms));
       const v = Number(s.total || 0) || 0;
       salesByMonth.set(mk, (salesByMonth.get(mk)||0) + v);
@@ -1917,55 +1929,6 @@ function renderRows(tbodyId, rows, kind){
 
 /* ===== Orders status bundles (stock/order) ===== */
 const STATUS_BUNDLES = { stock: [], order: [] };
-// ---- Payments bundle (決済方法一覧：発送完了時の確定用) ----
-const PAYMENTS_BUNDLE = [];
-const PAYMENTS_MAP = new Map();
-let paymentsLoaded = false;
-
-async function loadPaymentsBundle(){
-  if(paymentsLoaded) return;
-  const file = "payments_bundle.json";
-  const candidates = [
-    `./${file}`,
-    file,
-    `./bundle/${file}`,
-    `bundle/${file}`
-  ];
-  for(const url of candidates){
-    try{
-      const res = await fetch(url, { cache:"no-store" });
-      if(!res.ok) continue;
-      const json = await res.json();
-      const arr = Array.isArray(json) ? json : (Array.isArray(json.payments) ? json.payments : []);
-      const list = arr
-        .filter(p => p && (p.active ?? true))
-        .map(p => ({ id: String(p.id ?? ""), label: String(p.label ?? p.name ?? "") }))
-        .filter(p => p.id || p.label);
-
-      if(list.length){
-        PAYMENTS_BUNDLE.length = 0;
-        list.forEach(p=>PAYMENTS_BUNDLE.push(p));
-        PAYMENTS_MAP.clear();
-        list.forEach(p=>PAYMENTS_MAP.set(p.id, p.label));
-        paymentsLoaded = true;
-        return;
-      }
-    }catch(_e){}
-  }
-
-  // fallback（bundleが無い場合）
-  const fallback = [
-    { id:"cash", label:"現金" },
-    { id:"paypay", label:"PayPay" },
-    { id:"paypay_bank", label:"PayPay銀行" }
-  ];
-  PAYMENTS_BUNDLE.length = 0;
-  fallback.forEach(p=>PAYMENTS_BUNDLE.push(p));
-  PAYMENTS_MAP.clear();
-  fallback.forEach(p=>PAYMENTS_MAP.set(p.id, p.label));
-  paymentsLoaded = true;
-}
-
 const STATUS_MAP = { stock: new Map(), order: new Map() };
 
 async function loadStatusBundle(kind){
@@ -2123,66 +2086,6 @@ function isVisibleOutstanding(kind, row){
 }
 
 async function openStatusSheet(row, kind){
-async function pickPaymentForOrder(row){
-  await loadPaymentsBundle();
-
-  return new Promise((resolve)=>{
-    const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn, cancelBtn } = ensureOrdersOverlayBase();
-    if(!overlay || !sheetTitle || !sheetBody) return resolve(null);
-
-    sheetTitle.textContent = "決済方法を選択（入金確定）";
-    sheetBody.innerHTML = "";
-    if(sheetFoot) sheetFoot.style.display = "";
-
-    const current = (row.paymentId || "").toString().trim();
-    const list = document.createElement("div");
-    list.className = "sheetList";
-
-    PAYMENTS_BUNDLE.forEach(p=>{
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "sheetItem";
-      const on = (current && current === p.id);
-      btn.innerHTML = `
-        <div class="pill ${on ? "on":""}"></div>
-        <div class="label">${escapeHtml(p.label || p.id)}</div>
-      `;
-      btn.onclick = ()=>{
-        closeOrdersSheet();
-        resolve({ paymentId: p.id, paymentLabel: p.label || p.id, paymentMethod: p.id });
-      };
-      list.appendChild(btn);
-    });
-
-    const note = document.createElement("div");
-    note.className = "sheetNote";
-    note.textContent = "※「発送完了」にするタイミングで決済方法（入金先）を確定します。";
-
-    sheetBody.appendChild(list);
-    sheetBody.appendChild(note);
-
-    const finishCancel = ()=>{
-      closeOrdersSheet();
-      resolve(null);
-    };
-
-    if(cancelBtn){
-      cancelBtn.style.display = "";
-      cancelBtn.textContent = "キャンセル";
-      cancelBtn.onclick = finishCancel;
-    }
-    if(closeBtn) closeBtn.onclick = finishCancel;
-
-    openOrdersSheet();
-  });
-}
-
-function isDoneStatusLike(id, label){
-  const tmp = { statusId: id, statusLabel: label };
-  return isDoneStatus(tmp);
-}
-
-
   const { overlay, sheetTitle, sheetBody, sheetFoot, closeBtn } = ensureOrdersOverlayBase();
   if(!overlay || !sheetTitle || !sheetBody) return;
 
