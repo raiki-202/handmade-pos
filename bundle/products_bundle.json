@@ -36,6 +36,7 @@
     { "id": "p022", "name": "シューズクリップ", "price": 1200, "active": true },
     { "id": "p023", "name": "スマホストラップ", "price": 1200, "active": true },
     { "id": "p024", "name": "マグホルダー", "price": 1200, "active": true },
+    { "id": "p024a", "name": "ブランケットクリップ", "price": 2400, "active": true },
     { "id": "p025", "name": "シュシュ・ヘアピン", "price": 500, "active": true },
     { "id": "p025a", "name": "カチューシャ", "price": 1200, "active": true },
     { "id": "p026", "name": "ミニシュシュ", "price": 300, "active": true },
