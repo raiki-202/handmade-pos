@@ -857,22 +857,7 @@
       font-weight: 1000;
     }
 
-  
-
-/* ===== iOS Safari: prevent input focus zoom (keep layout) ===== */
-@media (max-width: 600px){
-  input, select, textarea{
-    font-size:16px !important;
-  }
-}
-/* Date inputs in sheets/modals sometimes have own rules */
-@media (max-width: 600px){
-  input[type="date"], input[type="month"], input[type="datetime-local"]{
-    font-size:16px !important;
-  }
-}
-
-</style>
+  </style>
 </head>
 
 <body>
@@ -1838,6 +1823,21 @@ async function loadFixRequests(){
   }
 
   function buildGroups(filtered){
+  function isDoneStatusSale(s){
+    const id = (s.statusId ?? "").toString();
+    const label = (s.statusLabel ?? "").toString();
+    const v = id.toLowerCase();
+    if(v === "shipped" || v === "delivered" || v === "done") return true;
+    if(label.includes("発送完了")) return true;
+    return false;
+  }
+  function isSaleCountedForMonthly(s){
+    const kindId = (s.kindId ?? s.kind ?? "").toString();
+    if(kindId !== "order") return true;
+    return isDoneStatusSale(s);
+  }
+
+
     const map = new Map();
     for(const s of filtered){
       const key = s._ym;
@@ -1845,7 +1845,7 @@ async function loadFixRequests(){
         map.set(key, { monthKey:key, total:0, count:0, sales:[] });
       }
       const g = map.get(key);
-      g.total += Number(s.total||0);
+      if(isSaleCountedForMonthly(s)) g.total += Number(s.total||0);
       g.count += 1;
       g.sales.push(s);
     }
