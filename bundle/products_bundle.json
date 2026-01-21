@@ -31,7 +31,7 @@
     { "id": "p017", "name": "ロンT", "price": 2000, "active": true },
     { "id": "p018", "name": "メロウTシャツ", "price": 1500, "active": true },
     { "id": "p019", "name": "スウェット", "price": 2800, "active": true },
-    { "id": "p020", "name": "ロンパース", "price": 2800, "active": true },
+    { "id": "p020", "name": "ロンパース", "price": 2500, "active": true },
     { "id": "p021", "name": "セトア", "price": 3800, "active": true },
     { "id": "p022", "name": "シューズクリップ", "price": 1200, "active": true },
     { "id": "p023", "name": "スマホストラップ", "price": 1200, "active": true },
