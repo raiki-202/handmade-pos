@@ -10,7 +10,7 @@
     
     { "id": "p004a", "name": "デニムフリルスタイ",       "price": 1200, "active": false },
     
-    { "id": "p004b", "name": "もこもこスタイ",       "price": 1400, "active": false },
+    { "id": "p004b", "name": "もこもこスタイ",       "price": 1400, "active": true },
     { "id": "p005", "name": "バブーシュカ", "price": 1500, "active": true },
     { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1800, "active": true },
     { "id": "p007", "name": "バブーシュカ（大人用）", "price": 2000, "active": true },
