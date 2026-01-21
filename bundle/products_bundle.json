@@ -2,57 +2,64 @@
   "bundleVersion": 1,
   "generatedAt": "2025-12-17T00:00:00+09:00",
   "products": [
-    { "id": "p001", "name": "フリルスタイ", "price": 1000, "active": true },
-    { "id": "p002", "name": "つけ襟", "price": 1100, "active": true },
-    { "id": "p003", "name": "ダブルフリルスタイ", "price": 1300, "active": true },
-
-    { "id": "p004",  "name": "ダブルフリルスタイつけ襟", "price": 1400, "active": true },
-    { "id": "p004a", "name": "デニムフリルスタイ",       "price": 1200, "active": true },
-
-    { "id": "p005", "name": "バブーシュカ", "price": 1400, "active": true },
-    { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1600, "active": true },
-    { "id": "p007", "name": "バブーシュカ（大人用）", "price": 1800, "active": true },
-    { "id": "p008", "name": "ボンネット", "price": 1500, "active": true },
+    { "id": "p001", "name": "フリルスタイ", "price": 1500, "active": true },
+    { "id": "p002", "name": "つけ襟", "price": 1500, "active": true },
+    { "id": "p002a", "name": "ガーゼスタイ", "price": 1000, "active": true },
+    { "id": "p003", "name": "ダブルフリルスタイ", "price": 1800, "active": true },
+    { "id": "p004",  "name": "ダブルフリルスタイつけ襟", "price": 1800, "active": true },
+    
+    { "id": "p004a", "name": "デニムフリルスタイ",       "price": 1200, "active": false },
+    
+    { "id": "p004b", "name": "もこもこスタイ",       "price": 1400, "active": false },
+    { "id": "p005", "name": "バブーシュカ", "price": 1500, "active": true },
+    { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1800, "active": true },
+    { "id": "p007", "name": "バブーシュカ（大人用）", "price": 2000, "active": true },
+    { "id": "p008", "name": "ボンネット", "price": 1800, "active": true },
     { "id": "p009", "name": "かぼちゃパンツ", "price": 1800, "active": true },
-    { "id": "p010", "name": "フレアパンツ", "price": 1800, "active": true },
-    { "id": "p011", "name": "スウェットパンツ", "price": 2000, "active": true },
+    { "id": "p010", "name": "フレアパンツ", "price": 2500, "active": true },
+    { "id": "p011", "name": "スウェットパンツ", "price": 2500, "active": true },
     { "id": "p012", "name": "サス付きタイツ", "price": 1800, "active": true },
-
     { "id": "p013",  "name": "ビスチェ",     "price": 1800, "active": true },
     { "id": "p013a", "name": "キャミソール", "price": 1800, "active": true },
-
     { "id": "p014", "name": "ベスト（無地）", "price": 2500, "active": true },
     { "id": "p015", "name": "ベスト（柄）", "price": 3000, "active": true },
+    
     { "id": "p015a", "name": "ベスト(特注)", "price": 2800, "active": false },
     { "id": "p015b", "name": "ベスト(特注2)", "price": 4000, "active": false },
+    
     { "id": "p016", "name": "ボアベスト", "price": 3500, "active": true },
     { "id": "p017", "name": "ロンT", "price": 2000, "active": true },
     { "id": "p018", "name": "メロウTシャツ", "price": 1500, "active": true },
     { "id": "p019", "name": "スウェット", "price": 2800, "active": true },
-    { "id": "p020", "name": "ロンパース", "price": 2500, "active": true },
-    { "id": "p021", "name": "セトア", "price": 3200, "active": true },
-    { "id": "p022", "name": "シューズクリップ", "price": 800, "active": true },
-    { "id": "p023", "name": "スマホストラップ", "price": 800, "active": true },
-    { "id": "p024", "name": "マグホルダー", "price": 800, "active": true },
-    { "id": "p025", "name": "シュシュ・ヘアピン", "price": 400, "active": true },
+    { "id": "p020", "name": "ロンパース", "price": 2800, "active": true },
+    { "id": "p021", "name": "セトア", "price": 3800, "active": true },
+    { "id": "p022", "name": "シューズクリップ", "price": 1200, "active": true },
+    { "id": "p023", "name": "スマホストラップ", "price": 1200, "active": true },
+    { "id": "p024", "name": "マグホルダー", "price": 1200, "active": true },
+    { "id": "p025", "name": "シュシュ・ヘアピン", "price": 500, "active": true },
     { "id": "p025a", "name": "カチューシャ", "price": 1200, "active": true },
-    { "id": "p026", "name": "ミニシュシュ", "price": 200, "active": true },
-    { "id": "p027", "name": "ヘアゴム", "price": 300, "active": true },
-    { "id": "p027a", "name": "ヘアゴム", "price": 500, "active": true },
+    { "id": "p026", "name": "ミニシュシュ", "price": 300, "active": true },
+    { "id": "p027", "name": "ヘアゴム", "price": 400, "active": true },
+    { "id": "p027a", "name": "インド刺繡ヘアゴム", "price": 500, "active": true },
     { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
     { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
-    { "id": "p031a", "name": "チュール付きフリルつけ襟", "price": 2400, "active": true },
+    { "id": "p031a", "name": "チュール付きフリルつけ襟", "price": 2500, "active": true },
     
     { "id": "p032",  "name": "フリマ", "price": 500, "active": false },
+    
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
+    
     { "id": "p033aa", "name": "送料",   "price": 700, "active": false },
-    { "id": "p033ab", "name": "送料",   "price": 800, "active": true },
+    { "id": "p033ab", "name": "送料",   "price": 800, "active": false },
+    
     { "id": "p033a", "name": "送料",   "price": 900, "active": true },
-    { "id": "p033b", "name": "送料",   "price": 1100, "active": true },
+    
+    { "id": "p033b", "name": "送料",   "price": 1100, "active": false },
     { "id": "p034",  "name": "手数料", "price": 900, "active": false },
+    
     { "id": "p034",  "name": "振込手数料", "price": 145, "active": true },
     
     { "id": "p035a", "name": "マルシェ調整費用1",   "price": 5200, "active": false },
@@ -63,7 +70,7 @@
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false },
     { "id": "p040", "name": "online売上調整費用",   "price": 20887, "active": false },
-    { "id": "p041", "name": "帳尻合わせ",   "price": 12586, "active": true }
+    { "id": "p041", "name": "帳尻合わせ",   "price": 12586, "active": false }
   ]
 }
 
