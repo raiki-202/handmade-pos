@@ -871,32 +871,38 @@ select {
       input.addEventListener("keyup", maybeDone);
 
       // clear button
-      clearBtn.addEventListener("click", ()=>{
-        input.value = "";
-        applyFilter();
-        input.focus();
-      });
+      clearBtn.addEventListener("click", ()=>{ input.value=""; applyFilter(); input.blur(); });
 
       // iOS: 検索中（キーボード表示中）にチェックを押すと、1回目のタップが「フォーカス解除」だけで終わることがある
       // → 先にblurしてから、同じターゲットへclickを投げ直して「☑が反応しない」を防ぐ
       const productsWrap = document.getElementById("products");
       if(productsWrap){
+        // iOS: 検索入力にフォーカスがある状態だと、最初のタップが「フォーカス解除」だけで終わりがち。
+        // ただし qtyのselect(▽) や他UIを邪魔しないため、checkboxタップの時だけ介入する。
+        const shouldIgnore = (t)=>{
+          if(!t) return true;
+          // 数量のselectやその周辺は絶対に邪魔しない
+          return !!(t.closest && (t.closest("select") || t.closest(".qty")));
+        };
+
         const reClick = (evt)=>{
           if(document.activeElement !== input) return;
           const t = evt.target;
-          // checkboxそのもの、または checkbox近傍（labelや左側）を踏んだとき
-          const cb = (t && t.matches && t.matches('input[type="checkbox"]')) ? t
-            : (t && t.closest ? t.closest('.product-row')?.querySelector('input[type="checkbox"]') : null);
+          if(shouldIgnore(t)) return;
 
-          // blurだけで終了しがちな iOS 対策：blur → 次tickでclick
+          // checkboxそのものをタップした時だけ対応（行タップは対象外）
+          const cb = (t && t.matches && t.matches('input[type="checkbox"]')) ? t : null;
+          if(!cb) return;
+
+          // blurだけで終わる iOS 対策：blur → 次tickでclick
           input.blur();
-          if(cb){
-            setTimeout(()=>{ try{ cb.click(); }catch{} }, 0);
-            // 2重反応を避ける
-            evt.preventDefault();
-            evt.stopPropagation();
-          }
+          setTimeout(()=>{ try{ cb.click(); }catch{} }, 0);
+
+          // 2重反応やフォーカス競合を防ぐ
+          evt.preventDefault();
+          evt.stopPropagation();
         };
+
         productsWrap.addEventListener("touchstart", reClick, { passive:false });
         productsWrap.addEventListener("mousedown", reClick);
       }
