@@ -578,8 +578,13 @@ select {
             <select id="statusSelect"></select>
           </span>
           <div class="muted" style="margin-top:6px;">※ kind と販売方法に応じて選択できます（初期値あり）</div>
-        </div>
-<div id="receiptList" style="margin-top:10px;"></div>
+        
+<div id="cashWrap" style="margin-top:10px;">
+  <div class="label">預かり金</div>
+  <input id="cashReceivedInput" inputmode="numeric" placeholder="例：2000" />
+  <div class="muted" style="margin-top:6px;">お釣り：<span id="changeText">-</span></div>
+</div>
+\1
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
         <div class="btnRow">
@@ -812,6 +817,9 @@ const $receiptVenueSelect = $("receiptVenueSelect");
 const $receiptPaymentSelect = $("receiptPaymentSelect");
 const $receiptCustomerName  = $("receiptCustomerName");
 const $receiptIsCorporate   = $("receiptIsCorporate");
+
+const $cashReceivedInput = $("cashReceivedInput");
+const $changeText = $("changeText");
 
 const $mastersToggleBtn = $("mastersToggleBtn");
 const $masterMenuModal = $("masterMenuModal");
@@ -1373,6 +1381,17 @@ function renderReceiptItemsAndTotal(){
   $receiptList.innerHTML = lines.join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
+  // 預かり金 → お釣り計算
+  if($cashReceivedInput && $changeText){
+    const cash = parseYenInput($cashReceivedInput.value);
+    if(cash === null){
+      $changeText.textContent = "-";
+    }else{
+      const change = cash - total;
+      $changeText.textContent = `￥${change}`;
+    }
+  }
+
   // POS側の合計は「商品合計」のまま（kind未選択のため）
   // ただし、レシート内での検算用に baseTotal も表示したい場合はここで追加できる
 }
@@ -1915,6 +1934,9 @@ async function writeSale(){
 
   const total = baseTotal + urgentOptionPrice;
 
+  const cashReceived = $cashReceivedInput ? parseYenInput($cashReceivedInput.value) : null;
+  const changeAmount = (cashReceived === null) ? null : (cashReceived - total);
+
   const statusId = ((kindId === "stock" || kindId === "order")) ? (($statusSelect?.value || "").trim()) : "";
   const statusLabel = ((kindId === "stock" || kindId === "order")) ? (getSelectedLabel($statusSelect) || "") : "";
 
@@ -1946,6 +1968,10 @@ async function writeSale(){
     baseTotal,
     urgentOptionPrice,
     total,
+
+    cashReceived,
+    changeAmount,
+
     items
   });
 }
@@ -1969,6 +1995,9 @@ $checkoutBtn.onclick = ()=>{
   if($receiptVenueSelect) $receiptVenueSelect.value = $venueSelect.value;
   if($receiptCustomerName) $receiptCustomerName.value = "";
   if($receiptIsCorporate) $receiptIsCorporate.checked = false;
+
+  if($cashReceivedInput) $cashReceivedInput.value = "";
+  if($changeText) $changeText.textContent = "-";
 
   const showVenue = ($channelSelect.value === "marche");
   if($receiptVenueWrap) $receiptVenueWrap.style.display = showVenue ? "block" : "none";
@@ -2014,6 +2043,13 @@ if($orderDateInput){
   });
 }
 
+
+
+function parseYenInput(v){
+  // allow "1,234" or "￥1234" etc.
+  const n = parseInt(String(v||"").replace(/[^0-9]/g,""), 10);
+  return Number.isFinite(n) ? n : null;
+}
 
 function getSelectedLabel(selectEl){
   const opt = selectEl?.selectedOptions?.[0];
@@ -2208,6 +2244,12 @@ if($receiptPaymentSelect){
 if($receiptCustomerName){
   $receiptCustomerName.addEventListener("input", ()=>{
     setReceiptMetaText();
+  });
+}
+
+if($cashReceivedInput){
+  $cashReceivedInput.addEventListener("input", ()=>{
+    renderReceiptItemsAndTotal();
   });
 }
 
