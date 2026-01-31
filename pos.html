@@ -450,6 +450,9 @@ select {
   }
 }
 
+.pos-header{display:flex;align-items:center;gap:12px;}
+.pos-title{margin:0;white-space:nowrap;}
+.pos-search{flex:1;max-width:260px;padding:6px 10px;font-size:14px;border-radius:8px;border:1px solid #ddd;}
 </style>
 </head>
 
@@ -2772,5 +2775,20 @@ document.addEventListener("click", (e)=>{
   $patchPop.style.display = "none";
 });
 </script>
+
+<script>
+const searchInput=document.getElementById("posSearchInput");
+if(searchInput){
+  const norm = (s)=> (s||"").toLowerCase();
+  searchInput.addEventListener("input",()=>{
+    const kw = norm(searchInput.value.trim());
+    document.querySelectorAll(".pos-item").forEach(el=>{
+      const name = norm(el.dataset.name || el.textContent || "");
+      el.style.display = name.includes(kw) ? "" : "none";
+    });
+  });
+}
+</script>
+
 </body>
 </html>
