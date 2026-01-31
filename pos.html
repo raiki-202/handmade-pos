@@ -450,11 +450,7 @@ select {
   }
 }
 
-/* pos search */
 .pos-search{
-  -webkit-appearance: searchfield;
-  appearance: searchfield;
-
   width:200px;
   padding:6px 10px;
   font-size:12px;
@@ -465,12 +461,27 @@ select {
 @media (max-width: 600px){
   .pos-search{ width:160px; }
 }
-.pos-search::-webkit-search-cancel-button{
-  -webkit-appearance: searchfield-cancel-button;
-  height: 14px;
-  width: 14px;
-  cursor: pointer;
+
+/* pos search wrap + clear button */
+.pos-search-wrap{ position:relative; display:inline-flex; align-items:center; }
+.pos-search{ padding-right:28px; } /* room for clear */
+.pos-search-clear{
+  position:absolute;
+  right:8px;
+  width:18px;
+  height:18px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.14);
+  background: rgba(255,255,255,.92);
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-size:14px;
+  line-height:1;
+  cursor:pointer;
+  user-select:none;
 }
+.pos-search-wrap.hasValue .pos-search-clear{ display:inline-flex; }
 </style>
 </head>
 
@@ -792,50 +803,85 @@ select {
       if(!titleRow) return;
       if(document.getElementById("posSearchInput")) return;
 
+      // wrapper
+      const wrap = document.createElement("span");
+      wrap.className = "pos-search-wrap";
+
+      // form (to catch iOS 'done/search' as submit)
+      const form = document.createElement("form");
+      form.style.margin = "0";
+      form.style.display = "inline-flex";
+      form.autocomplete = "off";
+
       const input = document.createElement("input");
-      input.type = "search";
+      input.type = "text";               // keep text (iOS: show black ✓ "完了" more reliably)
+      input.inputMode = "search";
       input.id = "posSearchInput";
       input.placeholder = "商品名で検索";
       input.className = "pos-search";
       input.autocomplete = "off";
       input.spellcheck = false;
-      input.enterKeyHint = "done"; // iOS keyboard: show "完了"
-      input.inputMode = "search";
+      input.enterKeyHint = "done";       // iOS keyboard hint
 
-      titleRow.appendChild(input);
+      const clearBtn = document.createElement("button");
+      clearBtn.type = "button";
+      clearBtn.className = "pos-search-clear";
+      clearBtn.setAttribute("aria-label","検索をクリア");
+      clearBtn.textContent = "×";
+
+      form.appendChild(input);
+      wrap.appendChild(form);
+      wrap.appendChild(clearBtn);
+      titleRow.appendChild(wrap);
 
       const hiraToKata = s => (s||"").replace(/[ぁ-ゖ]/g, ch =>
         String.fromCharCode(ch.charCodeAt(0) + 0x60)
       );
       const norm = s => hiraToKata((s||"").toLowerCase());
 
-      input.addEventListener("input", ()=>{
+      const applyFilter = ()=>{
         const kw = norm(input.value.trim());
         document.querySelectorAll(".product-row").forEach(row=>{
           const nameEl = row.querySelector(".product-name");
           const name = norm(nameEl?.textContent || "");
           row.style.display = name.includes(kw) ? "" : "none";
         });
-      // iPhoneの黒い✓（Enter/Done相当）で入力を確定してキーボードを閉じる
-      input.addEventListener("keydown", (e)=>{
-        if(e.key === "Enter"){
+        if(input.value.trim()) wrap.classList.add("hasValue");
+        else wrap.classList.remove("hasValue");
+      };
+
+      input.addEventListener("input", applyFilter);
+
+      // "黒い✓ / 完了" で送信(=submit)されるケースがあるので、submitを捕まえて閉じる
+      form.addEventListener("submit", (e)=>{
+        e.preventDefault();
+        input.blur(); // close keyboard
+      });
+
+      // キーイベントが取れる場合もケア（Enter / keyCode 13 / Unidentified）
+      const maybeDone = (e)=>{
+        const k = e.key;
+        const code = e.keyCode || e.which;
+        if(k === "Enter" || code === 13){
           e.preventDefault();
           input.blur();
         }
+      };
+      input.addEventListener("keydown", maybeDone);
+      input.addEventListener("keyup", maybeDone);
+
+      // clear button
+      clearBtn.addEventListener("click", ()=>{
+        input.value = "";
+        applyFilter();
+        input.focus();
       });
 
-      // クリア（iOSの×やESC相当）で全表示に戻す
-      input.addEventListener("search", ()=>{
-        // type=search のキャンセル押下で発火
-        const kw = norm(input.value.trim());
-        document.querySelectorAll(".product-row").forEach(row=>{
-          const nameEl = row.querySelector(".product-name");
-          const name = norm(nameEl?.textContent || "");
-          row.style.display = name.includes(kw) ? "" : "none";
-        });
-      });
+      // iOS: クリア後に 'change' だけ発火することがあるので保険
+      input.addEventListener("change", applyFilter);
 
-      });
+      // initial
+      applyFilter();
     }catch(e){
       console.warn("pos search init failed", e);
     }
