@@ -458,6 +458,9 @@ select {
   border:1px solid rgba(0,0,0,.12);
   background:rgba(255,255,255,.85);
 }
+@media (max-width: 600px){
+  .pos-search{ width:160px; }
+}
 </style>
 </head>
 
@@ -772,6 +775,41 @@ select {
   </div>
 <script type="module">
   console.log("POS COMPLETE build 2025-12-27");
+  // ===== POS product search (append UI into titleRow) =====
+  (function initPosSearchUI(){
+    try{
+      const titleRow = document.querySelector(".sectionHead .titleRow");
+      if(!titleRow) return;
+      if(document.getElementById("posSearchInput")) return;
+
+      const input = document.createElement("input");
+      input.type = "text";
+      input.id = "posSearchInput";
+      input.placeholder = "商品名で検索";
+      input.className = "pos-search";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+
+      titleRow.appendChild(input);
+
+      const hiraToKata = s => (s||"").replace(/[ぁ-ゖ]/g, ch =>
+        String.fromCharCode(ch.charCodeAt(0) + 0x60)
+      );
+      const norm = s => hiraToKata((s||"").toLowerCase());
+
+      input.addEventListener("input", ()=>{
+        const kw = norm(input.value.trim());
+        document.querySelectorAll(".product-row").forEach(row=>{
+          const nameEl = row.querySelector(".product-name");
+          const name = norm(nameEl?.textContent || "");
+          row.style.display = name.includes(kw) ? "" : "none";
+        });
+      });
+    }catch(e){
+      console.warn("pos search init failed", e);
+    }
+  })();
+
 /* =====================================================
    Firebase imports
 ===================================================== */
@@ -2780,25 +2818,5 @@ document.addEventListener("click", (e)=>{
   $patchPop.style.display = "none";
 });
 </script>
-
-<script>
-const searchInput = document.getElementById("posSearchInput");
-if (searchInput) {
-  const hiraToKata = s =>
-    s.replace(/[ぁ-ゖ]/g, ch =>
-      String.fromCharCode(ch.charCodeAt(0) + 0x60)
-    );
-  const norm = s => hiraToKata((s || "").toLowerCase());
-  searchInput.addEventListener("input", () => {
-    const kw = norm(searchInput.value.trim());
-    document.querySelectorAll(".product-row").forEach(row => {
-      const nameEl = row.querySelector(".product-name");
-      const name = norm(nameEl?.textContent || "");
-      row.style.display = name.includes(kw) ? "" : "none";
-    });
-  });
-}
-</script>
 </body>
-
 </html>
