@@ -578,13 +578,18 @@ select {
             <select id="statusSelect"></select>
           </span>
           <div class="muted" style="margin-top:6px;">※ kind と販売方法に応じて選択できます（初期値あり）</div>
-        
-<div id="cashWrap" style="margin-top:10px;">
-  <div class="label">預かり金</div>
-  <input id="cashReceivedInput" inputmode="numeric" placeholder="例：2000" />
-  <div class="muted" style="margin-top:6px;">お釣り：<span id="changeText">-</span></div>
-</div>
-\1
+        </div>
+
+        <!-- cash received / change (keep totals + details) -->
+        <div id="cashWrap" style="margin-top:10px;">
+          <div class="label">預かり金</div>
+          <input id="cashReceivedInput" inputmode="numeric" placeholder="例：2000" />
+          <div class="muted" style="margin-top:6px;">お釣り：<span id="changeText">-</span></div>
+        </div>
+
+        <!-- details (明細) -->
+        <div id="receiptList" style="margin-top:10px;"></div>
+
         <div style="font-weight:900; margin-top:10px;" id="receiptTotal"></div>
 
         <div class="btnRow">
@@ -820,6 +825,9 @@ const $receiptIsCorporate   = $("receiptIsCorporate");
 
 const $cashReceivedInput = $("cashReceivedInput");
 const $changeText = $("changeText");
+
+// レシート側の「最終合計」（商品合計＋オーダー料など）を保持して、お釣り計算に使う
+let receiptLastTotal = null;
 
 const $mastersToggleBtn = $("mastersToggleBtn");
 const $masterMenuModal = $("masterMenuModal");
@@ -1381,19 +1389,29 @@ function renderReceiptItemsAndTotal(){
   $receiptList.innerHTML = lines.join("<br>");
   $receiptTotal.textContent = `合計：￥${total}`;
 
+  // お釣り計算のために保持
+  receiptLastTotal = total;
+
   // 預かり金 → お釣り計算
-  if($cashReceivedInput && $changeText){
-    const cash = parseYenInput($cashReceivedInput.value);
-    if(cash === null){
-      $changeText.textContent = "-";
-    }else{
-      const change = cash - total;
-      $changeText.textContent = `￥${change}`;
-    }
-  }
+  updateChangeUI();
 
   // POS側の合計は「商品合計」のまま（kind未選択のため）
   // ただし、レシート内での検算用に baseTotal も表示したい場合はここで追加できる
+}
+
+function updateChangeUI(){
+  if(!$cashReceivedInput || !$changeText) return;
+  if(!Number.isFinite(receiptLastTotal)){
+    $changeText.textContent = "-";
+    return;
+  }
+  const cash = parseYenInput($cashReceivedInput.value);
+  if(cash === null){
+    $changeText.textContent = "-";
+    return;
+  }
+  const change = cash - receiptLastTotal;
+  $changeText.textContent = `￥${change}`;
 }
 
 
