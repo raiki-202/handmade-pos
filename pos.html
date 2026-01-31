@@ -854,7 +854,12 @@ body.modal-open{
       const hiraToKata = s => (s||"").replace(/[ぁ-ゖ]/g, ch =>
         String.fromCharCode(ch.charCodeAt(0) + 0x60)
       );
-      const norm = s => hiraToKata((s||"").toLowerCase());
+      const norm = s => {
+        const raw = (s||"");
+        // NFKC: 半角⇔全角（英数・記号・ｶﾅ等）を吸収
+        const nfkc = (raw.normalize ? raw.normalize("NFKC") : raw);
+        return hiraToKata(nfkc.toLowerCase());
+      };
 
       const applyFilter = ()=>{
         const kw = norm(input.value.trim());
