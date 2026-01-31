@@ -482,6 +482,23 @@ select {
   user-select:none;
 }
 .pos-search-wrap.hasValue .pos-search-clear{ display:inline-flex; }
+
+/* modal scroll lock */
+.modalInner{
+  max-height: min(86vh, 720px);
+  display:flex;
+  flex-direction:column;
+}
+.modalBody{
+  overflow-y:auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+body.modal-open{
+  position: fixed;
+  width: 100%;
+  overflow: hidden;
+}
 </style>
 </head>
 
@@ -1036,11 +1053,22 @@ const $toast = $("toast");
 function setReceiptModalOpen(open){
   if(!$receiptModal) return;
   if(open){
+    // lock background scroll (especially on iOS Safari)
+    window.__posScrollY = window.scrollY || 0;
+    document.body.classList.add("modal-open");
+    document.body.style.top = `-${window.__posScrollY}px`;
+
     $receiptModal.classList.add("show");
     $receiptModal.setAttribute("aria-hidden","false");
   }else{
     $receiptModal.classList.remove("show");
     $receiptModal.setAttribute("aria-hidden","true");
+
+    // restore scroll
+    const y = window.__posScrollY || 0;
+    document.body.classList.remove("modal-open");
+    document.body.style.top = "";
+    window.scrollTo(0, y);
   }
 }
 
