@@ -450,9 +450,14 @@ select {
   }
 }
 
-.pos-header{display:flex;align-items:center;gap:12px;}
-.pos-title{margin:0;white-space:nowrap;}
-.pos-search{flex:1;max-width:260px;padding:6px 10px;font-size:14px;border-radius:8px;border:1px solid #ddd;}
+.pos-search{
+  width:200px;
+  padding:6px 10px;
+  font-size:12px;
+  border-radius:999px;
+  border:1px solid rgba(0,0,0,.12);
+  background:rgba(255,255,255,.85);
+}
 </style>
 </head>
 
@@ -2777,18 +2782,23 @@ document.addEventListener("click", (e)=>{
 </script>
 
 <script>
-const searchInput=document.getElementById("posSearchInput");
-if(searchInput){
-  const norm = (s)=> (s||"").toLowerCase();
-  searchInput.addEventListener("input",()=>{
+const searchInput = document.getElementById("posSearchInput");
+if (searchInput) {
+  const hiraToKata = s =>
+    s.replace(/[ぁ-ゖ]/g, ch =>
+      String.fromCharCode(ch.charCodeAt(0) + 0x60)
+    );
+  const norm = s => hiraToKata((s || "").toLowerCase());
+  searchInput.addEventListener("input", () => {
     const kw = norm(searchInput.value.trim());
-    document.querySelectorAll(".pos-item").forEach(el=>{
-      const name = norm(el.dataset.name || el.textContent || "");
-      el.style.display = name.includes(kw) ? "" : "none";
+    document.querySelectorAll(".product-row").forEach(row => {
+      const nameEl = row.querySelector(".product-name");
+      const name = norm(nameEl?.textContent || "");
+      row.style.display = name.includes(kw) ? "" : "none";
     });
   });
 }
 </script>
-
 </body>
+
 </html>
