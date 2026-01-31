@@ -9,7 +9,7 @@
     { "id": "p004",  "name": "ダブルフリルスタイつけ襟", "price": 1800, "active": true },
     
     { "id": "p004a", "name": "デニムフリルスタイ",       "price": 1200, "active": false },
-    
+
     { "id": "p004b", "name": "もこもこスタイ",       "price": 1400, "active": true },
     { "id": "p005", "name": "バブーシュカ", "price": 1500, "active": true },
     { "id": "p006", "name": "バブーシュカ（レースリボン）", "price": 1800, "active": true },
@@ -44,6 +44,12 @@
     { "id": "p027a", "name": "インド刺繡ヘアゴム", "price": 500, "active": true },
     { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
+    { "id": "p028a", "name": "フライトキャップ",       "price": 2000, "active": true },
+    { "id": "p028b", "name": "バラクラバ",       "price": 1800, "active": true },
+    { "id": "p028c", "name": "ビーニー",       "price": 1600, "active": true },
+    { "id": "p028d", "name": "タイツ",       "price": 1000, "active": true },
+    { "id": "p028e", "name": "靴下",       "price": 400, "active": true },
+    { "id": "p028f", "name": "靴下",       "price": 1000, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
     { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
