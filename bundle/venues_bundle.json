@@ -1,6 +1,11 @@
 {
   "venues": [
     {
+      "id": "hiroshima_gate_park",
+      "label": "広島ゲートパーク",
+      "active": true
+    },
+    {
       "id": "cafe1400",
       "label": "cafe1400",
       "active": true
