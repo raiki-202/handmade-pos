@@ -877,10 +877,32 @@ select {
         input.focus();
       });
 
-      // iOS: クリア後に 'change' だけ発火することがあるので保険
-      input.addEventListener("change", applyFilter);
+      // iOS: 検索中（キーボード表示中）にチェックを押すと、1回目のタップが「フォーカス解除」だけで終わることがある
+      // → 先にblurしてから、同じターゲットへclickを投げ直して「☑が反応しない」を防ぐ
+      const productsWrap = document.getElementById("products");
+      if(productsWrap){
+        const reClick = (evt)=>{
+          if(document.activeElement !== input) return;
+          const t = evt.target;
+          // checkboxそのもの、または checkbox近傍（labelや左側）を踏んだとき
+          const cb = (t && t.matches && t.matches('input[type="checkbox"]')) ? t
+            : (t && t.closest ? t.closest('.product-row')?.querySelector('input[type="checkbox"]') : null);
+
+          // blurだけで終了しがちな iOS 対策：blur → 次tickでclick
+          input.blur();
+          if(cb){
+            setTimeout(()=>{ try{ cb.click(); }catch{} }, 0);
+            // 2重反応を避ける
+            evt.preventDefault();
+            evt.stopPropagation();
+          }
+        };
+        productsWrap.addEventListener("touchstart", reClick, { passive:false });
+        productsWrap.addEventListener("mousedown", reClick);
+      }
 
       // initial
+
       applyFilter();
     }catch(e){
       console.warn("pos search init failed", e);
