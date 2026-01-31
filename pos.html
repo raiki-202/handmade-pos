@@ -450,7 +450,11 @@ select {
   }
 }
 
+/* pos search */
 .pos-search{
+  -webkit-appearance: searchfield;
+  appearance: searchfield;
+
   width:200px;
   padding:6px 10px;
   font-size:12px;
@@ -460,6 +464,12 @@ select {
 }
 @media (max-width: 600px){
   .pos-search{ width:160px; }
+}
+.pos-search::-webkit-search-cancel-button{
+  -webkit-appearance: searchfield-cancel-button;
+  height: 14px;
+  width: 14px;
+  cursor: pointer;
 }
 </style>
 </head>
@@ -783,12 +793,14 @@ select {
       if(document.getElementById("posSearchInput")) return;
 
       const input = document.createElement("input");
-      input.type = "text";
+      input.type = "search";
       input.id = "posSearchInput";
       input.placeholder = "商品名で検索";
       input.className = "pos-search";
       input.autocomplete = "off";
       input.spellcheck = false;
+      input.enterKeyHint = "done"; // iOS keyboard: show "完了"
+      input.inputMode = "search";
 
       titleRow.appendChild(input);
 
@@ -804,6 +816,25 @@ select {
           const name = norm(nameEl?.textContent || "");
           row.style.display = name.includes(kw) ? "" : "none";
         });
+      // iPhoneの黒い✓（Enter/Done相当）で入力を確定してキーボードを閉じる
+      input.addEventListener("keydown", (e)=>{
+        if(e.key === "Enter"){
+          e.preventDefault();
+          input.blur();
+        }
+      });
+
+      // クリア（iOSの×やESC相当）で全表示に戻す
+      input.addEventListener("search", ()=>{
+        // type=search のキャンセル押下で発火
+        const kw = norm(input.value.trim());
+        document.querySelectorAll(".product-row").forEach(row=>{
+          const nameEl = row.querySelector(".product-name");
+          const name = norm(nameEl?.textContent || "");
+          row.style.display = name.includes(kw) ? "" : "none";
+        });
+      });
+
       });
     }catch(e){
       console.warn("pos search init failed", e);
