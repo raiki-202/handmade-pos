@@ -1,6 +1,7 @@
 {
   "defaults": {
     "channelId": "marche",
+    "venueId": "hiroshima_gate_park",
     "paymentByChannel": {
       "marche": "cash",
       "instagram": "paypay",
