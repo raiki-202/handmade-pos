@@ -44,7 +44,7 @@
     { "id": "p025a", "name": "カチューシャ", "price": 1200, "active": true },
     { "id": "p026", "name": "ミニシュシュ", "price": 300, "active": true },
     { "id": "p027", "name": "ヘアゴム", "price": 400, "active": true },
-    { "id": "p027a", "name": "アウトレット", "price": 200, "active": true },
+    { "id": "p027ab", "name": "アウトレット", "price": 200, "active": true },
     { "id": "p027a", "name": "インド刺繡ヘアゴム", "price": 500, "active": true },
     { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
