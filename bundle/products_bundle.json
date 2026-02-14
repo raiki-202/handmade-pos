@@ -81,7 +81,7 @@
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 29500, "active": false },
     { "id": "p039", "name": "マルシェ調整費用6",   "price": 42400, "active": false },
     { "id": "p040", "name": "online売上調整費用",   "price": 20887, "active": false },
-    { "id": "p040a", "name": "M.AtoU委託",   "price": 48600, "active": true },
+    { "id": "p040a", "name": "M.AtoU委託",   "price": 48600, "active": false },
     { "id": "p041", "name": "帳尻合わせ",   "price": 12586, "active": false }
   ]
 }
