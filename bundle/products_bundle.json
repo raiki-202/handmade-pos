@@ -61,6 +61,14 @@
     
     { "id": "p032",  "name": "フリマ", "price": 500, "active": false },
     
+    { "id": "p032a",  "name": "レッスンバック（bicolor)", "price": 2900, "active": true },
+    
+    { "id": "p032b",  "name": "シューズバック（bicolor)", "price": 2400, "active": true },
+    
+    { "id": "p032c",  "name": "お着替え袋（bicolor）", "price": 2100, "active": true },
+    
+    { "id": "p032d",  "name": "3点セット（bicolor）", "price": 6700, "active": true },
+    
     { "id": "p033", "name": "送料",   "price": 250, "active": true },
     
     { "id": "p033aa", "name": "送料",   "price": 700, "active": false },
