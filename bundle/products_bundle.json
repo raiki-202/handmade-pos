@@ -61,9 +61,9 @@
     
     { "id": "p032",  "name": "フリマ", "price": 500, "active": false },
     
-    { "id": "p032a",  "name": "レッスンバック（bicolor)", "price": 2900, "active": true },
+    { "id": "p032a",  "name": "ﾚｯｽﾝﾊﾞｯｸ（bicolor)", "price": 2900, "active": true },
     
-    { "id": "p032b",  "name": "シューズバック（bicolor)", "price": 2400, "active": true },
+    { "id": "p032b",  "name": "ｼｭｰｽﾞﾊﾞｯｸ（bicolor)", "price": 2400, "active": true },
     
     { "id": "p032c",  "name": "お着替え袋（bicolor）", "price": 2100, "active": true },
     
