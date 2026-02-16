@@ -1,6 +1,6 @@
 {
   "urgentOptions": [
-    { "id": "none", "label": "指定なし", "price": 500, "active": true },
+    { "id": "none", "label": "指定なし", "price": 300, "active": true },
     { "id": "within_3_days", "label": "3日以内", "price": 1000, "active": true },
     { "id": "within_5_days", "label": "5日以内", "price": 700, "active": true }
   ]
