@@ -3,7 +3,7 @@
     {
       "id": "hiroshima_gate_park",
       "label": "広島ゲートパーク",
-      "active": true
+      "active": false
     },
     {
       "id": "cafe1400",
@@ -14,6 +14,11 @@
       "id": "sangyo_kaikan",
       "label": "産業会館",
       "active": false
+    },
+        {
+      "id": "ishiuch_penon",
+      "label": "石内ぺノン",
+      "active": true
     }
   ]
 }
