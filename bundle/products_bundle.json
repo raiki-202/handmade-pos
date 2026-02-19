@@ -49,6 +49,8 @@
     { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
     { "id": "p028a", "name": "フライトキャップ",       "price": 2000, "active": true },
+    { "id": "p028g", "name": "キッズ帽子",       "price": 1800, "active": true },
+    { "id": "p028h", "name": "ベビー帽子",       "price": 1600, "active": true },
     { "id": "p028b", "name": "バラクラバ",       "price": 1800, "active": true },
     { "id": "p028c", "name": "ビーニー",       "price": 1600, "active": true },
     { "id": "p028d", "name": "タイツ",       "price": 1000, "active": true },
