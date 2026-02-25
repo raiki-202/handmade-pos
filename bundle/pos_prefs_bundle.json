@@ -1,6 +1,6 @@
 {
   "defaults": {
-    "channelId": "marche",
+    "channelId": "instagram",
     "paymentByChannel": {
       "marche": "cash",
       "instagram": "paypay",
