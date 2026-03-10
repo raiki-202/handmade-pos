@@ -20,7 +20,7 @@
     { "id": "p010", "name": "フレアパンツ", "price": 2500, "active": true },
     { "id": "p010a", "name": "ハーフパンツ", "price": 2800, "active": true },
     { "id": "p011", "name": "スウェットパンツ", "price": 3200, "active": true },
-    { "id": "p012", "name": "サス付きタイツ", "price": 1800, "active": true },
+    { "id": "p012", "name": "サス付きタイツ", "price": 2000, "active": true },
     { "id": "p012a", "name": "ファーベスト", "price": 4500, "active": true },
     { "id": "p013",  "name": "ビスチェ",     "price": 1800, "active": false },
     { "id": "p013a", "name": "キャミソール", "price": 1800, "active": false },
