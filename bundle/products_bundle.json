@@ -24,7 +24,7 @@
     { "id": "p012a", "name": "ファーベスト", "price": 4500, "active": true },
     { "id": "p013",  "name": "ビスチェ",     "price": 1800, "active": true },
     { "id": "p013a", "name": "キャミソール", "price": 1800, "active": true },
-    { "id": "p014", "name": "ベスト（無地）", "price": 2500, "active": true },
+    { "id": "p014", "name": "ベスト（無地）", "price": 2500, "active": false },
     { "id": "p015", "name": "ベスト（柄）", "price": 3000, "active": false },
     
     { "id": "p015a", "name": "ベスト(特注)", "price": 2800, "active": false },
@@ -32,12 +32,12 @@
     
     { "id": "p016", "name": "ボアベスト", "price": 3500, "active": false },
     { "id": "p017", "name": "ロンT", "price": 2000, "active": false },
-    { "id": "p018", "name": "メロウTシャツ", "price": 1500, "active": true },
+    { "id": "p018", "name": "メロウTシャツ", "price": 1500, "active": false },
     { "id": "p019", "name": "スウェット", "price": 2800, "active": true },
     { "id": "p020", "name": "ロンパース", "price": 2800, "active": true },
     { "id": "p021", "name": "セトア", "price": 3800, "active": true },
-    { "id": "p021a", "name": "ボアブルマ",       "price": 2400, "active": true },
-    { "id": "p021b", "name": "ボアボンネット",       "price": 2000, "active": true },
+    { "id": "p021a", "name": "ボアブルマ",       "price": 2400, "active": false },
+    { "id": "p021b", "name": "ボアボンネット",       "price": 2000, "active": false },
     { "id": "p022", "name": "シューズクリップ", "price": 1200, "active": true },
     { "id": "p023", "name": "スマホストラップ", "price": 1200, "active": true },
     { "id": "p024", "name": "マグホルダー", "price": 1200, "active": true },
@@ -50,11 +50,11 @@
     { "id": "p027a", "name": "インド刺繡ヘアゴム", "price": 500, "active": true },
     { "id": "p027b", "name": "変更料","price": 100, "active": true },
     { "id": "p028", "name": "巾着", "price": 500, "active": true },
-    { "id": "p028a", "name": "フライトキャップ",       "price": 2000, "active": true },
+    { "id": "p028a", "name": "フライトキャップ",       "price": 2000, "active": false },
     { "id": "p028i", "name": "バケットハット", "price": 2000, "active": true },
     { "id": "p028g", "name": "キッズ帽子",       "price": 1800, "active": true },
     { "id": "p028h", "name": "ベビー帽子",       "price": 1600, "active": true },
-    { "id": "p028b", "name": "バラクラバ",       "price": 1800, "active": true },
+    { "id": "p028b", "name": "バラクラバ",       "price": 1800, "active": false },
     { "id": "p028c", "name": "ビーニー",       "price": 1600, "active": true },
     { "id": "p028d", "name": "タイツ",       "price": 1000, "active": true },
     { "id": "p028e", "name": "靴下",       "price": 400, "active": true },
@@ -74,12 +74,12 @@
     
     { "id": "p032d",  "name": "3点セット（bicolor）", "price": 6700, "active": true },
     
-    { "id": "p033", "name": "送料",   "price": 250, "active": true },
+    { "id": "p033", "name": "送料",   "price": 250, "active": false },
     
     { "id": "p033aa", "name": "送料",   "price": 700, "active": false },
     { "id": "p033ab", "name": "送料",   "price": 800, "active": false },
     
-    { "id": "p033a", "name": "送料",   "price": 900, "active": true },
+    { "id": "p033a", "name": "送料",   "price": 900, "active": false },
     
     { "id": "p033b", "name": "送料",   "price": 1100, "active": false },
     { "id": "p034",  "name": "手数料", "price": 900, "active": false },
