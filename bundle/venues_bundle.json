@@ -8,7 +8,7 @@
     {
       "id": "cafe1400",
       "label": "cafe1400",
-      "active": true
+      "active": false
     },
     {
       "id": "sangyo_kaikan",
@@ -18,7 +18,7 @@
         {
       "id": "ishiuch_penon",
       "label": "石内ぺノン",
-      "active": false
+      "active": true
     }
   ]
 }
