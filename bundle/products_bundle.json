@@ -62,7 +62,7 @@
     { "id": "p028d", "name": "タイツ",       "price": 1000, "active": true },
     { "id": "p028e", "name": "靴下",       "price": 400, "active": true },
     { "id": "p028f", "name": "靴下",       "price": 1000, "active": true },
-    { "id": "p028g", "name": "おくるみ", "price": 2500, "active": true },
+    { "id": "p028f2", "name": "おくるみ", "price": 2500, "active": true },
     { "id": "p029", "name": "ワークショップ（￥800）", "price": 800, "active": true },
     { "id": "p030", "name": "ワークショップ（￥500）", "price": 500, "active": true },
     { "id": "p031", "name": "パーティーハット", "price": 1200, "active": true },
